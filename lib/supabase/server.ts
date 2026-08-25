@@ -3,12 +3,30 @@ import { createServerClient } from "@supabase/ssr";
 
 import type { Database } from "@/types/database";
 
+/**
+ * 환경변수를 읽고, 없으면 **무엇이 없는지 말하고** 멈춘다.
+ * `!` 로 넘기면 supabase-js 안쪽에서 "Invalid URL" 같은 말로 터져서
+ * 배포 로그만 보고는 원인을 못 찾는다.
+ */
+function env() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) {
+    throw new Error(
+      "NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY 가 없습니다. " +
+        "Vercel 프로젝트 환경변수를 확인하세요.",
+    );
+  }
+  return { url, key };
+}
+
 /** 서버 컴포넌트·라우트 핸들러용. 요청마다 새로 만든다. */
 export async function createClient() {
+  const { url, key } = env();
   const store = await cookies();
   return createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    url,
+    key,
     {
       cookies: {
         getAll: () => store.getAll(),
@@ -31,11 +49,11 @@ export async function createClient() {
  * 서버에서만 도는 코드에서만 쓰고, 클라이언트 번들에 새어 나가면 안 된다.
  */
 export function createAdminClient() {
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!key) throw new Error("SUPABASE_SERVICE_ROLE_KEY 가 없습니다");
+  const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!service) throw new Error("SUPABASE_SERVICE_ROLE_KEY 가 없습니다");
   return createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    key,
+    env().url,
+    service,
     { cookies: { getAll: () => [], setAll: () => {} } },
   );
 }
