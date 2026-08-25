@@ -33,6 +33,8 @@ pnpm dlx supabase db push
 
     Site URL          https://partymoa.com
     Redirect URLs     https://partymoa.com/auth/callback
+                      https://partymoa.com/**
+                      (미리보기 배포를 쓸 거면 https://*.vercel.app/** 도)
 
 ## 2. 운영자 계정
 
@@ -48,11 +50,30 @@ select id, '운영자' from auth.users where email = 'you@example.com';
 
 저장소를 연결하고 환경변수 세 개를 넣는다.
 
-    NEXT_PUBLIC_SUPABASE_URL
-    NEXT_PUBLIC_SUPABASE_ANON_KEY
-    NEXT_PUBLIC_SITE_URL          (도메인을 붙였으면)
+    NEXT_PUBLIC_SUPABASE_URL       https://rmdutafzihmizwdmixzv.supabase.co
+    NEXT_PUBLIC_SUPABASE_ANON_KEY  sb_publishable_...
+    NEXT_PUBLIC_SITE_URL           https://partymoa.com
 
 빌드 설정은 손댈 게 없다. Next 를 자동으로 잡는다.
+
+## 3-1. 도메인 (partymoa.com)
+
+가비아에서 산 도메인이라 네임서버가 가비아를 보고 있다.
+**가비아 DNS 관리에서 레코드 두 개**를 넣는다. 네임서버 자체를 Vercel 로
+넘길 필요는 없다.
+
+    타입    호스트   값
+    A       @        76.76.21.21
+    CNAME   www      cname.vercel-dns.com
+
+그 다음 Vercel > Settings > Domains 에 `partymoa.com` 과 `www.partymoa.com`
+을 추가한다. 하나를 다른 하나로 리다이렉트하도록 두는 게 좋다 —
+**둘 다 열어 두면 로그인 세션 쿠키가 갈린다.**
+
+값은 Vercel 이 도메인을 추가할 때 화면에 다시 알려 준다. 위 IP 가 다르면
+화면에 뜬 값을 따른다.
+
+전파는 보통 몇 분에서 한 시간이다. `nslookup partymoa.com` 으로 확인한다.
 
 ## 4. 올리기 전 확인
 

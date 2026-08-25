@@ -14,6 +14,10 @@ const inter = Inter({
  * 링크 미리보기는 **절대 주소**여야 한다. metadataBase 가 없으면 OG 이미지가
  * "/opengraph-image" 로 나가고 카톡·인스타가 못 읽는다.
  * 배포 주소는 Vercel 이 넣어 주는 값을 쓰고, 없으면 로컬로 떨어진다.
+ *
+ * **dev 에서는 이 값이 안 보인다.** next dev 는 og:image 주소를 요청 origin
+ * (localhost)으로 덮어쓴다. 확인하려면 프로덕션 빌드로 봐야 한다 —
+ * 여기서 시간 버리지 말 것.
  */
 const SITE =
   process.env.NEXT_PUBLIC_SITE_URL ??
