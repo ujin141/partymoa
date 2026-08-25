@@ -1,9 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320"><rect width="320" height="320" fill="#FFFFFF"/><circle cx="223.43" cy="199.64" r="18.04" fill="#16181D"/>
-<circle cx="180.26" cy="232.00" r="18.04" fill="#16181D"/>
-<circle cx="126.54" cy="226.90" r="18.04" fill="#16181D"/>
-<circle cx="90.24" cy="186.98" r="18.04" fill="#16181D"/>
-<circle cx="90.24" cy="133.02" r="18.04" fill="#16181D"/>
-<circle cx="126.54" cy="93.10" r="18.04" fill="#16181D"/>
-<circle cx="180.26" cy="88.00" r="18.04" fill="#16181D"/>
-<circle cx="223.43" cy="120.36" r="18.04" fill="#16181D"/>
-<circle cx="288.66" cy="160.00" r="22.37" fill="#5B2BE8"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <g transform="translate(0.03 6.00) scale(0.88)">
+    <circle cx="63.2" cy="63.25" r="8.2" fill="#16181D"/>
+    <circle cx="51.32" cy="72.66" r="8.2" fill="#16181D"/>
+    <circle cx="36.53" cy="71.19" r="8.2" fill="#16181D"/>
+    <circle cx="26.6" cy="59.63" r="8.2" fill="#16181D"/>
+    <circle cx="26.6" cy="40.37" r="8.2" fill="#16181D"/>
+    <circle cx="36.53" cy="28.81" r="8.2" fill="#16181D"/>
+    <circle cx="51.32" cy="27.34" r="8.2" fill="#16181D"/>
+    <circle cx="63.2" cy="36.75" r="8.2" fill="#16181D"/>
+    <circle cx="85.0" cy="50.0" r="10.17" fill="#5B2BE8"/>
+  </g>
+</svg>
