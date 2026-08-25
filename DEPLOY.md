@@ -4,15 +4,23 @@ Vercel + Supabase. 아래 순서대로 하면 된다.
 
 ## 1. Supabase
 
-새 프로젝트를 쓰는 경우, `supabase/migrations/` 를 **번호 순서대로** 올린다.
+새 프로젝트를 쓰는 경우, 대시보드 **SQL Editor** 에 두 파일을 순서대로
+붙여넣고 Run 한다.
+
+    1. supabase/ALL.sql        스키마 · RLS · 예매 함수 · 크론 · 운영자
+    2. supabase/INIT_DATA.sql  첫 행사 데이터 (⬛ 표시한 자리를 채운 뒤)
+
+INIT_DATA 를 돌리기 전에 크루 대표가 `/crew/login` 에서 한 번 로그인해
+계정을 만들어 두어야 한다. 그 계정을 크루 대표로 묶는 스크립트다.
+
+CLI 를 쓴다면 아래도 같다.
 
 ```bash
 pnpm dlx supabase link --project-ref <ref>
 pnpm dlx supabase db push
 ```
 
-대시보드에서 직접 붙여 넣어도 된다. 순서가 중요하다 — RLS 가 앞 파일의
-테이블을 참조한다.
+어느 쪽이든 순서가 중요하다 — RLS 가 앞 파일의 테이블을 참조한다.
 
 그 다음 대시보드에서 두 개를 켠다.
 
@@ -31,9 +39,8 @@ pnpm dlx supabase db push
 마지막으로 **URL Configuration** 에 배포 주소를 넣는다. 안 넣으면 로그인
 후 localhost 로 돌아온다.
 
-    Site URL          https://partymoa.com
-    Redirect URLs     https://partymoa.com/auth/callback
-                      https://partymoa.com/**
+    Site URL          https://www.partymoa.com
+    Redirect URLs     https://www.partymoa.com/**
                       (미리보기 배포를 쓸 거면 https://*.vercel.app/** 도)
 
 ## 2. 운영자 계정
@@ -50,9 +57,9 @@ select id, '운영자' from auth.users where email = 'you@example.com';
 
 저장소를 연결하고 환경변수 세 개를 넣는다.
 
-    NEXT_PUBLIC_SUPABASE_URL       https://rmdutafzihmizwdmixzv.supabase.co
+    NEXT_PUBLIC_SUPABASE_URL       https://efvcciopdgrqbjlhkfwq.supabase.co
     NEXT_PUBLIC_SUPABASE_ANON_KEY  sb_publishable_...
-    NEXT_PUBLIC_SITE_URL           https://partymoa.com
+    NEXT_PUBLIC_SITE_URL           https://www.partymoa.com
 
 빌드 설정은 손댈 게 없다. Next 를 자동으로 잡는다.
 
