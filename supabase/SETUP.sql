@@ -11,15 +11,9 @@
 --  이 파일을 다시 돌리면 그때 행사 데이터가 채워진다.
 --
 --  ┌───────────────────────────────────────────────────────────────┐
---  │  돌리기 전에                                                  │
---  │                                                               │
---  │  크루 대표 계정을 먼저 만든다. /crew/login 에서는 못 만든다 —  │
---  │  회원가입이 없고 있는 계정으로 들어가는 화면이다.              │
---  │                                                               │
---  │    Authentication → Users → Add user → Create new user        │
---  │      Email / Password 를 넣고                                 │
---  │      Auto Confirm User  ✅  ← 안 켜면 메일 인증 전까지 로그인  │
---  │                                안 된다                        │
+--  │  크루 계정도 이 파일이 만든다. 대시보드에서 따로 만들 것 없다. │
+--  │  아래 email · pw 를 정하고 돌리면 그 계정으로 /crew/login 에   │
+--  │  바로 들어갈 수 있다.                                         │
 --  └───────────────────────────────────────────────────────────────┘
 -- ═══════════════════════════════════════════════════════════════════
 
@@ -31,7 +25,8 @@
 create temp table if not exists _cfg (k text primary key, v text);
 truncate _cfg;
 insert into _cfg (k, v) values
-  ('email', 'ujin141@naver.com'),                      -- ⬛ 위에서 만든 계정
+  ('email', 'ujin141@naver.com'),                      -- ⬛ 크루 로그인 이메일
+  ('pw',    'partymoa2026'),                           -- ⬛ 크루 로그인 비밀번호
   ('bank',  '은행 000-0000-0000-00 (예금주)'),          -- ⬛ 입금 계좌
   ('cover', 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=1200&q=70'),  -- ⬛ 커버 사진
   ('crew',  'BLACKOUT');                               -- ⬛ 크루 이름
@@ -947,6 +942,7 @@ grant execute on function find_user_id to authenticated;
 do $init$
 declare
   c_email text := (select v from _cfg where k = 'email');
+  c_pw    text := (select v from _cfg where k = 'pw');
   c_bank  text := (select v from _cfg where k = 'bank');
   c_cover text := (select v from _cfg where k = 'cover');
   c_crew  text := (select v from _cfg where k = 'crew');
@@ -957,12 +953,36 @@ begin
   select id into v_owner from auth.users
   where lower(email) = lower(trim(c_email)) limit 1;
 
-  -- **여기서 예외를 던지지 않는다.** SQL Editor 는 전체를 한 트랜잭션으로
-  -- 돌려서, 마지막에 에러가 나면 앞의 스키마까지 통째로 되돌아간다.
-  -- 계정이 없으면 데이터만 건너뛰고 스키마는 남긴다.
+  -- 없으면 만든다.
+  --
+  -- **토큰 칼럼을 빈 문자열로 채워야 한다.** null 로 두면 GoTrue 가
+  -- 로그인할 때 "Database error querying schema" 로 죽는다. 한 번 당했다.
+  -- email_confirmed_at 을 채우는 게 대시보드의 Auto Confirm 과 같은 뜻이다.
   if v_owner is null then
-    raise warning '계정 "%" 이 없어 첫 행사 데이터를 건너뛰었습니다. Authentication > Users > Add user 로 만든 뒤 이 파일을 다시 돌리세요.', c_email;
-    return;
+    v_owner := gen_random_uuid();
+    insert into auth.users (
+      id, instance_id, aud, role, email, encrypted_password,
+      email_confirmed_at, created_at, updated_at,
+      raw_app_meta_data, raw_user_meta_data,
+      confirmation_token, recovery_token,
+      email_change_token_new, email_change_token_current,
+      email_change, phone_change, phone_change_token,
+      reauthentication_token, is_sso_user, is_anonymous
+    ) values (
+      v_owner, '00000000-0000-0000-0000-000000000000',
+      'authenticated', 'authenticated', lower(trim(c_email)),
+      crypt(c_pw, gen_salt('bf')), now(), now(), now(),
+      '{"provider":"email","providers":["email"]}', '{}',
+      '', '', '', '', '', '', '', '', false, false
+    );
+    insert into auth.identities (
+      id, user_id, provider_id, provider, identity_data, created_at, updated_at
+    ) values (
+      gen_random_uuid(), v_owner, v_owner::text, 'email',
+      jsonb_build_object('sub', v_owner::text, 'email', lower(trim(c_email))),
+      now(), now()
+    );
+    raise notice '크루 계정을 만들었습니다: %', c_email;
   end if;
 
   -- ── 크루 ────────────────────────────────────────────────────────
@@ -1041,7 +1061,7 @@ end $init$;
 
 select
   case when (select count(*) from crews) = 0
-    then '스키마만 들어갔습니다 → 계정을 만들고 이 파일을 다시 돌리세요'
+    then '★ 데이터가 안 들어갔습니다 — 위 결과의 경고를 확인하세요'
     else '완료 → Vercel 환경변수를 바꾸고 재배포하세요'
   end as 다음할일,
   (select count(*) from crews)        as 크루,
