@@ -1,15 +1,44 @@
--- ═══════════════════════════════════════════════════════════
--- 파티모아 전체 스키마 — 한 번에 돌리는 판
+-- ═══════════════════════════════════════════════════════════════════
+--  파티모아 — 한 번에 다 하는 판
 --
--- Supabase 대시보드 → SQL Editor 에 통째로 붙여넣고 Run.
--- 마이그레이션 8개를 순서대로 이어 붙인 것이다. 순서가 중요하다 —
--- RLS 가 앞 파일의 테이블을 참조한다.
--- ═══════════════════════════════════════════════════════════
+--  Supabase 대시보드 → SQL Editor 에 통째로 붙여넣고 Run.
+--  스키마 · RLS · 예매 함수 · 크론 · 실시간 · 운영자 · 첫 행사까지 다 든다.
+--
+--  **여러 번 돌려도 안 깨진다.** 이미 만들어진 건 건너뛴다.
+--  중간에 끊겼으면 그냥 다시 돌리면 된다.
+--
+--  ┌───────────────────────────────────────────────────────────────┐
+--  │  돌리기 전에                                                  │
+--  │                                                               │
+--  │  크루 대표 계정을 먼저 만든다. /crew/login 에서는 못 만든다 —  │
+--  │  회원가입이 없고 있는 계정으로 들어가는 화면이다.              │
+--  │                                                               │
+--  │    Authentication → Users → Add user → Create new user        │
+--  │      Email / Password 를 넣고                                 │
+--  │      Auto Confirm User  ✅  ← 안 켜면 메일 인증 전까지 로그인  │
+--  │                                안 된다                        │
+--  └───────────────────────────────────────────────────────────────┘
+-- ═══════════════════════════════════════════════════════════════════
 
 
--- ───────────────────────────────────────────────────────────
--- 20260826000100_init.sql
--- ───────────────────────────────────────────────────────────
+-- ███████████████████████████████████████████████████████████████████
+-- ██  여기 네 줄만 고치세요                                        ██
+-- ███████████████████████████████████████████████████████████████████
+
+create temp table if not exists _cfg (k text primary key, v text);
+truncate _cfg;
+insert into _cfg (k, v) values
+  ('email', 'crew@example.com'),                       -- ⬛ 위에서 만든 계정
+  ('bank',  '은행 000-0000-0000-00 (예금주)'),          -- ⬛ 입금 계좌
+  ('cover', 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=1200&q=70'),  -- ⬛ 커버 사진
+  ('crew',  'BLACKOUT');                               -- ⬛ 크루 이름
+
+-- ███████████████████████████████████████████████████████████████████
+-- ██  아래는 손댈 것 없음                                          ██
+-- ███████████████████████████████████████████████████████████████████
+
+
+-- ─── 20260826000100_init.sql ───────────────────────
 -- 파티모아 초기 스키마. 사양서 5절.
 --
 -- 원칙 두 가지가 이 파일 전체를 지배한다.
@@ -22,7 +51,7 @@ create extension if not exists pgcrypto;
 
 -- ─────────────────────────────────────────── 크루
 
-create table crews (
+create table if not exists crews (
   id uuid primary key default gen_random_uuid(),
   slug text unique not null,
   name text not null,
@@ -33,7 +62,7 @@ create table crews (
   created_at timestamptz default now()
 );
 
-create table crew_members (
+create table if not exists crew_members (
   id uuid primary key default gen_random_uuid(),
   crew_id uuid references crews on delete cascade not null,
   user_id uuid references auth.users,
@@ -53,13 +82,14 @@ begin
   return new;
 end $fn$;
 
+drop trigger if exists crew_members_normalize on crew_members;
 create trigger crew_members_normalize
   before insert or update on crew_members
   for each row execute function normalize_invite_code();
 
 -- ─────────────────────────────────────────── 파티
 
-create table events (
+create table if not exists events (
   id uuid primary key default gen_random_uuid(),
   crew_id uuid references crews on delete cascade not null,
   slug text unique not null,
@@ -85,10 +115,10 @@ create table events (
   created_at timestamptz default now()
 );
 
-create index events_status_starts_idx on events (status, starts_at);
-create index events_crew_idx on events (crew_id);
+create index if not exists events_status_starts_idx on events (status, starts_at);
+create index if not exists events_crew_idx on events (crew_id);
 
-create table ticket_tiers (
+create table if not exists ticket_tiers (
   id uuid primary key default gen_random_uuid(),
   event_id uuid references events on delete cascade not null,
   name text not null,
@@ -98,9 +128,9 @@ create table ticket_tiers (
   sort_order int not null
 );
 
-create index ticket_tiers_event_idx on ticket_tiers (event_id, sort_order);
+create index if not exists ticket_tiers_event_idx on ticket_tiers (event_id, sort_order);
 
-create table lineups (
+create table if not exists lineups (
   id uuid primary key default gen_random_uuid(),
   event_id uuid references events on delete cascade not null,
   artist_name text not null,
@@ -108,15 +138,15 @@ create table lineups (
   sort_order int not null
 );
 
-create index lineups_event_idx on lineups (event_id, sort_order);
+create index if not exists lineups_event_idx on lineups (event_id, sort_order);
 
 -- ─────────────────────────────────────────── 예매
 
 -- 예매번호는 전역 시퀀스 하나에서 뽑는다. 이벤트별로 나누면 같은 번호가
 -- 여러 행사에 생겨 현장에서 헷갈린다
-create sequence booking_code_seq start 1;
+create sequence if not exists booking_code_seq start 1;
 
-create table bookings (
+create table if not exists bookings (
   id uuid primary key default gen_random_uuid(),
   code text unique not null,
   event_id uuid references events on delete cascade not null,
@@ -136,22 +166,22 @@ create table bookings (
   created_at timestamptz default now()
 );
 
-create index bookings_event_status_idx on bookings (event_id, status);
-create index bookings_code_idx on bookings (code);
-create index bookings_phone_idx on bookings (phone);
-create index bookings_expiry_idx on bookings (status, expires_at)
+create index if not exists bookings_event_status_idx on bookings (event_id, status);
+create index if not exists bookings_code_idx on bookings (code);
+create index if not exists bookings_phone_idx on bookings (phone);
+create index if not exists bookings_expiry_idx on bookings (status, expires_at)
   where status = 'pending';
 
 -- ─────────────────────────────────────────── 찜 · 팔로우
 
-create table favorites (
+create table if not exists favorites (
   user_id uuid references auth.users not null,
   event_id uuid references events on delete cascade not null,
   created_at timestamptz default now(),
   primary key (user_id, event_id)
 );
 
-create table crew_follows (
+create table if not exists crew_follows (
   user_id uuid references auth.users not null,
   crew_id uuid references crews on delete cascade not null,
   created_at timestamptz default now(),
@@ -164,6 +194,7 @@ create table crew_follows (
 -- 미입금이라고 자리를 비워 두면 이중 판매가 난다 — 24시간 뒤 자동 취소가
 -- 그 자리를 되돌린다.
 
+drop view if exists event_stats cascade;
 create view event_stats as
 select
   e.id as event_id,
@@ -177,6 +208,7 @@ from events e
 left join bookings b on b.event_id = e.id
 group by e.id;
 
+drop view if exists tier_stats cascade;
 create view tier_stats as
 select
   t.id as tier_id,
@@ -326,10 +358,7 @@ end $fn$;
 
 revoke all on function expire_unpaid_bookings from public;
 
-
--- ───────────────────────────────────────────────────────────
--- 20260826000200_rls.sql
--- ───────────────────────────────────────────────────────────
+-- ─── 20260826000200_rls.sql ────────────────────────
 -- RLS. 사양서 5절 마지막 문단.
 --
 -- 기본은 전부 잠그고 필요한 것만 연다. 특히 bookings 는 **직접 insert 를
@@ -380,22 +409,28 @@ $fn$;
 
 -- ─────────────────────────────────────────── 크루
 
+drop policy if exists crews_read on crews;
 create policy crews_read on crews
   for select using (true);
 
+drop policy if exists crews_insert on crews;
 create policy crews_insert on crews
   for insert with check (owner_id = auth.uid());
 
+drop policy if exists crews_write on crews;
 create policy crews_write on crews
   for update using (owner_id = auth.uid());
 
+drop policy if exists crews_delete on crews;
 create policy crews_delete on crews
   for delete using (owner_id = auth.uid());
 
 -- 멤버 목록은 공개하지 않는다. 초대 코드가 정산 근거라 노출되면 곤란하다
+drop policy if exists crew_members_read on crew_members;
 create policy crew_members_read on crew_members
   for select using (is_crew_staff(crew_id));
 
+drop policy if exists crew_members_write on crew_members;
 create policy crew_members_write on crew_members
   for all using (
     exists (select 1 from crews where id = crew_id and owner_id = auth.uid())
@@ -405,12 +440,15 @@ create policy crew_members_write on crew_members
 
 -- ─────────────────────────────────────────── 파티
 
+drop policy if exists events_read_open on events;
 create policy events_read_open on events
   for select using (status = 'open' or is_crew_staff(crew_id));
 
+drop policy if exists events_write on events;
 create policy events_write on events
   for all using (is_crew_staff(crew_id)) with check (is_crew_staff(crew_id));
 
+drop policy if exists tiers_read on ticket_tiers;
 create policy tiers_read on ticket_tiers
   for select using (
     exists (
@@ -419,10 +457,12 @@ create policy tiers_read on ticket_tiers
     )
   );
 
+drop policy if exists tiers_write on ticket_tiers;
 create policy tiers_write on ticket_tiers
   for all using (is_event_staff(event_id))
   with check (is_event_staff(event_id));
 
+drop policy if exists lineups_read on lineups;
 create policy lineups_read on lineups
   for select using (
     exists (
@@ -431,6 +471,7 @@ create policy lineups_read on lineups
     )
   );
 
+drop policy if exists lineups_write on lineups;
 create policy lineups_write on lineups
   for all using (is_event_staff(event_id))
   with check (is_event_staff(event_id));
@@ -440,20 +481,24 @@ create policy lineups_write on lineups
 -- insert 정책이 **없다.** 일부러 그렇다. create_booking(security definer)
 -- 만이 행을 만든다.
 
+drop policy if exists bookings_read_own on bookings;
 create policy bookings_read_own on bookings
   for select using (
     (user_id is not null and user_id = auth.uid()) or is_event_staff(event_id)
   );
 
+drop policy if exists bookings_update_staff on bookings;
 create policy bookings_update_staff on bookings
   for update using (is_event_staff(event_id))
   with check (is_event_staff(event_id));
 
 -- ─────────────────────────────────────────── 찜 · 팔로우
 
+drop policy if exists favorites_own on favorites;
 create policy favorites_own on favorites
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
+drop policy if exists follows_own on crew_follows;
 create policy follows_own on crew_follows
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
@@ -467,15 +512,12 @@ create policy follows_own on crew_follows
 grant select on event_stats to anon, authenticated;
 grant select on tier_stats to anon, authenticated;
 
-
--- ───────────────────────────────────────────────────────────
--- 20260826000300_expenses.sql
--- ───────────────────────────────────────────────────────────
+-- ─── 20260826000300_expenses.sql ───────────────────
 -- 정산 지출. 사양서 6절의 "대관료 (크루 입력)" 이 들어갈 자리가
 -- 5절 스키마에 없었다. 행 단위로 두면 대관료·홍보비 말고 다른 항목이
 -- 생겨도 스키마를 안 고친다.
 
-create table event_expenses (
+create table if not exists event_expenses (
   id uuid primary key default gen_random_uuid(),
   event_id uuid references events on delete cascade not null,
   label text not null,
@@ -484,18 +526,16 @@ create table event_expenses (
   created_at timestamptz default now()
 );
 
-create index event_expenses_event_idx on event_expenses (event_id, sort_order);
+create index if not exists event_expenses_event_idx on event_expenses (event_id, sort_order);
 
 alter table event_expenses enable row level security;
 
+drop policy if exists expenses_staff on event_expenses;
 create policy expenses_staff on event_expenses
   for all using (is_event_staff(event_id))
   with check (is_event_staff(event_id));
 
-
--- ───────────────────────────────────────────────────────────
--- 20260826000400_cron.sql
--- ───────────────────────────────────────────────────────────
+-- ─── 20260826000400_cron.sql ───────────────────────
 -- 미입금 자동 취소. 사양서 3-3.
 --
 -- Edge Function 을 쓰지 않고 pg_cron 안에서 끝낸다. 취소는 DB 안의
@@ -504,16 +544,15 @@ create policy expenses_staff on event_expenses
 
 create extension if not exists pg_cron;
 
-select cron.schedule(
-  'expire-unpaid-bookings',
-  '*/10 * * * *',                       -- 10분마다. 24시간 마감에 충분하다
-  $cron$ select public.expire_unpaid_bookings(); $cron$
-);
+do $cr$
+begin
+  perform cron.unschedule('expire-unpaid-bookings')
+  where exists (select 1 from cron.job where jobname = 'expire-unpaid-bookings');
+  perform cron.schedule('expire-unpaid-bookings', '*/10 * * * *',
+                        $cron$ select public.expire_unpaid_bookings(); $cron$);
+end $cr$;
 
-
--- ───────────────────────────────────────────────────────────
--- 20260826000500_find_booking.sql
--- ───────────────────────────────────────────────────────────
+-- ─── 20260826000500_find_booking.sql ───────────────
 -- 예매번호 + 연락처로 내 티켓 찾기.
 --
 -- 로그인 없이 예매를 받으므로(첫 목표가 "링크로 들어와 예매"다) 기기를
@@ -576,10 +615,7 @@ end $fn$;
 revoke all on function claim_booking from public;
 grant execute on function claim_booking to anon, authenticated;
 
-
--- ───────────────────────────────────────────────────────────
--- 20260826000600_community.sql
--- ───────────────────────────────────────────────────────────
+-- ─── 20260826000600_community.sql ──────────────────
 -- 커뮤니티 자유 게시판.
 --
 -- 글쓰기는 RPC 로만 들어온다. insert 정책을 열면 닉네임·본문 길이 검사와
@@ -588,7 +624,7 @@ grant execute on function claim_booking to anon, authenticated;
 -- user_id 가 null 일 수 있다. 익명 로그인을 안 켠 프로젝트에서도 글은
 -- 써지게 하되, 그런 글은 본인이 지울 수 없다(누가 본인인지 알 수 없으므로).
 
-create table posts (
+create table if not exists posts (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users,
   nickname text not null,
@@ -598,10 +634,10 @@ create table posts (
   deleted_at timestamptz
 );
 
-create index posts_live_idx on posts (created_at desc) where deleted_at is null;
-create index posts_user_idx on posts (user_id, created_at desc);
+create index if not exists posts_live_idx on posts (created_at desc) where deleted_at is null;
+create index if not exists posts_user_idx on posts (user_id, created_at desc);
 
-create table post_comments (
+create table if not exists post_comments (
   id uuid primary key default gen_random_uuid(),
   post_id uuid references posts on delete cascade not null,
   user_id uuid references auth.users,
@@ -611,9 +647,10 @@ create table post_comments (
   deleted_at timestamptz
 );
 
-create index post_comments_post_idx on post_comments (post_id, created_at);
+create index if not exists post_comments_post_idx on post_comments (post_id, created_at);
 
 -- 목록에서 댓글 수를 세려고 매번 조인하지 않는다
+drop view if exists post_list cascade;
 create view post_list as
 select
   p.id, p.user_id, p.nickname, p.body, p.event_id, p.created_at,
@@ -631,16 +668,20 @@ where p.deleted_at is null;
 alter table posts enable row level security;
 alter table post_comments enable row level security;
 
+drop policy if exists posts_read on posts;
 create policy posts_read on posts
   for select using (deleted_at is null);
 
+drop policy if exists posts_own_write on posts;
 create policy posts_own_write on posts
   for update using (user_id is not null and user_id = auth.uid())
   with check (user_id is not null and user_id = auth.uid());
 
+drop policy if exists comments_read on post_comments;
 create policy comments_read on post_comments
   for select using (deleted_at is null);
 
+drop policy if exists comments_own_write on post_comments;
 create policy comments_own_write on post_comments
   for update using (user_id is not null and user_id = auth.uid())
   with check (user_id is not null and user_id = auth.uid());
@@ -758,22 +799,24 @@ revoke all on function create_post, create_comment, delete_post, delete_comment 
 grant execute on function create_post, create_comment, delete_post, delete_comment
   to anon, authenticated;
 
-
--- ───────────────────────────────────────────────────────────
--- 20260826000700_realtime.sql
--- ───────────────────────────────────────────────────────────
+-- ─── 20260826000700_realtime.sql ───────────────────
 -- 입구에 스태프가 둘 이상 서면 서로가 처리한 걸 봐야 한다.
 -- 폴링을 돌리면 행사장 와이파이에서 배터리와 대역폭을 먹는다.
 --
 -- **RLS 는 그대로 적용된다.** 크루 스태프만 그 행사의 bookings 를 읽을 수
 -- 있으므로 손님 예매가 남에게 흘러가지 않는다.
 
-alter publication supabase_realtime add table bookings;
+do $rt$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'bookings'
+  ) then
+    alter publication supabase_realtime add table bookings;
+  end if;
+end $rt$;
 
-
--- ───────────────────────────────────────────────────────────
--- 20260826000800_admin.sql
--- ───────────────────────────────────────────────────────────
+-- ─── 20260826000800_admin.sql ──────────────────────
 -- 플랫폼 운영자.
 --
 -- 크루 스태프(is_crew_staff)와 다른 층이다. 크루는 자기 행사만 보고,
@@ -782,7 +825,7 @@ alter publication supabase_realtime add table bookings;
 -- 역할을 auth 메타데이터에 넣지 않고 테이블로 둔다. 메타데이터는 클라이언트
 -- 토큰에 실려 나가고, 실수로 수정 가능한 자리에 권한을 두면 안 된다.
 
-create table app_admins (
+create table if not exists app_admins (
   user_id uuid primary key references auth.users on delete cascade,
   note text,
   created_at timestamptz default now()
@@ -801,6 +844,7 @@ as $fn$
 $fn$;
 
 -- 본인이 운영자인지만 확인할 수 있다. 명단은 못 본다
+drop policy if exists admins_self on app_admins;
 create policy admins_self on app_admins
   for select using (user_id = auth.uid());
 
@@ -809,17 +853,25 @@ create policy admins_self on app_admins
 -- 기존 정책을 고치지 않고 정책을 더한다. 여러 정책은 OR 로 묶이므로
 -- 크루 정책은 그대로 두고 운영자 통로만 하나 더 낸다.
 
+drop policy if exists events_admin_read on events;
 create policy events_admin_read on events for select using (is_app_admin());
+drop policy if exists bookings_admin_read on bookings;
 create policy bookings_admin_read on bookings for select using (is_app_admin());
+drop policy if exists tiers_admin_read on ticket_tiers;
 create policy tiers_admin_read on ticket_tiers for select using (is_app_admin());
+drop policy if exists crew_members_admin_read on crew_members;
 create policy crew_members_admin_read on crew_members
   for select using (is_app_admin());
+drop policy if exists expenses_admin_read on event_expenses;
 create policy expenses_admin_read on event_expenses
   for select using (is_app_admin());
+drop policy if exists posts_admin_all on posts;
 create policy posts_admin_all on posts
   for all using (is_app_admin()) with check (is_app_admin());
+drop policy if exists comments_admin_all on post_comments;
 create policy comments_admin_all on post_comments
   for all using (is_app_admin()) with check (is_app_admin());
+drop policy if exists crews_admin_write on crews;
 create policy crews_admin_write on crews
   for all using (is_app_admin()) with check (is_app_admin());
 
@@ -833,6 +885,7 @@ create policy crews_admin_write on crews
 -- 매출을 통째로 읽는다. event_stats 와 다르다 — 그쪽은 "몇 자리 남았다" 라
 -- 공개해도 되지만 여기는 돈이다.
 
+drop view if exists platform_stats cascade;
 create view platform_stats
 with (security_invoker = on)
 as
@@ -884,3 +937,109 @@ end $fn$;
 revoke all on function find_user_id from public, anon;
 grant execute on function find_user_id to authenticated;
 
+-- ═══════════════════════════════════════════════════════════════════
+--  첫 행사 데이터
+-- ═══════════════════════════════════════════════════════════════════
+
+do $init$
+declare
+  c_email text := (select v from _cfg where k = 'email');
+  c_bank  text := (select v from _cfg where k = 'bank');
+  c_cover text := (select v from _cfg where k = 'cover');
+  c_crew  text := (select v from _cfg where k = 'crew');
+  v_owner uuid;
+  v_crew  uuid;
+  v_event uuid;
+begin
+  select id into v_owner from auth.users
+  where lower(email) = lower(trim(c_email)) limit 1;
+
+  if v_owner is null then
+    raise exception '"%" 로 가입한 계정이 없습니다. Authentication > Users > Add user 에서 먼저 만드세요 (Auto Confirm User 켜기).', c_email;
+  end if;
+
+  -- ── 크루 ────────────────────────────────────────────────────────
+  select id into v_crew from crews where slug = 'blackout';
+  if v_crew is null then
+    insert into crews (slug, name, bio, instagram, owner_id)
+    values ('blackout', c_crew, '서울 기반 DJ 크루', 'blackout_crew', v_owner)
+    returning id into v_crew;
+  else
+    update crews set name = c_crew, owner_id = v_owner where id = v_crew;
+  end if;
+
+  -- 멤버별 초대 코드. 크루 내부 정산 근거가 된다
+  insert into crew_members (crew_id, user_id, display_name, invite_code, role) values
+    (v_crew, v_owner, 'AROS', 'AROS', 'owner'),
+    (v_crew, null,    'LYNN', 'LYNN', 'member'),
+    (v_crew, null,    'TS',   'TS',   'member'),
+    (v_crew, null,    'V',    'V',    'member')
+  on conflict (crew_id, invite_code) do nothing;
+
+  -- ── 행사 ────────────────────────────────────────────────────────
+  select id into v_event from events where slug = 'after-sunset-20260829';
+  if v_event is null then
+    insert into events (
+      crew_id, slug, title, subtitle, description, cover_url,
+      venue_name, area, address, starts_at, ends_at, capacity,
+      gender_balanced, male_price_multiplier, solo_friendly,
+      genres, categories, list_price, bank_account, status
+    ) values (
+      v_crew,
+      'after-sunset-20260829',
+      'AFTER SUNSET 야외 풀파티',
+      '해질녘부터 자정까지, 어나더 라운지 야외 풀장',
+      E'해가 지는 시간에 시작합니다.
+
+낮에는 물, 밤에는 조명. 같은 공간이 두 번 바뀝니다.
+혼자 와도 됩니다 — 자리 잡아 드려요.',
+      c_cover,
+      '어나더 루프탑 라운지', '양재', '서울 서초구 양재동',
+      '2026-08-29 17:00+09', '2026-08-30 00:00+09',
+      80,            -- 정원
+      true,          -- 성비 조절 (남녀 각 40)
+      1.25,          -- 남성가 = 여성가 × 1.25
+      true,          -- 1인 참여 환영
+      '{"하우스","테크노"}', '{"풀파티","루프탑"}',
+      59000,         -- 정가 (할인율 계산 기준)
+      c_bank,
+      'draft'        -- 확인 끝나면 크루 화면에서 '예매 중' 으로
+    ) returning id into v_event;
+
+    insert into ticket_tiers (event_id, name, note, price, capacity, sort_order) values
+      (v_event, '1차 얼리버드', '선착순 40명', 39000, 40, 0),
+      (v_event, '2차 사전예매', null,          49000, 30, 1),
+      (v_event, '3차 사전예매', '마지막 차수',  59000, 10, 2);
+
+    insert into lineups (event_id, artist_name, starts_at, sort_order) values
+      (v_event, 'AROS', '17:00', 0),
+      (v_event, 'LYNN', '18:30', 1),
+      (v_event, 'TS',   '20:00', 2),
+      (v_event, 'V',    '21:30', 3);
+  else
+    -- 다시 돌린 경우. 차수·라인업은 손대지 않는다 — 이미 팔렸을 수 있다
+    update events set bank_account = c_bank, cover_url = c_cover
+    where id = v_event;
+  end if;
+
+  -- ── 운영자 ──────────────────────────────────────────────────────
+  insert into app_admins (user_id, note) values (v_owner, '초기 운영자')
+  on conflict (user_id) do nothing;
+end $init$;
+
+
+-- ═══════════════════════════════════════════════════════════════════
+--  확인
+-- ═══════════════════════════════════════════════════════════════════
+
+select
+  (select count(*) from crews)        as 크루,
+  (select count(*) from crew_members) as 멤버,
+  (select count(*) from events)       as 행사,
+  (select count(*) from ticket_tiers) as 차수,
+  (select count(*) from lineups)      as 라인업,
+  (select count(*) from app_admins)   as 운영자,
+  (select count(*) from bookings)     as 예매;
+
+select title, status, capacity, bank_account, left(cover_url, 40) as cover
+from events;
