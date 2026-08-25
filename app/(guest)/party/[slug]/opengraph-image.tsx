@@ -1,9 +1,18 @@
 import { ImageResponse } from "next/og";
 
 import { longDate, timeRange } from "@/lib/format";
-import { BRAND, DEEP, Mark, OG_SIZE, OG_TYPE, pretendard } from "@/lib/og";
+import {
+  ACCENT,
+  BRAND,
+  DEEP,
+  HOT,
+  OG_SIZE,
+  OG_TYPE,
+  Wordmark,
+  pretendard,
+} from "@/lib/og";
 import { getParty } from "@/lib/queries";
-import { priceFor, soldRate } from "@/lib/rules";
+import { isClosingSoon, priceFor, soldRate } from "@/lib/rules";
 
 export const size = OG_SIZE;
 export const contentType = OG_TYPE;
@@ -13,9 +22,15 @@ export const alt = "파티 상세";
  * 파티별 링크 미리보기.
  *
  * **이게 제일 많이 보이는 화면일 것이다.** 손님은 앱에 들어오기 전에
- * 단톡방에서 이 카드를 먼저 본다. 그래서 커버 사진만 던지지 않고
- * 언제·어디서·얼마나 남았는지를 사진 위에 얹는다 — 사진만 있으면
- * 어느 파티인지도 모른다.
+ * 단톡방에서 이 카드를 먼저 본다.
+ *
+ * 처음엔 사진을 꽉 채우고 검은 겹을 덮었는데, 그러면 어느 예매 사이트나
+ * 똑같이 생긴다. 지금은 **바이올렛이 바닥이고 사진이 오른쪽에 끼어드는**
+ * 구조다 — 색만 봐도 파티모아인 걸 알아야 한다.
+ *
+ * 큰 열린 원을 사진 경계에 걸쳐 봤는데 반쯤 묻혀서 도형으로 안 읽혔다.
+ * 뺐다 — 바이올렛과 워드마크만으로 이미 우리 것으로 보인다.
+ * 노랑은 잔여 한 곳에만 쓴다. 여러 군데 쓰면 아무것도 안 도드라진다.
  */
 export default async function PartyOG({
   params,
@@ -36,13 +51,11 @@ export default async function PartyOG({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            background: BRAND,
-            color: "#fff",
-            fontSize: 56,
+            background: `linear-gradient(135deg, ${BRAND} 0%, ${DEEP} 100%)`,
             fontFamily: "Pretendard",
           }}
         >
-          파티모아
+          <Wordmark size={54} />
         </div>
       ),
       { ...size, fonts },
@@ -52,9 +65,11 @@ export default async function PartyOG({
   const { event, stats, tier } = d;
   const left = Math.max(0, stats.capacity - stats.booked);
   const pct = soldRate(stats.booked, stats.capacity);
+  const soon = isClosingSoon(stats.booked, stats.capacity);
   const price = tier
     ? priceFor(tier.price, "F", Number(event.male_price_multiplier))
     : null;
+  const long = event.title.length > 16;
 
   return new ImageResponse(
     (
@@ -69,121 +84,138 @@ export default async function PartyOG({
           color: "#fff",
         }}
       >
+        {/* ── 오른쪽 사진 판. 왼쪽 모서리를 깎아 끼워 넣는다 ── */}
         {event.cover_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={event.cover_url}
-            alt=""
-            width={1200}
-            height={630}
+          <div
             style={{
               position: "absolute",
-              inset: 0,
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
+              top: 0,
+              right: 0,
+              bottom: 0,
+              width: 470,
+              display: "flex",
+              overflow: "hidden",
+              borderTopLeftRadius: 48,
+              borderBottomLeftRadius: 48,
             }}
-          />
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={event.cover_url}
+              alt=""
+              width={470}
+              height={630}
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
+            {/* 사진과 바이올렛이 맞닿는 선을 부드럽게 */}
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                background: `linear-gradient(90deg, ${DEEP} 0%, rgba(68,22,200,0.35) 26%, rgba(68,22,200,0.06) 60%)`,
+              }}
+            />
+          </div>
         ) : null}
 
-        {/* 사진 위에 글자를 얹으려면 어둡게 깔아야 읽힌다.
-            **두 겹이다.** 가로 한 겹만 깔면 오른쪽 아래 잔여 숫자가
-            밝은 사진에 묻힌다 — 밝은 사진이 들어올지 어두운 사진이
-            들어올지 우리가 정하지 못한다 */}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background:
-              "linear-gradient(90deg, rgba(8,10,14,0.90) 0%, rgba(8,10,14,0.66) 55%, rgba(8,10,14,0.24) 100%)",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background:
-              "linear-gradient(0deg, rgba(8,10,14,0.82) 0%, rgba(8,10,14,0.20) 34%, rgba(8,10,14,0) 60%)",
-          }}
-        />
-
+        {/* ── 글자 ── */}
         <div
           style={{
             position: "relative",
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
-            padding: 64,
-            width: "100%",
+            padding: "54px 56px",
+            width: 726,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <Mark size={40} />
-            <span style={{ fontSize: 24, opacity: 0.85 }}>{d.crew.name}</span>
-            {event.solo_friendly ? (
-              <span
-                style={{
-                  marginLeft: 6,
-                  fontSize: 20,
-                  padding: "6px 14px",
-                  borderRadius: 999,
-                  background: BRAND,
-                }}
-              >
-                1인 참여 환영
-              </span>
-            ) : null}
-          </div>
+          <Wordmark size={28} />
 
           <div style={{ display: "flex", flexDirection: "column" }}>
             <div
               style={{
-                fontSize: event.title.length > 18 ? 60 : 72,
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                marginBottom: 18,
+              }}
+            >
+              <span style={{ fontSize: 24, opacity: 0.82 }}>{d.crew.name}</span>
+              {event.solo_friendly ? (
+                <span
+                  style={{
+                    fontSize: 19,
+                    padding: "5px 13px",
+                    borderRadius: 999,
+                    border: "1.5px solid rgba(255,255,255,0.45)",
+                  }}
+                >
+                  1인 참여 환영
+                </span>
+              ) : null}
+            </div>
+
+            <div
+              style={{
+                fontSize: long ? 54 : 64,
                 letterSpacing: -2.5,
-                lineHeight: 1.15,
-                maxWidth: 900,
+                lineHeight: 1.16,
+                maxWidth: 604,
+                // 어절 단위로 넘긴다. 없으면 "풀파" / "티" 로 한 글자만 갈린다
+                wordBreak: "keep-all",
               }}
             >
               {event.title}
             </div>
+
             {/* satori 는 자식이 둘 이상인 div 에 display:flex 를 요구한다.
                 {a} · {b} 로 쓰면 자식 셋이 되므로 한 문자열로 합친다 */}
-            <div style={{ marginTop: 22, fontSize: 30, opacity: 0.88 }}>
+            <div style={{ marginTop: 24, fontSize: 27, opacity: 0.9 }}>
               {`${longDate(event.starts_at)} · ${timeRange(event.starts_at, event.ends_at)}`}
             </div>
-            <div style={{ marginTop: 8, fontSize: 30, opacity: 0.88 }}>
+            <div style={{ marginTop: 7, fontSize: 27, opacity: 0.9 }}>
               {`${event.venue_name} · ${event.area}`}
             </div>
           </div>
 
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 40 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-end",
+              justifyContent: "space-between",
+              width: "100%",
+            }}
+          >
             {price ? (
               <div style={{ display: "flex", flexDirection: "column" }}>
-                <span style={{ fontSize: 20, opacity: 0.7 }}>
+                <span style={{ fontSize: 19, opacity: 0.65 }}>
                   {tier?.name ?? ""}
                 </span>
-                <span style={{ fontSize: 44, letterSpacing: -1.5 }}>
+                <span
+                  style={{ marginTop: 2, fontSize: 42, letterSpacing: -1.5 }}
+                >
                   {`${price.toLocaleString("ko-KR")}원부터`}
                 </span>
               </div>
-            ) : (
-              <span style={{ fontSize: 44 }}>매진</span>
-            )}
+            ) : null}
+
             <div
               style={{
-                marginLeft: "auto",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "flex-end",
               }}
             >
-              <span style={{ fontSize: 20, opacity: 0.7 }}>
+              <span style={{ fontSize: 19, opacity: 0.65 }}>
                 {`${pct}% 예매 · 정원 ${stats.capacity}명`}
               </span>
               <span
                 style={{
-                  fontSize: 40,
-                  color: left === 0 ? "#FF3B5C" : "#fff",
+                  marginTop: 2,
+                  fontSize: 42,
+                  letterSpacing: -1.5,
+                  // 노랑은 여기 하나뿐이다. 마감이면 빨강으로 넘긴다
+                  color: left === 0 ? HOT : soon ? ACCENT : "#fff",
                 }}
               >
                 {left === 0 ? "매진됐어요" : `${left}자리 남았어요`}

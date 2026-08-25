@@ -32,6 +32,8 @@ export async function pretendard() {
 export const BRAND = "#5B2BE8";
 export const DEEP = "#4416C8";
 export const ACCENT = "#FFE24D";
+export const HOT = "#FF3B5C";
+export const INK = "#16181D";
 
 const DOTS: [number, number][] = [
   [63.2, 63.25],
@@ -44,14 +46,43 @@ const DOTS: [number, number][] = [
   [63.2, 36.75],
 ];
 
-/** 심볼. 열린 원 + 바깥의 점 하나 — 좌표를 손대지 말 것 */
-export function Mark({ size = 64 }: { size?: number }) {
+/**
+ * 심볼. 열린 원 + 바깥의 점 하나 — 좌표를 손대지 말 것.
+ *
+ * **원이 닫혀 있지 않은 게 핵심이다**(사양서 2절). 혼자 온 사람이
+ * 들어갈 자리를 형태로 말한다. 그래서 카드에서도 구석의 로고가 아니라
+ * 큰 도형으로 쓴다.
+ */
+export function Mark({
+  size = 64,
+  dot = "#FFFFFF",
+  accent = ACCENT,
+  opacity = 1,
+}: {
+  size?: number;
+  dot?: string;
+  accent?: string;
+  opacity?: number;
+}) {
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100">
+    <svg width={size} height={size} viewBox="0 0 100 100" style={{ opacity }}>
       {DOTS.map(([cx, cy]) => (
-        <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={8.2} fill="#FFFFFF" />
+        <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={8.2} fill={dot} />
       ))}
-      <circle cx={85} cy={50} r={10.17} fill={ACCENT} />
+      <circle cx={85} cy={50} r={10.17} fill={accent} />
     </svg>
+  );
+}
+
+/** 워드마크. 어두운 바닥에서는 '모아' 가 노랑이다 */
+export function Wordmark({ size = 30 }: { size?: number }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: size * 0.42 }}>
+      <Mark size={size * 1.25} />
+      <div style={{ display: "flex", fontSize: size, letterSpacing: -1 }}>
+        <span style={{ color: "#fff" }}>파티</span>
+        <span style={{ color: ACCENT }}>모아</span>
+      </div>
+    </div>
   );
 }
