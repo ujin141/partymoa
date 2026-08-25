@@ -5,9 +5,21 @@
 -- 아래 ⬛ 표시한 자리를 직접 채워 넣고 실행할 것.
 -- ═══════════════════════════════════════════════════════════
 
+-- ── 0. 먼저 확인 ─────────────────────────────────────────
+-- ALL.sql 을 안 돌렸으면 아래가 에러 난다. 그러면 ALL.sql 부터.
+select count(*) as 테이블확인 from crews;
+
 -- ── 1. 크루 대표 계정 ─────────────────────────────────────
--- 먼저 https://www.partymoa.com/crew/login 에서 그 이메일로 한 번
--- 로그인해 계정을 만든다. 아래는 그 계정을 크루 대표로 묶는 것이다.
+--
+-- **/crew/login 에서는 계정을 못 만든다.** 회원가입이 없고 있는 계정으로
+-- 들어가는 화면이다. 대시보드에서 먼저 만들어야 한다.
+--
+--   Authentication → Users → Add user → Create new user
+--     Email          쓸 이메일
+--     Password       쓸 비밀번호
+--     Auto Confirm User  ✅ 켜기   ← 안 켜면 메일 인증 전까지 로그인 안 된다
+--
+-- 그 다음 아래 이메일을 그걸로 바꾸고 이 파일을 돌린다.
 
 do $init$
 declare
@@ -20,7 +32,7 @@ begin
   where lower(email) = lower('crew@example.com') limit 1;
 
   if v_owner is null then
-    raise exception '그 이메일로 가입한 계정이 없습니다. /crew/login 에서 먼저 로그인하세요.';
+    raise exception '그 이메일 계정이 없습니다. Supabase → Authentication → Users → Add user 로 먼저 만드세요 (Auto Confirm User 켜기).';
   end if;
 
   -- ── 2. 크루 ─────────────────────────────────────────────

@@ -10,8 +10,13 @@ Vercel + Supabase. 아래 순서대로 하면 된다.
     1. supabase/ALL.sql        스키마 · RLS · 예매 함수 · 크론 · 운영자
     2. supabase/INIT_DATA.sql  첫 행사 데이터 (⬛ 표시한 자리를 채운 뒤)
 
-INIT_DATA 를 돌리기 전에 크루 대표가 `/crew/login` 에서 한 번 로그인해
-계정을 만들어 두어야 한다. 그 계정을 크루 대표로 묶는 스크립트다.
+INIT_DATA 를 돌리기 전에 크루 대표 계정이 있어야 한다.
+**`/crew/login` 에서는 못 만든다** — 회원가입이 없고 있는 계정으로
+들어가는 화면이다. 대시보드에서 만든다.
+
+    Authentication → Users → Add user → Create new user
+      Email / Password 를 넣고
+      Auto Confirm User ✅   ← 안 켜면 메일 인증 전까지 로그인이 안 된다
 
 CLI 를 쓴다면 아래도 같다.
 
@@ -46,7 +51,7 @@ pnpm dlx supabase db push
 ## 2. 운영자 계정
 
 운영 화면(`/admin`)은 `app_admins` 에 있는 사람만 들어간다.
-대표가 `/crew/login` 에서 먼저 로그인해 계정을 만든 뒤:
+INIT_DATA.sql 이 크루 대표를 운영자로도 넣는다. 다른 사람을 더 넣으려면:
 
 ```sql
 insert into app_admins (user_id, note)
