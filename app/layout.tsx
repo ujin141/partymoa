@@ -39,6 +39,9 @@ export const metadata: Metadata = {
     siteName: "파티모아",
     locale: "ko_KR",
   },
+  // 이걸 안 넣으면 X 에서 작은 썸네일로 뜬다. 이미지는 각 화면의
+  // opengraph-image 를 그대로 쓴다
+  twitter: { card: "summary_large_image" },
 };
 
 export const viewport: Viewport = {

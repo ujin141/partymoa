@@ -25,10 +25,12 @@ export async function generateMetadata({
   return {
     title: d.event.title,
     description: d.event.subtitle ?? undefined,
+    // images 를 여기서 지정하지 않는다. 같은 폴더의 opengraph-image.tsx 가
+    // 커버 사진 위에 날짜·장소·잔여를 얹은 카드를 만든다 —
+    // 여기에 cover_url 을 넣으면 그 카드를 덮어써서 사진만 나간다
     openGraph: {
       title: d.event.title,
       description: d.event.subtitle ?? undefined,
-      images: d.event.cover_url ? [d.event.cover_url] : undefined,
     },
   };
 }
