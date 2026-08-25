@@ -6,6 +6,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
+      // /terms, /privacy 는 열어 둔다 — 구글 OAuth 심사가 읽어야 한다
       disallow: ["/crew", "/admin", "/api", "/auth", "/tickets", "/my"],
     },
   };

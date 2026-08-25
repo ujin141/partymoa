@@ -6,12 +6,14 @@ import { myCrew } from "@/lib/crew";
 import { createClient } from "@/lib/supabase/server";
 
 export async function updateCrew(input: {
+  crewId: string;
   name: string;
   bio: string;
   instagram: string;
   avatarUrl: string;
 }) {
-  const crew = await myCrew();
+  // 여러 크루에 속할 수 있다. 어느 크루인지 받고, 내 것인지 확인한다
+  const crew = await myCrew(input.crewId);
   if (!crew) return { ok: false as const, message: "로그인이 필요해요." };
   if (!input.name.trim()) {
     return { ok: false as const, message: "크루 이름은 비울 수 없어요." };
@@ -35,8 +37,13 @@ export async function updateCrew(input: {
   return { ok: true as const };
 }
 
-export async function addMember(displayName: string, inviteCode: string) {
-  const crew = await myCrew();
+export async function addMember(
+  crewId: string,
+  displayName: string,
+  inviteCode: string,
+  email?: string,
+) {
+  const crew = await myCrew(crewId);
   if (!crew) return { ok: false as const, message: "로그인이 필요해요." };
 
   const code = inviteCode.trim().toUpperCase();
@@ -57,6 +64,8 @@ export async function addMember(displayName: string, inviteCode: string) {
     display_name: displayName.trim(),
     invite_code: code,
     role: "member",
+    // 적어 두면 그 주소로 구글 로그인한 사람이 바로 스태프가 된다
+    email: email?.trim() ? email.trim().toLowerCase() : null,
   });
 
   if (error) {

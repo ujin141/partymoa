@@ -24,7 +24,9 @@ export default async function CrewLayout({
         </span>
         {crew ? (
           <span className="ml-auto flex items-center gap-2.5">
-            <span className="text-[13px] text-sub">{crew.name}</span>
+            <span id="crew-name" className="text-[13px] text-sub">
+              {crew.name}
+            </span>
             <LogoutButton
               to="/crew/login"
               className="rounded-lg border border-line px-2.5 py-1.5 text-[12.5px] font-semibold text-sub"

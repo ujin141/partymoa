@@ -47,7 +47,16 @@ function Field({
 const input =
   "w-full rounded-xl bg-soft p-3.5 text-[15px] outline-none border-[1.5px] border-transparent focus:border-brand focus:bg-white";
 
-export function EventForm({ initial }: { initial?: EventFormInitial }) {
+export function EventForm({
+  initial,
+  crewId,
+  crewName,
+}: {
+  initial?: EventFormInitial;
+  /** 새로 만들 때 어느 크루의 파티인지 */
+  crewId?: string;
+  crewName?: string;
+}) {
   const router = useRouter();
   const [busy, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
@@ -106,6 +115,7 @@ export function EventForm({ initial }: { initial?: EventFormInitial }) {
     setErr(null);
     start(async () => {
       const payload = {
+        crewId,
         title,
         subtitle,
         description,
@@ -160,7 +170,7 @@ export function EventForm({ initial }: { initial?: EventFormInitial }) {
       <p className="mt-1.5 mb-5 text-[13px] leading-relaxed text-sub">
         {ev
           ? "이미 팔린 차수는 지울 수 없고, 정원은 예매 수보다 줄일 수 없어요."
-          : "등록하면 작성 중 상태로 저장돼요. 현황에서 예매 중으로 바꿔야 게스트에게 보입니다."}
+          : `${crewName ? crewName + " 의 파티로 " : ""}등록하면 작성 중 상태로 저장돼요. 현황에서 예매 중으로 바꿔야 게스트에게 보입니다.`}
       </p>
 
       <Field label="제목">

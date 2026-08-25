@@ -5,16 +5,22 @@ import { CrewProfileForm } from "@/components/crew/CrewProfileForm";
 import { EventAdminList } from "@/components/crew/EventAdminList";
 import { MemberManager } from "@/components/crew/MemberManager";
 import { Divider } from "@/components/ui/primitives";
-import { crewEvents, myCrew } from "@/lib/crew";
+import { CrewPicker } from "@/components/crew/CrewPicker";
+import { crewEvents, myCrews } from "@/lib/crew";
 import { createClient } from "@/lib/supabase/server";
 import type { Booking, CrewMember } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "크루 관리" };
 
-export default async function CrewManagePage() {
-  const crew = await myCrew();
-  if (!crew) redirect("/crew/login");
+export default async function CrewManagePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ c?: string }>;
+}) {
+  const [{ c }, crews] = await Promise.all([searchParams, myCrews()]);
+  if (!crews.length) redirect("/crew/login");
+  const crew = crews.find((x) => x.id === c) ?? crews[0];
 
   const supabase = await createClient();
   const [events, { data: members }, { data: bookings }] = await Promise.all([
@@ -42,16 +48,22 @@ export default async function CrewManagePage() {
   return (
     <div className="flex-1 overflow-y-auto overscroll-contain">
       <div className="flex items-center gap-2.5 border-b border-line px-4 py-3">
-        <Link href="/crew" className="text-2xl leading-none" aria-label="뒤로">
+        <Link href={`/crew?c=${crew.id}`} className="text-2xl leading-none" aria-label="뒤로">
           ‹
         </Link>
         <span className="text-[17px] font-extrabold">크루 관리</span>
       </div>
 
+      <CrewPicker crews={crews} current={crew.id} />
+
       <CrewProfileForm crew={crew} />
 
       <Divider />
-      <MemberManager members={(members ?? []) as CrewMember[]} stats={stats} />
+      <MemberManager
+        crewId={crew.id}
+        members={(members ?? []) as CrewMember[]}
+        stats={stats}
+      />
 
       <Divider />
       <EventAdminList events={events} />

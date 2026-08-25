@@ -29,6 +29,7 @@ export function EventPicker({
       <select
         value={current}
         onChange={(e) => {
+          // 크루 선택(?c=)은 그대로 두고 행사만 바꾼다
           const next = new URLSearchParams(sp);
           next.set("e", e.target.value);
           router.push(`${path}?${next.toString()}`);

@@ -54,7 +54,15 @@ export default async function LoginPage({
         </Link>
 
         <p className="mt-6 text-center text-[12px] leading-relaxed text-sub">
-          로그인하면 이용약관과 개인정보 처리방침에 동의하는 것으로 봅니다.
+          로그인하면{" "}
+          <Link href="/terms" className="underline">
+            이용약관
+          </Link>
+          과{" "}
+          <Link href="/privacy" className="underline">
+            개인정보처리방침
+          </Link>
+          에 동의하는 것으로 봅니다.
         </p>
 
         <div className="mt-8 border-t border-line pt-5 text-center">

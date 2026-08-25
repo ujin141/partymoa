@@ -16,6 +16,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: SITE, changeFrequency: "daily", priority: 1 },
     { url: `${SITE}/explore`, changeFrequency: "daily", priority: 0.8 },
     { url: `${SITE}/community`, changeFrequency: "hourly", priority: 0.5 },
+    { url: `${SITE}/terms`, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${SITE}/privacy`, changeFrequency: "yearly", priority: 0.3 },
     ...parties.map((d) => ({
       url: `${SITE}/party/${d.event.slug}`,
       lastModified: new Date(d.event.created_at),

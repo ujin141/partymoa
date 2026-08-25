@@ -6,6 +6,8 @@ import { myCrew } from "@/lib/crew";
 import { createClient } from "@/lib/supabase/server";
 
 export interface EventDraft {
+  /** 어느 크루의 파티인지. 여러 크루에 속할 수 있다 */
+  crewId?: string;
   title: string;
   subtitle: string;
   description: string;
@@ -39,7 +41,7 @@ function makeSlug(title: string, startsAt: string) {
 }
 
 export async function createEvent(d: EventDraft) {
-  const crew = await myCrew();
+  const crew = await myCrew(d.crewId);
   if (!crew) return { ok: false as const, message: "크루 계정으로 로그인해 주세요." };
 
   if (!d.title.trim() || !d.venueName.trim() || !d.startsAt || !d.endsAt) {

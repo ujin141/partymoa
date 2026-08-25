@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { CrewPicker } from "@/components/crew/CrewPicker";
 import { EventPicker } from "@/components/crew/EventPicker";
 import { StatusToggle } from "@/components/crew/StatusToggle";
 import { Divider, Gauge } from "@/components/ui/primitives";
@@ -14,23 +15,37 @@ export const metadata = { title: "크루 현황" };
 export default async function CrewDashboard({
   searchParams,
 }: {
-  searchParams: Promise<{ e?: string }>;
+  searchParams: Promise<{ c?: string; e?: string }>;
 }) {
-  const { events, current } = await crewPage(searchParams);
+  const { crew, crews, events, current } = await crewPage(searchParams);
 
   if (!current) {
     return (
-      <div className="flex-1 overflow-y-auto p-6 text-center">
-        <p className="py-16 text-sm leading-8 text-sub">
-          아직 등록한 파티가 없어요.
-          <br />첫 파티를 올려 보세요.
-        </p>
-        <Link
-          href="/crew/events/new"
-          className="inline-block rounded-xl bg-brand px-6 py-3.5 text-base font-bold text-white"
-        >
-          파티 등록
-        </Link>
+      <div className="flex-1 overflow-y-auto">
+        {/* 행사가 없어도 크루는 바꿀 수 있어야 한다. 안 그러면 빈 크루에
+            걸린 사람이 다른 크루로 못 넘어간다 */}
+        <CrewPicker crews={crews} current={crew.id} />
+        <div className="p-6 text-center">
+          <p className="py-16 text-sm leading-8 text-sub">
+            <b className="text-ink">{crew.name}</b> 에 아직 등록한 파티가
+            없어요.
+            <br />첫 파티를 올려 보세요.
+          </p>
+          <div className="grid gap-2.5">
+            <Link
+              href={`/crew/events/new?c=${crew.id}`}
+              className="rounded-xl bg-brand px-6 py-3.5 text-base font-bold text-white"
+            >
+              파티 등록
+            </Link>
+            <Link
+              href={`/crew/manage?c=${crew.id}`}
+              className="rounded-xl border border-line px-6 py-3.5 text-base font-semibold"
+            >
+              크루 관리
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
@@ -45,6 +60,7 @@ export default async function CrewDashboard({
 
   return (
     <div className="flex-1 overflow-y-auto overscroll-contain">
+      <CrewPicker crews={crews} current={crew.id} />
       <EventPicker events={events} current={event.id} />
 
       <div className="flex items-baseline justify-between px-4 pb-3 pt-5">
@@ -201,13 +217,13 @@ export default async function CrewDashboard({
         <StatusToggle eventId={event.id} status={event.status} />
         <div className="mt-3 grid grid-cols-2 gap-2.5">
           <Link
-            href="/crew/events/new"
+            href={`/crew/events/new?c=${crew.id}`}
             className="rounded-xl border border-line py-3.5 text-center text-[15px] font-semibold"
           >
             새 파티 등록
           </Link>
           <Link
-            href="/crew/manage"
+            href={`/crew/manage?c=${crew.id}`}
             className="rounded-xl border border-line py-3.5 text-center text-[15px] font-semibold"
           >
             크루 관리

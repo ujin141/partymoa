@@ -71,7 +71,7 @@ export function CrewProfileForm({ crew }: { crew: Crew }) {
           start(async () => {
             setErr(null);
             setMsg(null);
-            const r = await updateCrew({ name, bio, instagram, avatarUrl });
+            const r = await updateCrew({ crewId: crew.id, name, bio, instagram, avatarUrl });
             if (r.ok) setMsg("저장했어요");
             else setErr(r.message);
           })

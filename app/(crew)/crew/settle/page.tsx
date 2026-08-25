@@ -1,3 +1,4 @@
+import { CrewPicker } from "@/components/crew/CrewPicker";
 import { EventPicker } from "@/components/crew/EventPicker";
 import { ExpenseEditor } from "@/components/crew/ExpenseEditor";
 import { Divider } from "@/components/ui/primitives";
@@ -37,14 +38,17 @@ function Line({
 export default async function CrewSettlePage({
   searchParams,
 }: {
-  searchParams: Promise<{ e?: string }>;
+  searchParams: Promise<{ c?: string; e?: string }>;
 }) {
-  const { events, current } = await crewPage(searchParams);
+  const { crew, crews, events, current } = await crewPage(searchParams);
   if (!current) {
     return (
-      <p className="flex-1 px-6 py-16 text-center text-sm text-sub">
-        등록한 파티가 없어요.
-      </p>
+      <div className="flex-1">
+        <CrewPicker crews={crews} current={crew.id} />
+        <p className="px-6 py-16 text-center text-sm text-sub">
+          {crew.name} 에 등록한 파티가 없어요.
+        </p>
+      </div>
     );
   }
 
@@ -74,6 +78,7 @@ export default async function CrewSettlePage({
 
   return (
     <div className="flex-1 overflow-y-auto overscroll-contain">
+      <CrewPicker crews={crews} current={crew.id} />
       <EventPicker events={events} current={current.event.id} />
 
       <div className="px-4 pb-3 pt-5">

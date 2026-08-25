@@ -14,15 +14,18 @@ import type { CrewMember } from "@/types/database";
  * 손님 수는 그대로 세어진다.
  */
 export function MemberManager({
+  crewId,
   members,
   stats,
 }: {
+  crewId: string;
   members: CrewMember[];
   /** 코드별 초대 인원·매출. 지금 행사 기준 */
   stats: Record<string, { heads: number; revenue: number }>;
 }) {
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
+  const [mail, setMail] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [busy, start] = useTransition();
 
@@ -61,6 +64,11 @@ export function MemberManager({
                 <div className="mt-1 text-[12.5px] text-sub">
                   {s ? `${s.heads}명 초대 · ${won(s.revenue)}` : "아직 없음"}
                 </div>
+                {m.email ? (
+                  <div className="mt-0.5 truncate text-[12px] text-[#9AA0AA]">
+                    {m.email}
+                  </div>
+                ) : null}
               </div>
               {m.role === "owner" ? null : (
                 <button
@@ -102,6 +110,17 @@ export function MemberManager({
           className="w-28 flex-none rounded-xl bg-soft p-3 text-[14.5px] uppercase outline-none"
         />
       </div>
+      <input
+        value={mail}
+        type="email"
+        onChange={(e) => setMail(e.target.value)}
+        placeholder="구글 로그인 주소 (선택)"
+        className="mt-2 w-full rounded-xl bg-soft p-3 text-[14.5px] outline-none"
+      />
+      <p className="mt-1.5 text-[12px] leading-relaxed text-sub">
+        주소를 적어 두면 그 계정으로 구글 로그인하는 순간 이 크루의 스태프가
+        됩니다. 먼저 가입할 필요가 없어요.
+      </p>
       {err ? (
         <p className="mt-2 text-[13px] font-semibold text-hot">{err}</p>
       ) : null}
@@ -111,13 +130,14 @@ export function MemberManager({
         onClick={() =>
           start(async () => {
             setErr(null);
-            const r = await addMember(name, code);
+            const r = await addMember(crewId, name, code, mail);
             if (!r.ok) {
               setErr(r.message);
               return;
             }
             setName("");
             setCode("");
+            setMail("");
           })
         }
         className="mt-2 w-full rounded-xl border border-line py-3 text-[14.5px] font-semibold disabled:opacity-45"

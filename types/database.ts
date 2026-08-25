@@ -28,6 +28,8 @@ export type CrewMember = {
   display_name: string;
   invite_code: string;
   role: "owner" | "member";
+  /** 적어 두면 그 주소로 소셜 로그인한 사람이 바로 스태프가 된다 */
+  email: string | null;
   created_at: string;
 }
 

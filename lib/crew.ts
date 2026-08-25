@@ -12,42 +12,44 @@ import type {
 } from "@/types/database";
 
 /**
- * 로그인한 사람이 속한 크루. 여러 개면 첫 번째.
+ * 로그인한 사람이 속한 크루를 **전부** 가져온다.
  *
- * **이메일로도 찾는다.** 구글로 로그인하면 이메일/비밀번호 계정과 uuid 가
- * 달라서, uuid 로만 보면 같은 사람인데 크루가 없는 걸로 나온다.
- * crew_members.email 에 적어 두면 그 주소로 들어온 사람이 스태프가 된다.
+ * 한 사람이 크루 여럿에 속할 수 있다 — DJ 가 두 크루에서 뛰거나, 대행을
+ * 맡는 경우다. 예전에는 첫 번째 하나만 집어 와서 나머지가 아예 안 보였다.
+ *
+ * 세 갈래로 찾는다. **이메일까지 보는 게 중요하다** — 구글로 로그인하면
+ * 이메일/비밀번호 계정과 uuid 가 달라서 uuid 로만 보면 남이 된다.
  */
-export async function myCrew(): Promise<Crew | null> {
+export async function myCrews(): Promise<Crew[]> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user || user.is_anonymous) return null;
+  if (!user || user.is_anonymous) return [];
 
-  const { data: owned } = await supabase
-    .from("crews")
-    .select("*")
-    .eq("owner_id", user.id)
-    .limit(1);
-  if (owned?.length) return owned[0] as Crew;
+  const [{ data: owned }, { data: byId }, { data: byMail }] = await Promise.all([
+    supabase.from("crews").select("*").eq("owner_id", user.id),
+    supabase.from("crew_members").select("crew:crews (*)").eq("user_id", user.id),
+    user.email
+      ? supabase.from("crew_members").select("crew:crews (*)").ilike("email", user.email)
+      : Promise.resolve({ data: [] }),
+  ]);
 
-  const { data: byId } = await supabase
-    .from("crew_members")
-    .select("crew:crews (*)")
-    .eq("user_id", user.id)
-    .limit(1);
-  const idRow = byId?.[0] as unknown as { crew: Crew } | undefined;
-  if (idRow?.crew) return idRow.crew;
+  const seen = new Map<string, Crew>();
+  for (const c of (owned ?? []) as Crew[]) seen.set(c.id, c);
+  for (const row of [...(byId ?? []), ...(byMail ?? [])] as unknown as {
+    crew: Crew | null;
+  }[]) {
+    if (row.crew) seen.set(row.crew.id, row.crew);
+  }
+  return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name, "ko"));
+}
 
-  if (!user.email) return null;
-  const { data: byMail } = await supabase
-    .from("crew_members")
-    .select("crew:crews (*)")
-    .ilike("email", user.email)
-    .limit(1);
-  const mailRow = byMail?.[0] as unknown as { crew: Crew } | undefined;
-  return mailRow?.crew ?? null;
+/** 하나만 필요할 때. 고른 크루가 있으면 그것, 없으면 첫 번째 */
+export async function myCrew(preferId?: string): Promise<Crew | null> {
+  const list = await myCrews();
+  if (!list.length) return null;
+  return list.find((c) => c.id === preferId) ?? list[0];
 }
 
 export async function crewEvents(crewId: string): Promise<EventRow[]> {

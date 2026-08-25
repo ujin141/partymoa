@@ -12,6 +12,8 @@ const ROWS = [
   { label: "팔로우한 크루", href: "/my/crews" },
   { label: "알림 설정", href: "/my/alerts" },
   { label: "고객센터", href: "/my/help" },
+  { label: "이용약관", href: "/terms" },
+  { label: "개인정보처리방침", href: "/privacy" },
 ];
 
 export default async function MyPage() {
