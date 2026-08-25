@@ -29,7 +29,9 @@ insert into _cfg (k, v) values
   ('pw',    'partymoa2026'),                           -- ⬛ 크루 로그인 비밀번호
   ('bank',  '은행 000-0000-0000-00 (예금주)'),          -- ⬛ 입금 계좌
   ('cover', 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=1200&q=70'),  -- ⬛ 커버 사진
-  ('crew',  'BLACKOUT');                               -- ⬛ 크루 이름
+  ('crew',  'BLACKOUT'),                               -- ⬛ 크루 이름
+  ('gmail', '');                                       -- ⬛ 구글 로그인에 쓸 주소
+                                                       --    (비워 두면 건너뜀)
 
 -- ███████████████████████████████████████████████████████████████████
 -- ██  아래는 손댈 것 없음                                          ██
@@ -935,6 +937,74 @@ end $fn$;
 revoke all on function find_user_id from public, anon;
 grant execute on function find_user_id to authenticated;
 
+-- ─── 20260826000900_email_grants.sql ───────────────
+-- 이메일로 권한 주기.
+--
+-- 구글·카카오로 로그인하면 **새 사용자가 만들어진다.** 이메일/비밀번호로
+-- 만들어 둔 계정과 uuid 가 다르다. 그래서 uuid 로만 권한을 걸어 두면
+-- 소셜로 처음 들어온 사람은 크루도 운영자도 아니게 된다.
+--
+-- 닭이 먼저냐 문제이기도 하다 — 그 사람이 한 번 로그인하기 전까지는
+-- uuid 가 없어서 미리 권한을 줄 수가 없다.
+--
+-- 이메일을 적어 두면 그 주소로 들어온 사람이 곧바로 권한을 갖는다.
+-- 크루 멤버를 미리 등록해 두는 데도 쓴다.
+
+alter table crew_members add column if not exists email text;
+
+create table if not exists admin_emails (
+  email text primary key,
+  note text,
+  created_at timestamptz default now()
+);
+
+alter table admin_emails enable row level security;
+
+-- 목록은 아무도 못 읽는다. 확인은 is_app_admin() 이 대신 한다
+drop policy if exists admin_emails_none on admin_emails;
+create policy admin_emails_none on admin_emails for select using (false);
+
+-- ─────────────────────────────────────────── 판정 함수
+--
+-- auth.jwt() 의 email 은 제공자가 확인해 준 값이다. 사용자가 임의로
+-- 못 바꾼다 — 바꾸려면 그 이메일의 소유를 다시 증명해야 한다.
+
+create or replace function auth_email()
+returns text
+language sql
+stable
+as $fn$
+  select lower(nullif(auth.jwt() ->> 'email', ''));
+$fn$;
+
+create or replace function is_app_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $fn$
+  select exists (select 1 from app_admins where user_id = auth.uid())
+      or exists (select 1 from admin_emails where email = auth_email());
+$fn$;
+
+create or replace function is_crew_staff(p_crew_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $fn$
+  select exists (
+    select 1 from crews where id = p_crew_id and owner_id = auth.uid()
+  ) or exists (
+    select 1 from crew_members
+    where crew_id = p_crew_id
+      and (user_id = auth.uid() or (email is not null and lower(email) = auth_email()))
+  );
+$fn$;
+
+
 -- ═══════════════════════════════════════════════════════════════════
 --  첫 행사 데이터
 -- ═══════════════════════════════════════════════════════════════════
@@ -946,6 +1016,7 @@ declare
   c_bank  text := (select v from _cfg where k = 'bank');
   c_cover text := (select v from _cfg where k = 'cover');
   c_crew  text := (select v from _cfg where k = 'crew');
+  c_gmail text := nullif(trim((select v from _cfg where k = 'gmail')), '');
   v_owner uuid;
   v_crew  uuid;
   v_event uuid;
@@ -1052,6 +1123,22 @@ begin
   -- ── 운영자 ──────────────────────────────────────────────────────
   insert into app_admins (user_id, note) values (v_owner, '초기 운영자')
   on conflict (user_id) do nothing;
+
+  -- ── 구글 계정 ───────────────────────────────────────────────────
+  -- 구글로 로그인하면 새 사용자가 만들어져 uuid 가 다르다. 미리 uuid 를
+  -- 알 수 없으니 이메일로 권한을 걸어 둔다 — 그 주소로 처음 들어오는
+  -- 순간부터 크루 스태프이자 운영자가 된다
+  if c_gmail is not null then
+    insert into admin_emails (email, note)
+    values (lower(c_gmail), '구글 로그인 운영자')
+    on conflict (email) do nothing;
+
+    insert into crew_members (crew_id, user_id, display_name, invite_code, role, email)
+    values (v_crew, null, split_part(c_gmail, '@', 1), 'GOOGLE', 'owner', lower(c_gmail))
+    on conflict (crew_id, invite_code) do update set email = excluded.email;
+
+    raise notice '구글 계정 % 에 크루·운영 권한을 줬습니다', c_gmail;
+  end if;
 end $init$;
 
 

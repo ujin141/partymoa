@@ -11,7 +11,13 @@ import type {
   TierStats,
 } from "@/types/database";
 
-/** 로그인한 사람이 속한 크루. 여러 개면 첫 번째 */
+/**
+ * 로그인한 사람이 속한 크루. 여러 개면 첫 번째.
+ *
+ * **이메일로도 찾는다.** 구글로 로그인하면 이메일/비밀번호 계정과 uuid 가
+ * 달라서, uuid 로만 보면 같은 사람인데 크루가 없는 걸로 나온다.
+ * crew_members.email 에 적어 두면 그 주소로 들어온 사람이 스태프가 된다.
+ */
 export async function myCrew(): Promise<Crew | null> {
   const supabase = await createClient();
   const {
@@ -26,13 +32,22 @@ export async function myCrew(): Promise<Crew | null> {
     .limit(1);
   if (owned?.length) return owned[0] as Crew;
 
-  const { data: mem } = await supabase
+  const { data: byId } = await supabase
     .from("crew_members")
     .select("crew:crews (*)")
     .eq("user_id", user.id)
     .limit(1);
-  const row = mem?.[0] as unknown as { crew: Crew } | undefined;
-  return row?.crew ?? null;
+  const idRow = byId?.[0] as unknown as { crew: Crew } | undefined;
+  if (idRow?.crew) return idRow.crew;
+
+  if (!user.email) return null;
+  const { data: byMail } = await supabase
+    .from("crew_members")
+    .select("crew:crews (*)")
+    .ilike("email", user.email)
+    .limit(1);
+  const mailRow = byMail?.[0] as unknown as { crew: Crew } | undefined;
+  return mailRow?.crew ?? null;
 }
 
 export async function crewEvents(crewId: string): Promise<EventRow[]> {

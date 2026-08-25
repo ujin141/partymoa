@@ -18,20 +18,26 @@ export interface PlatformRow {
   fee: number;
 }
 
-/** 운영자인지. 아니면 돌려보낸다 — 화면마다 같은 검사를 다시 쓰지 않는다 */
+/**
+ * 운영자인지. 아니면 돌려보낸다 — 화면마다 같은 검사를 다시 쓰지 않는다.
+ *
+ * uuid 와 이메일 둘 다 본다. 구글로 로그인하면 새 사용자가 만들어져서
+ * uuid 로만 보면 운영자가 아니게 된다.
+ */
 export async function requireAdmin() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user || user.is_anonymous) redirect("/crew/login");
+  if (!user || user.is_anonymous) redirect("/crew/login?next=/admin");
 
-  const { data } = await supabase
-    .from("app_admins")
-    .select("user_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (!data) redirect("/");
+  const [{ data: byId }, { data: byMail }] = await Promise.all([
+    supabase.from("app_admins").select("user_id").eq("user_id", user.id).maybeSingle(),
+    user.email
+      ? supabase.from("admin_emails").select("email").ilike("email", user.email).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  if (!byId && !byMail) redirect("/");
   return user;
 }
 

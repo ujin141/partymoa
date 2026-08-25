@@ -211,6 +211,10 @@ export type Database = {
         event_id: string;
         created_at: string;
       }>;
+      admin_emails: Table<
+        { email: string; note: string | null; created_at: string },
+        { email: string; note?: string | null }
+      >;
       app_admins: Table<
         { user_id: string; note: string | null; created_at: string },
         { user_id: string; note?: string | null }
