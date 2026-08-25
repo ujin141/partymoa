@@ -1,0 +1,122 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+
+import { myCrew } from "@/lib/crew";
+import { createClient } from "@/lib/supabase/server";
+
+export interface EventDraft {
+  title: string;
+  subtitle: string;
+  description: string;
+  coverUrl: string;
+  venueName: string;
+  area: string;
+  address: string;
+  startsAt: string;
+  endsAt: string;
+  capacity: number;
+  genderBalanced: boolean;
+  maleMultiplier: number;
+  soloFriendly: boolean;
+  genres: string[];
+  categories: string[];
+  listPrice: number;
+  bankAccount: string;
+  tiers: { name: string; note: string; price: number; capacity: number }[];
+  lineups: { artist: string; time: string }[];
+}
+
+/** 제목에서 slug 를 만든다. 한글은 URL 에서 깨지므로 날짜 + 임의값으로 */
+function makeSlug(title: string, startsAt: string) {
+  const ascii = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  const day = startsAt.slice(0, 10).replace(/-/g, "");
+  const tail = Math.random().toString(36).slice(2, 6);
+  return `${ascii || "party"}-${day}-${tail}`;
+}
+
+export async function createEvent(d: EventDraft) {
+  const crew = await myCrew();
+  if (!crew) return { ok: false as const, message: "크루 계정으로 로그인해 주세요." };
+
+  if (!d.title.trim() || !d.venueName.trim() || !d.startsAt || !d.endsAt) {
+    return { ok: false as const, message: "제목·장소·일시는 비울 수 없어요." };
+  }
+  if (new Date(d.endsAt) <= new Date(d.startsAt)) {
+    return { ok: false as const, message: "종료 시각이 시작보다 빨라요." };
+  }
+  if (!d.tiers.length) {
+    return { ok: false as const, message: "차수를 최소 하나는 넣어 주세요." };
+  }
+  // 차수 상한의 합이 정원보다 작으면 정원을 못 채우고 끝난다
+  const tierSum = d.tiers.reduce((a, t) => a + t.capacity, 0);
+  if (tierSum < d.capacity) {
+    return {
+      ok: false as const,
+      message: `차수 수량의 합(${tierSum})이 정원(${d.capacity})보다 적어요. 정원을 다 못 팝니다.`,
+    };
+  }
+
+  const supabase = await createClient();
+  const { data: event, error } = await supabase
+    .from("events")
+    .insert({
+      crew_id: crew.id,
+      slug: makeSlug(d.title, d.startsAt),
+      title: d.title.trim(),
+      subtitle: d.subtitle.trim() || null,
+      description: d.description.trim() || null,
+      cover_url: d.coverUrl.trim() || null,
+      venue_name: d.venueName.trim(),
+      area: d.area.trim() || "서울",
+      address: d.address.trim() || null,
+      starts_at: new Date(d.startsAt).toISOString(),
+      ends_at: new Date(d.endsAt).toISOString(),
+      capacity: d.capacity,
+      gender_balanced: d.genderBalanced,
+      male_price_multiplier: d.maleMultiplier,
+      solo_friendly: d.soloFriendly,
+      genres: d.genres,
+      categories: d.categories,
+      list_price: d.listPrice,
+      bank_account: d.bankAccount.trim() || null,
+      status: "draft",
+    })
+    .select()
+    .single();
+
+  if (error || !event) {
+    return { ok: false as const, message: error?.message ?? "등록에 실패했어요." };
+  }
+
+  const tierRows = d.tiers.map((t, i) => ({
+    event_id: event.id,
+    name: t.name.trim() || `${i + 1}차`,
+    note: t.note.trim() || null,
+    price: t.price,
+    capacity: t.capacity,
+    sort_order: i,
+  }));
+  const { error: tErr } = await supabase.from("ticket_tiers").insert(tierRows);
+  if (tErr) {
+    // 차수 없는 행사는 예매를 못 받는다. 반쯤 만들어진 행사를 남기지 않는다
+    await supabase.from("events").delete().eq("id", event.id);
+    return { ok: false as const, message: tErr.message };
+  }
+
+  const lineRows = d.lineups
+    .filter((l) => l.artist.trim() && l.time)
+    .map((l, i) => ({
+      event_id: event.id,
+      artist_name: l.artist.trim(),
+      starts_at: l.time,
+      sort_order: i,
+    }));
+  if (lineRows.length) await supabase.from("lineups").insert(lineRows);
+
+  revalidatePath("/crew", "layout");
+  return { ok: true as const, eventId: event.id };
+}

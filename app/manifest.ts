@@ -1,0 +1,25 @@
+import type { MetadataRoute } from "next";
+
+/** 홈 화면에 추가했을 때. 클럽 손님은 폰에서만 들어온다 */
+export default function manifest(): MetadataRoute.Manifest {
+  return {
+    name: "파티모아",
+    short_name: "파티모아",
+    description: "서울 언더그라운드 파티를 한 곳에서. 사전예매 플랫폼.",
+    start_url: "/",
+    display: "standalone",
+    background_color: "#FFFFFF",
+    theme_color: "#5B2BE8",
+    lang: "ko",
+    orientation: "portrait",
+    icons: [
+      { src: "/appicon.png", sizes: "512x512", type: "image/png" },
+      {
+        src: "/appicon.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
+      },
+    ],
+  };
+}

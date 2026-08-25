@@ -1,0 +1,93 @@
+@import "tailwindcss";
+
+/* 브랜드 토큰 — 사양서 2절. 여기 말고 다른 데 색을 적지 않는다. */
+@theme {
+  --color-brand: #5B2BE8;
+  --color-brand-deep: #4416C8;
+  --color-brand-soft: #F1ECFF;
+  --color-ink: #16181D;
+  --color-sub: #6B7280;
+  --color-line: #EAECF0;
+  --color-soft: #F5F6F8;
+  --color-hot: #FF3B5C;
+  --color-ok: #0FA968;
+
+  --font-sans: "Pretendard Variable", var(--font-inter), -apple-system,
+    BlinkMacSystemFont, "Apple SD Gothic Neo", system-ui, sans-serif;
+
+  --radius-card: 14px;
+}
+
+:root {
+  color-scheme: light;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  background: #E9EBEF;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 제목은 자간을 좁힌다 — 사양서 2절 */
+h1, h2, h3, h4 {
+  letter-spacing: -0.03em;
+}
+
+/**
+ * 한글은 단어 중간에서 끊지 않는다.
+ *
+ * 기본값(break-word)이면 "어나더 루프탑 라운지" 가 "어나더 루프탑 라운"/"지"
+ * 로 갈린다. keep-all 이면 어절 단위로 넘어간다 — 한국어에서 이 한 줄이
+ * 폰트보다 티가 크다.
+ */
+body {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+/**
+ * 숫자는 폭을 고정한다. 가변폭이면 카운트다운의 "1분"→"11분" 에서 글자가
+ * 밀리고, 표에서 금액 자릿수가 안 맞는다.
+ */
+b, strong, .tnum, table {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 키보드로 다닐 때만 테두리를 보여 준다. 마우스 클릭에는 안 뜬다 */
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* 제목이 길어도 카드 높이가 안 흔들리게 */
+.clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 가로 스크롤 레일에서 스크롤바를 감춘다 */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
