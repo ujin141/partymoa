@@ -27,11 +27,14 @@ truncate _cfg;
 insert into _cfg (k, v) values
   ('email', 'ujin141@naver.com'),                      -- ⬛ 크루 로그인 이메일
   ('pw',    'partymoa2026'),                           -- ⬛ 크루 로그인 비밀번호
-  ('bank',  '농협 352-0860-4459-03 (송우진)'),          -- ⬛ 입금 계좌
+  ('bank',  '은행 000-0000-0000-00 (예금주)'),          -- ⬛ 입금 계좌
   ('cover', 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=1200&q=70'),  -- ⬛ 커버 사진
   ('crew',  'BLACKOUT'),                               -- ⬛ 크루 이름
-  ('gmail', '');                                       -- ⬛ 구글 로그인에 쓸 주소
-                                                       --    (비워 두면 건너뜀)
+  ('gmail', ''),                                       -- ⬛ 구글 로그인에 쓸 주소
+                                                       --    비워 두면 구글로 들어가도
+                                                       --    크루 스태프가 아니다
+  ('status','draft');                                  -- ⬛ draft = 나만 봄
+                                                       --    open  = 손님에게 보임
 
 -- ███████████████████████████████████████████████████████████████████
 -- ██  아래는 손댈 것 없음                                          ██
@@ -1017,6 +1020,7 @@ declare
   c_cover text := (select v from _cfg where k = 'cover');
   c_crew  text := (select v from _cfg where k = 'crew');
   c_gmail text := nullif(trim((select v from _cfg where k = 'gmail')), '');
+  c_stat  text := coalesce(nullif(trim((select v from _cfg where k = 'status')), ''), 'draft');
   v_owner uuid;
   v_crew  uuid;
   v_event uuid;
@@ -1116,7 +1120,8 @@ begin
       (v_event, 'V',    '21:30', 3);
   else
     -- 다시 돌린 경우. 차수·라인업은 손대지 않는다 — 이미 팔렸을 수 있다
-    update events set bank_account = c_bank, cover_url = c_cover
+    update events
+    set bank_account = c_bank, cover_url = c_cover, status = c_stat
     where id = v_event;
   end if;
 
@@ -1147,9 +1152,14 @@ end $init$;
 -- ═══════════════════════════════════════════════════════════════════
 
 select
-  case when (select count(*) from crews) = 0
-    then '★ 데이터가 안 들어갔습니다 — 위 결과의 경고를 확인하세요'
-    else '완료 → Vercel 환경변수를 바꾸고 재배포하세요'
+  case
+    when (select count(*) from crews) = 0
+      then '★ 데이터가 안 들어갔습니다 — 위 경고를 확인하세요'
+    when (select count(*) from admin_emails) = 0
+      then '★ gmail 을 안 적었습니다 — 구글로 들어가도 스태프가 아닙니다'
+    when (select status from events limit 1) <> 'open'
+      then '작성 중입니다. 손님에게 보이려면 status 를 open 으로 바꿔 다시 돌리세요'
+    else '완료 → 손님에게 보입니다'
   end as 다음할일,
   (select count(*) from crews)        as 크루,
   (select count(*) from crew_members) as 멤버,
@@ -1157,7 +1167,9 @@ select
   (select count(*) from ticket_tiers) as 차수,
   (select count(*) from lineups)      as 라인업,
   (select count(*) from app_admins)   as 운영자,
-  (select count(*) from bookings)     as 예매;
+  (select count(*) from bookings)     as 예매,
+  (select status from events limit 1) as 상태,
+  (select email from admin_emails limit 1) as 구글운영자;
 
 select title, status, capacity, bank_account, left(cover_url, 40) as cover
 from events;
