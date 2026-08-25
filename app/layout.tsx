@@ -42,6 +42,11 @@ export const metadata: Metadata = {
   // 이걸 안 넣으면 X 에서 작은 썸네일로 뜬다. 이미지는 각 화면의
   // opengraph-image 를 그대로 쓴다
   twitter: { card: "summary_large_image" },
+  // 구글 OAuth 동의 화면이 승인된 도메인의 소유를 확인할 때 읽는다.
+  // Search Console 에서 발급한 값이라 지우면 확인이 풀린다
+  verification: {
+    google: "EMMp3dZPFBgCzJ9ZO6DsXqO9Ha3hlYjPdesl1KG2L7k",
+  },
 };
 
 export const viewport: Viewport = {

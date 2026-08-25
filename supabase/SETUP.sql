@@ -27,7 +27,7 @@ truncate _cfg;
 insert into _cfg (k, v) values
   ('email', 'ujin141@naver.com'),                      -- ⬛ 크루 로그인 이메일
   ('pw',    'partymoa2026'),                           -- ⬛ 크루 로그인 비밀번호
-  ('bank',  '은행 000-0000-0000-00 (예금주)'),          -- ⬛ 입금 계좌
+  ('bank',  '농협 352-0860-4459-03 (송우진)'),          -- ⬛ 입금 계좌
   ('cover', 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=1200&q=70'),  -- ⬛ 커버 사진
   ('crew',  'BLACKOUT'),                               -- ⬛ 크루 이름
   ('gmail', '');                                       -- ⬛ 구글 로그인에 쓸 주소
