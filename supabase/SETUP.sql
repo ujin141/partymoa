@@ -7,6 +7,9 @@
 --  **여러 번 돌려도 안 깨진다.** 이미 만들어진 건 건너뛴다.
 --  중간에 끊겼으면 그냥 다시 돌리면 된다.
 --
+--  계정을 아직 안 만들었어도 스키마는 들어간다. 계정을 만든 뒤
+--  이 파일을 다시 돌리면 그때 행사 데이터가 채워진다.
+--
 --  ┌───────────────────────────────────────────────────────────────┐
 --  │  돌리기 전에                                                  │
 --  │                                                               │
@@ -28,7 +31,7 @@
 create temp table if not exists _cfg (k text primary key, v text);
 truncate _cfg;
 insert into _cfg (k, v) values
-  ('email', 'crew@example.com'),                       -- ⬛ 위에서 만든 계정
+  ('email', 'ujin141@naver.com'),                      -- ⬛ 위에서 만든 계정
   ('bank',  '은행 000-0000-0000-00 (예금주)'),          -- ⬛ 입금 계좌
   ('cover', 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=1200&q=70'),  -- ⬛ 커버 사진
   ('crew',  'BLACKOUT');                               -- ⬛ 크루 이름
@@ -954,8 +957,12 @@ begin
   select id into v_owner from auth.users
   where lower(email) = lower(trim(c_email)) limit 1;
 
+  -- **여기서 예외를 던지지 않는다.** SQL Editor 는 전체를 한 트랜잭션으로
+  -- 돌려서, 마지막에 에러가 나면 앞의 스키마까지 통째로 되돌아간다.
+  -- 계정이 없으면 데이터만 건너뛰고 스키마는 남긴다.
   if v_owner is null then
-    raise exception '"%" 로 가입한 계정이 없습니다. Authentication > Users > Add user 에서 먼저 만드세요 (Auto Confirm User 켜기).', c_email;
+    raise warning '계정 "%" 이 없어 첫 행사 데이터를 건너뛰었습니다. Authentication > Users > Add user 로 만든 뒤 이 파일을 다시 돌리세요.', c_email;
+    return;
   end if;
 
   -- ── 크루 ────────────────────────────────────────────────────────
@@ -1033,6 +1040,10 @@ end $init$;
 -- ═══════════════════════════════════════════════════════════════════
 
 select
+  case when (select count(*) from crews) = 0
+    then '스키마만 들어갔습니다 → 계정을 만들고 이 파일을 다시 돌리세요'
+    else '완료 → Vercel 환경변수를 바꾸고 재배포하세요'
+  end as 다음할일,
   (select count(*) from crews)        as 크루,
   (select count(*) from crew_members) as 멤버,
   (select count(*) from events)       as 행사,
