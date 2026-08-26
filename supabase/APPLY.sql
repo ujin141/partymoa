@@ -2,6 +2,8 @@
 --  APPLY.sql — 아직 안 돌린 것 전부. **한 번만 붙여 넣으면 됩니다.**
 --
 --  들어 있는 것
+--   0. **예매 금액 계산 고침 (급함)** — 화면은 69,000, 저장은 74,000
+--      으로 갈리고 있습니다. 내 티켓에 다른 값이 뜨는 게 이것입니다
 --   1. 크루 신청 표 (crew_applications) + 권한
 --   2. 프로필 (profiles)
 --   3. 후기 (reviews) + 자격 판정 can_review()
@@ -16,6 +18,131 @@
 --  연락처·게스트 정리는 GUEST_INFO.sql, 운영자 잠금은 LOCK_ADMIN.sql
 --  로 따로 있습니다.
 -- ═══════════════════════════════════════════════════════════════════
+
+-- ───────────────────────────────────────── 0. 예매 금액 계산 (급함)
+--
+--  **화면과 서버가 다른 값을 쓰고 있다.**
+--  차수별 남성가(male_price)를 넣을 때 앱과 tier_price() 는 고쳤는데,
+--  실제로 금액을 정하는 create_booking() 은 옛 계산을 그대로 들고 있다.
+--  그래서 3차 남성이 화면에서 69,000 을 보고 누르면 74,000 으로 저장된다.
+--  내 티켓에 다른 값이 뜨는 게 이것이다.
+--
+--  차수별 남성가 컬럼과 tier_price() 도 여기서 같이 보장한다 —
+--  EVENT_UPDATE.sql 을 안 돌렸어도 이 파일 하나로 맞는다.
+
+alter table ticket_tiers add column if not exists male_price int;
+do $$ begin
+  alter table ticket_tiers add constraint ticket_tiers_male_price_check
+    check (male_price is null or male_price >= 0);
+exception when duplicate_object then null;
+end $$;
+
+create or replace function tier_price(p_tier ticket_tiers, p_event events, p_gender text)
+returns int language sql immutable as $$
+  select case
+    when p_gender <> 'M' then p_tier.price
+    when p_tier.male_price is not null then p_tier.male_price
+    else (round(p_tier.price * p_event.male_price_multiplier / 1000.0) * 1000)::int
+  end;
+$$;
+
+create or replace function create_booking(
+  p_event_id uuid,
+  p_tier_id uuid,
+  p_name text,
+  p_phone text,
+  p_gender text,
+  p_quantity int,
+  p_invite_code text default null
+) returns bookings
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  v_event events;
+  v_tier ticket_tiers;
+  v_booked int;
+  v_booked_g int;
+  v_tier_sold int;
+  v_gender_cap int;
+  v_price int;
+  v_amount int;
+  v_invite text;
+  v_row bookings;
+begin
+  if p_gender not in ('F', 'M') then
+    raise exception 'BAD_GENDER' using errcode = 'P0001';
+  end if;
+  if p_quantity < 1 or p_quantity > 4 then
+    raise exception 'BAD_QUANTITY' using errcode = 'P0001';
+  end if;
+
+  -- 이 행사의 모든 예매를 여기서 직렬화한다
+  select * into v_event from events where id = p_event_id for update;
+  if not found or v_event.status <> 'open' then
+    raise exception 'EVENT_NOT_OPEN' using errcode = 'P0001';
+  end if;
+
+  select * into v_tier
+  from ticket_tiers where id = p_tier_id and event_id = p_event_id;
+  if not found then
+    raise exception 'TIER_NOT_FOUND' using errcode = 'P0001';
+  end if;
+
+  -- 잠근 뒤 다시 센다. 클라이언트가 보낸 잔여는 이미 낡았다
+  select
+    coalesce(sum(quantity) filter (where status <> 'cancelled'), 0),
+    coalesce(sum(quantity) filter (where status <> 'cancelled' and gender = p_gender), 0),
+    coalesce(sum(quantity) filter (where status <> 'cancelled' and tier_id = p_tier_id), 0)
+  into v_booked, v_booked_g, v_tier_sold
+  from bookings where event_id = p_event_id;
+
+  if v_booked + p_quantity > v_event.capacity then
+    raise exception 'CAPACITY_EXCEEDED:%', v_event.capacity - v_booked
+      using errcode = 'P0001';
+  end if;
+
+  if v_event.gender_balanced then
+    v_gender_cap := floor(v_event.capacity / 2.0);
+    if v_booked_g + p_quantity > v_gender_cap then
+      raise exception 'GENDER_CAPACITY_EXCEEDED:%', v_gender_cap - v_booked_g
+        using errcode = 'P0001';
+    end if;
+  end if;
+
+  if v_tier_sold + p_quantity > v_tier.capacity then
+    raise exception 'TIER_SOLD_OUT:%', v_tier.capacity - v_tier_sold
+      using errcode = 'P0001';
+  end if;
+
+  -- 금액도 서버가 정한다. 클라이언트가 보낸 금액은 쓰지 않는다.
+  -- 차수에 남성가가 적혀 있으면 그걸 쓰고, 없으면 계수로 계산한다
+  v_price := tier_price(v_tier, v_event, p_gender);
+  v_amount := v_price * p_quantity;
+
+  v_invite := nullif(upper(trim(coalesce(p_invite_code, ''))), '');
+  if v_invite is not null and not exists (
+    select 1 from crew_members
+    where crew_id = v_event.crew_id and invite_code = v_invite
+  ) then
+    v_invite := null;   -- 없는 코드는 조용히 버린다. 예매 자체를 막지 않는다
+  end if;
+
+  insert into bookings (
+    code, event_id, tier_id, user_id, name, phone, gender,
+    quantity, amount, invite_code, expires_at
+  ) values (
+    'PM' || lpad(nextval('booking_code_seq')::text, 4, '0'),
+    p_event_id, p_tier_id, auth.uid(), trim(p_name), trim(p_phone), p_gender,
+    p_quantity, v_amount, v_invite, now() + interval '24 hours'
+  ) returning * into v_row;
+
+  return v_row;
+end $fn$;
+
+revoke all on function create_booking from public;
+grant execute on function create_booking to anon, authenticated;
 
 -- ───────────────────────────────────────── 1. 크루 신청
 
@@ -260,6 +387,114 @@ group by event_id;
 
 grant select on review_stats to anon, authenticated;
 
+-- 가입자 목록 (운영자 전용).
+--
+-- `auth.users` 는 앱에서 직접 못 읽는다. 프로필도 본인만 볼 수 있게
+-- 막혀 있다(profiles_own). 그래서 운영 화면에 가입자가 아예 안 보였다.
+--
+-- **security definer 로 감싸되 함수 안에서 운영자인지 다시 확인한다.**
+-- grant 만으로는 로그인한 아무나 전체 가입자와 연락처를 긁어 갈 수 있다.
+--
+-- 비밀번호 해시·토큰 같은 건 절대 내보내지 않는다. 화면에서 쓰는 값만.
+
+create or replace function member_list(p_q text default null)
+returns table (
+  user_id      uuid,
+  email        text,
+  provider     text,
+  is_anonymous boolean,
+  joined_at    timestamptz,
+  last_seen_at timestamptz,
+  nickname     text,
+  real_name    text,
+  phone        text,
+  areas        text[],
+  categories   text[],
+  bookings     int,
+  paid         bigint
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $fn$
+declare
+  v_q text := nullif(trim(coalesce(p_q, '')), '');
+begin
+  if not is_app_admin() then
+    raise exception 'FORBIDDEN' using errcode = 'P0001';
+  end if;
+
+  return query
+  select
+    u.id,
+    u.email::text,
+    coalesce(u.raw_app_meta_data ->> 'provider', '알 수 없음'),
+    coalesce(u.is_anonymous, false),
+    u.created_at,
+    u.last_sign_in_at,
+    p.nickname,
+    p.real_name,
+    p.phone,
+    coalesce(p.areas, '{}'),
+    coalesce(p.categories, '{}'),
+    coalesce(b.cnt, 0)::int,
+    coalesce(b.paid, 0)::bigint
+  from auth.users u
+  left join profiles p on p.user_id = u.id
+  left join (
+    select user_id,
+           count(*) filter (where status <> 'cancelled') as cnt,
+           sum(amount) filter (where status in ('paid', 'checked_in')) as paid
+    from bookings
+    where user_id is not null
+    group by user_id
+  ) b on b.user_id = u.id
+  where v_q is null
+     or u.email ilike '%' || v_q || '%'
+     or p.nickname ilike '%' || v_q || '%'
+     or p.real_name ilike '%' || v_q || '%'
+     or p.phone like '%' || v_q || '%'
+  order by u.created_at desc
+  limit 500;
+end $fn$;
+
+revoke all on function member_list from public, anon;
+grant execute on function member_list to authenticated;
+
+-- 머리에 띄울 숫자
+create or replace function member_summary()
+returns table (
+  people    int,
+  anonymous int,
+  google    int,
+  with_profile int,
+  buyers    int
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $fn$
+begin
+  if not is_app_admin() then
+    raise exception 'FORBIDDEN' using errcode = 'P0001';
+  end if;
+
+  return query
+  select
+    count(*) filter (where not coalesce(u.is_anonymous, false))::int,
+    count(*) filter (where coalesce(u.is_anonymous, false))::int,
+    count(*) filter (where u.raw_app_meta_data ->> 'provider' = 'google')::int,
+    (select count(*) from profiles)::int,
+    (select count(distinct user_id) from bookings
+     where user_id is not null and status <> 'cancelled')::int
+  from auth.users u;
+end $fn$;
+
+revoke all on function member_summary from public, anon;
+grant execute on function member_summary to authenticated;
+
 -- ───────────────────────────────────────── 4. 수수료 10%
 
 -- 플랫폼 수수료 10% 로.
@@ -304,6 +539,24 @@ grant select on platform_stats to authenticated;
 update crews set instagram = 'blackoutcrew_official' where slug = 'blackout';
 
 -- ───────────────────────────────────────── 확인
+
+-- **금액이 어긋난 예매.** 앞으로 들어올 예매는 위에서 고쳤지만, 이미
+-- 저장된 건은 그대로다. 자동으로 안 고친다 — GUEST_INFO.sql 로 실제
+-- 입금액을 넣어 둔 건들이 차수 가격으로 되돌아가면 매출이 다시 틀어진다.
+-- 여기 뜨는 건만 보고 정하세요.
+select '금액이 어긋난 예매' as 구분,
+       b.code as 예매번호, b.name as 이름, b.gender as 성별,
+       t.name as 차수, b.amount as 저장된금액,
+       tier_price(t, e, b.gender) * b.quantity as 계산된금액,
+       b.created_at as 신청
+from bookings b
+join ticket_tiers t on t.id = b.tier_id
+join events e on e.id = b.event_id
+where b.status <> 'cancelled'
+  and b.amount <> tier_price(t, e, b.gender) * b.quantity
+order by b.created_at desc;
+
+
 
 select '표가 생겼나' as 구분,
   to_regclass('public.crew_applications') is not null as 크루신청,

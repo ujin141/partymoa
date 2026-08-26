@@ -364,6 +364,34 @@ export type Database = {
         Args: Record<string, never>;
         Returns: { people: number; onboarded: number; picked: number }[];
       };
+      member_list: {
+        Args: { p_q?: string | null };
+        Returns: {
+          user_id: string;
+          email: string | null;
+          provider: string;
+          is_anonymous: boolean;
+          joined_at: string;
+          last_seen_at: string | null;
+          nickname: string | null;
+          real_name: string | null;
+          phone: string | null;
+          areas: string[];
+          categories: string[];
+          bookings: number;
+          paid: number;
+        }[];
+      };
+      member_summary: {
+        Args: Record<string, never>;
+        Returns: {
+          people: number;
+          anonymous: number;
+          google: number;
+          with_profile: number;
+          buyers: number;
+        }[];
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
