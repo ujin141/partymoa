@@ -10,8 +10,8 @@
 create temp table if not exists _keep (email text primary key);
 truncate _keep;
 insert into _keep (email) values
-  ('ujin141@naver.com'),        -- ⬛ 이메일/비밀번호 계정
-  ('⬛구글주소@gmail.com');      -- ⬛ 운영 화면에 쓰는 구글 계정
+  ('ujin141@naver.com'),           -- 이메일/비밀번호 계정
+  ('dlqudgh36444@gmail.com');      -- 구글 계정
 
 -- ─────────────────────────────────────────── 지금 누가 운영자인가
 

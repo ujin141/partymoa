@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { CrewPicker } from "@/components/crew/CrewPicker";
 import { EventPicker } from "@/components/crew/EventPicker";
+import { MemberQuickAdd } from "@/components/crew/MemberQuickAdd";
 import { StatusToggle } from "@/components/crew/StatusToggle";
 import { Divider, Gauge } from "@/components/ui/primitives";
 import { heads, live, money } from "@/lib/crew";
@@ -205,6 +206,8 @@ export default async function CrewDashboard({
             );
           })
         )}
+        <MemberQuickAdd crewId={crew.id} />
+
         <p className="mt-3 text-[12.5px] leading-relaxed text-sub">
           초대 코드를 입력하지 않은 예매는 집계에서 빠집니다.
         </p>
