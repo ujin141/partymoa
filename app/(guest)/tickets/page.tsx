@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Countdown, Deadline } from "@/components/Countdown";
+import { CancelBooking } from "@/components/CancelBooking";
 import { CopyButton } from "@/components/CopyButton";
 import { FindTicket } from "@/components/FindTicket";
 import { StoryShare } from "@/components/StoryShare";
@@ -113,6 +114,12 @@ export default async function TicketsPage({
                     이름만 넣으면 같은 이름이 여럿이라 확인이 늦어져요.
                   </p>
                 </div>
+              ) : null}
+
+              {/* 미입금은 손님이 직접 뺄 수 있다. 크루에게 DM 을 보내고
+                  기다리는 동안 그 자리가 잠겨 있는 게 제일 아깝다 */}
+              {b.status === "pending" ? (
+                <CancelBooking bookingId={b.id} eventTitle={b.event.title} />
               ) : null}
 
               {/* 익명 세션은 공유가 안 된다. 이미지 라우트가 로그인한

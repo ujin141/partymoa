@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import { setCheckedIn } from "@/app/(crew)/crew/actions";
+import { won } from "@/lib/format";
 import { Gauge } from "@/components/ui/primitives";
 import { createClient } from "@/lib/supabase/client";
 import type { Booking } from "@/types/database";
@@ -183,13 +184,24 @@ export function CheckinList({
                     </span>
                   ) : null}
                 </div>
-                <div className="mt-1 text-[12.5px] text-sub">{b.code}</div>
+                <div className="mt-1 text-[12.5px] text-sub">
+                  {b.invite_code ? `${b.code} · ${b.invite_code} 게스트` : b.code}
+                </div>
+                {/* **문 앞에서 얼마를 받아야 하는지.** 미입금인 사람이
+                    왔을 때 금액이 안 보이면 명단을 따로 켜야 한다.
+                    0원(무료입장)은 받으면 안 되므로 따로 적는다 */}
                 <div
                   className={`mt-0.5 text-[12px] font-bold ${
                     b.status === "pending" ? "text-hot" : "text-ok"
                   }`}
                 >
-                  {b.status === "pending" ? "⚠ 미입금" : "입금 완료"}
+                  {b.status === "pending"
+                    ? b.amount > 0
+                      ? `⚠ 미입금 · 현장 ${won(b.amount)}`
+                      : "⚠ 미입금"
+                    : b.amount === 0
+                      ? "무료입장"
+                      : "입금 완료"}
                 </div>
               </div>
               <button

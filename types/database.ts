@@ -446,6 +446,7 @@ export type Database = {
           paid: number;
         }[];
       };
+      cancel_my_booking: { Args: { p_booking: string }; Returns: Booking };
       check_invite: {
         Args: { p_event: string; p_code: string };
         Returns: { valid: boolean; price: number | null }[];
