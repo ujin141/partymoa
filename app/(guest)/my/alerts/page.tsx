@@ -62,7 +62,9 @@ export default function AlertsPage() {
         {!vapid ? (
           <p className="mt-3 text-[12.5px] leading-relaxed text-sub">
             아직 알림 키가 설정되지 않았어요. 배포 환경변수에
-            NEXT_PUBLIC_VAPID_PUBLIC_KEY 를 넣으면 켜집니다.
+            NEXT_PUBLIC_VAPID_PUBLIC_KEY 를 넣고 **캐시 없이 다시
+            빌드하면** 켜집니다. 값은 빌드할 때 코드에 박히기 때문에,
+            변수만 넣고 재배포하면 예전 결과물이 그대로 나갑니다.
           </p>
         ) : (
           <p className="mt-3 text-[12.5px] leading-relaxed text-sub">
