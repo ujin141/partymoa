@@ -25,6 +25,9 @@ interface Props {
   currentPrice: number | null;
   /** 초대 링크로 들어왔을 때 미리 채울 코드 */
   invite?: string | null;
+  /** 프로필에 적어 둔 이름·연락처 */
+  defaultName?: string | null;
+  defaultPhone?: string | null;
   bankAccount: string | null;
 }
 
@@ -40,8 +43,10 @@ export function BookingSheet(p: Props) {
   const [open, setOpen] = useState(false);
   const [tierId, setTierId] = useState<string | null>(null);
   const [gender, setGender] = useState<Gender | null>(null);
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  // 프로필에 적어 둔 값을 미리 채운다. 매번 다시 적는 게 제일 귀찮고,
+  // 오타가 나면 입금자명이 안 맞아 대조가 깨진다
+  const [name, setName] = useState(p.defaultName ?? "");
+  const [phone, setPhone] = useState(p.defaultPhone ?? "");
   const [qty, setQty] = useState(1);
   // 멤버 초대 링크(`?i=CODE`)로 들어오면 코드를 미리 채운다. 손으로
   // 옮겨 적으라고 하면 대부분 안 적고, 그러면 그 멤버 성과가 안 잡힌다

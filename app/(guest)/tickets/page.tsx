@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { Countdown, Deadline } from "@/components/Countdown";
 import { CopyButton } from "@/components/CopyButton";
 import { FindTicket } from "@/components/FindTicket";
@@ -106,6 +108,18 @@ export default async function TicketsPage({
                     이름만 넣으면 같은 이름이 여럿이라 확인이 늦어져요.
                   </p>
                 </div>
+              ) : null}
+
+              {/* 끝난 파티에는 후기 입구를 둔다. 파티 상세를 다시 찾아
+                  들어가는 사람은 거의 없다 — 티켓이 남아 있는 여기가
+                  후기를 쓸 유일한 길목이다 */}
+              {new Date(b.event.starts_at) <= new Date() ? (
+                <Link
+                  href={`/party/${b.event.slug}#후기`}
+                  className="block border-t border-line px-4 py-3 text-center text-[14px] font-semibold text-brand"
+                >
+                  후기 남기기
+                </Link>
               ) : null}
             </article>
           ))

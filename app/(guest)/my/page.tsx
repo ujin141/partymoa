@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "마이" };
 
 const ROWS = [
+  { label: "프로필 편집", href: "/my/profile" },
   { label: "찜한 파티", href: "/my/favorites" },
   { label: "팔로우한 크루", href: "/my/crews" },
   { label: "알림 설정", href: "/my/alerts" },
@@ -31,7 +32,18 @@ export default async function MyPage() {
   // uuid 로만 조회했는데, 구글로 로그인하면 새 uuid 가 생겨서 권한이 이메일
   // 쪽에만 있다. 그래서 운영자인데 운영 화면 줄이 안 떴다.
   // 판정은 lib/admin · lib/crew 한 군데서만 한다
-  const [crews, adminUser] = await Promise.all([myCrews(), isAdmin()]);
+  const [crews, adminUser, { data: profile }] = await Promise.all([
+    myCrews(),
+    isAdmin(),
+    // 이메일을 그대로 띄우면 남한테 보여 줄 이름이 없다
+    user && !user.is_anonymous
+      ? supabase
+          .from("profiles")
+          .select("nickname")
+          .eq("user_id", user.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
   const staff = crews.length > 0;
   const admin = Boolean(adminUser);
 
@@ -49,10 +61,16 @@ export default async function MyPage() {
             </div>
             <div className="min-w-0">
               <b className="block truncate text-[17px] font-extrabold">
-                {signedIn ? (user?.email ?? "회원") : "게스트"}
+                {signedIn
+                  ? ((profile as { nickname: string | null } | null)?.nickname ??
+                    user?.email ??
+                    "회원")
+                  : "게스트"}
               </b>
-              <p className="mt-0.5 text-[13px] text-sub">
-                {signedIn ? "로그인됨" : "로그인 없이 예매하고 있어요"}
+              <p className="mt-0.5 truncate text-[13px] text-sub">
+                {signedIn
+                  ? (user?.email ?? "로그인됨")
+                  : "로그인 없이 예매하고 있어요"}
               </p>
             </div>
           </div>

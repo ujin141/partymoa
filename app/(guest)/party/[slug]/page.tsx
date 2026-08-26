@@ -3,12 +3,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { BookingSheet } from "@/components/BookingSheet";
+import { Reviews } from "@/components/Reviews";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { ShareButton } from "@/components/ShareButton";
 import { Gauge, Tag } from "@/components/ui/primitives";
 import { longDate, timeRange, won } from "@/lib/format";
 import { getParty } from "@/lib/queries";
+import { createClient } from "@/lib/supabase/server";
 import { genderCap, priceFor, soldRate } from "@/lib/rules";
+import type { Review } from "@/types/database";
 
 // **캐시를 안 쓴다.** 찜은 사람마다 다르고 잔여는 초 단위로 바뀐다.
 // revalidate 를 걸어 두면 남의 찜과 지난 잔여가 그대로 나간다
@@ -50,6 +53,41 @@ export default async function PartyPage({
   }
 
   const { event, stats, tiers, lineups, tierSold, tier } = d;
+
+  // 후기. 자격 판정은 DB 의 can_review() 가 한다 — 여기서 다시 세면
+  // 두 군데가 어긋난다
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const signedIn = Boolean(user && !user.is_anonymous);
+
+  const [{ data: reviewRows }, { data: canWrite }, { data: profile }] =
+    await Promise.all([
+      supabase
+        .from("reviews")
+        .select("*")
+        .eq("event_id", event.id)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false }),
+      signedIn
+        ? supabase.rpc("can_review", { p_event: event.id })
+        : Promise.resolve({ data: false }),
+      signedIn
+        ? supabase
+            .from("profiles")
+            .select("nickname, real_name, phone")
+            .eq("user_id", user!.id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+  const reviews = (reviewRows ?? []) as Review[];
+  const mine = reviews.some((r) => r.user_id === user?.id);
+  const me = profile as {
+    nickname: string | null;
+    real_name: string | null;
+    phone: string | null;
+  } | null;
   const cap = genderCap(event.capacity);
   const leftF = event.gender_balanced
     ? Math.max(0, cap - stats.booked_f)
@@ -257,6 +295,16 @@ export default async function PartyPage({
           </section>
         ) : null}
 
+        <Reviews
+          eventId={event.id}
+          slug={event.slug}
+          reviews={reviews}
+          canWrite={Boolean(canWrite)}
+          mine={mine}
+          defaultNickname={me?.nickname ?? ""}
+          started={new Date(event.starts_at) <= new Date()}
+        />
+
         <section className="px-4 py-4.5">
           <div className="rounded-xl bg-soft p-3.5 text-[13.5px] leading-7 text-sub">
             신청 후 24시간 안에 입금하지 않으면 자동 취소되고 자리가 다음
@@ -289,6 +337,8 @@ export default async function PartyPage({
           tier ? priceFor(tier.price, "F", Number(event.male_price_multiplier)) : null
         }
         invite={(await searchParams).i ?? null}
+        defaultName={me?.real_name ?? null}
+        defaultPhone={me?.phone ?? null}
         bankAccount={event.bank_account}
       />
     </>

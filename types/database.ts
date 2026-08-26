@@ -57,6 +57,32 @@ export type CrewApplication = {
   created_at: string;
 }
 
+export type Profile = {
+  user_id: string;
+  nickname: string | null;
+  real_name: string | null;
+  phone: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type Review = {
+  id: string;
+  event_id: string;
+  user_id: string;
+  rating: number;
+  body: string;
+  nickname: string;
+  deleted_at: string | null;
+  created_at: string;
+}
+
+export type ReviewStats = {
+  event_id: string;
+  reviews: number;
+  rating: number;
+}
+
 export type EventRow = {
   id: string;
   crew_id: string;
@@ -209,6 +235,11 @@ export type Database = {
   public: {
     Tables: {
       crews: Table<Crew, Insertable<Crew, "name" | "slug">>;
+      profiles: Table<Profile, Insertable<Profile, "user_id">>;
+      reviews: Table<
+        Review,
+        Insertable<Review, "event_id" | "user_id" | "rating" | "body" | "nickname">
+      >;
       crew_applications: Table<
         CrewApplication,
         Insertable<
@@ -269,6 +300,7 @@ export type Database = {
       event_stats: View<EventStats>;
       tier_stats: View<TierStats>;
       post_list: View<PostListRow>;
+      review_stats: View<ReviewStats>;
       platform_stats: View<{
         event_id: string;
         crew_id: string;
@@ -318,6 +350,7 @@ export type Database = {
       find_user_id: { Args: { p_email: string }; Returns: string | null };
       delete_post: { Args: { p_id: string }; Returns: undefined };
       delete_comment: { Args: { p_id: string }; Returns: undefined };
+      can_review: { Args: { p_event: string }; Returns: boolean };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
