@@ -30,7 +30,8 @@ export default async function HomePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [parties, crews, areas, { data: profile }] = await Promise.all([
+  const [parties, crews, areas, { data: profile }, { count: unpaidCount }] =
+    await Promise.all([
     listOpenParties(),
     listCrews(),
     listAreas(),
@@ -42,7 +43,18 @@ export default async function HomePage() {
           .eq("user_id", user.id)
           .maybeSingle()
       : Promise.resolve({ data: null }),
+    // 미입금이 있으면 티켓 아이콘에 점을 찍는다. 24시간 지나면 자리가
+    // 풀리는데, 그걸 잊는 게 제일 흔한 사고다
+    user
+      ? supabase
+          .from("bookings")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("status", "pending")
+      : Promise.resolve({ count: 0 }),
   ]);
+
+  const unpaid = unpaidCount ?? 0;
 
   let me = profile as {
     areas: string[];
@@ -105,6 +117,52 @@ export default async function HomePage() {
     <>
       <header className="flex flex-none items-center gap-2.5 border-b border-line px-4 py-3">
         <Wordmark />
+
+        {/* 아래 탭이 있는데도 위에 또 두는 이유 — 폰을 한 손으로 잡으면
+            엄지가 화면 위쪽에 있고, 홈에서 제일 자주 가는 곳이 이 둘이다.
+            미입금이 있으면 티켓에 점을 찍는다. 그게 잊어버리는 것이다 */}
+        <nav className="ml-auto flex items-center gap-1">
+          <Link
+            href="/tickets"
+            aria-label="내 티켓"
+            className="relative grid h-9 w-9 place-items-center rounded-full active:bg-soft"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className="h-[21px] w-[21px]"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.8}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M4 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2 2 2 0 0 0 0 4 2 2 0 0 1 0 4 2 2 0 0 1-2 2H6a2 2 0 0 1-2-2 2 2 0 0 0 0-4 2 2 0 0 1 0-4z" />
+            </svg>
+            {unpaid > 0 ? (
+              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-hot ring-2 ring-white" />
+            ) : null}
+          </Link>
+          <Link
+            href="/my"
+            aria-label="마이"
+            className="grid h-9 w-9 place-items-center rounded-full active:bg-soft"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className="h-[21px] w-[21px]"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.8}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="8" r="3.6" />
+              <path d="M4.5 20c0-4 3.4-6.5 7.5-6.5s7.5 2.5 7.5 6.5" />
+            </svg>
+          </Link>
+        </nav>
       </header>
 
       <div className="flex-1 overflow-y-auto overscroll-contain">
