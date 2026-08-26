@@ -281,11 +281,7 @@ begin
       using errcode = 'P0001';
   end if;
 
-  -- 금액도 서버가 정한다. 클라이언트가 보낸 금액은 쓰지 않는다.
-  -- 차수에 남성가가 적혀 있으면 그걸 쓰고, 없으면 계수로 계산한다
-  v_price := tier_price(v_tier, v_event, p_gender);
-  v_amount := v_price * p_quantity;
-
+  -- **초대를 먼저 확인한다.** 금액이 초대 여부에 달려 있기 때문이다
   v_invite := nullif(upper(trim(coalesce(p_invite_code, ''))), '');
   if v_invite is not null and not exists (
     select 1 from crew_members
@@ -293,6 +289,11 @@ begin
   ) then
     v_invite := null;   -- 없는 코드는 조용히 버린다. 예매 자체를 막지 않는다
   end if;
+
+  -- 금액도 서버가 정한다. 클라이언트가 보낸 금액은 쓰지 않는다.
+  -- 유효한 초대가 있으면 게스트가, 없으면 차수 가격(남성가 포함)
+  v_price := tier_price(v_tier, v_event, p_gender, v_invite is not null);
+  v_amount := v_price * p_quantity;
 
   insert into bookings (
     code, event_id, tier_id, user_id, name, phone, gender,

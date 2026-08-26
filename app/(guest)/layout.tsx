@@ -1,3 +1,4 @@
+import { DesktopInstall } from "@/components/DesktopInstall";
 import { EnsureSession } from "@/components/EnsureSession";
 import { GuestTabs } from "@/components/GuestTabs";
 import { OnboardingGate } from "@/components/OnboardingGate";
@@ -39,6 +40,9 @@ export default async function GuestLayout({
   return (
     <div className="relative mx-auto flex h-dvh max-w-[430px] flex-col overflow-hidden bg-white pt-[env(safe-area-inset-top)] sm:border-x sm:border-line">
       <EnsureSession />
+      {/* PC 로 들어온 사람을 폰으로 옮긴다. 셸 밖(고정 위치)이라 폰
+          모양을 안 건드린다 */}
+      <DesktopInstall />
       <OnboardingGate
         signedIn={signedIn}
         onboarded={Boolean(p?.onboarded_at)}

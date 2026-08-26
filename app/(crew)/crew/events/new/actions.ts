@@ -43,6 +43,7 @@ export interface EventDraft {
     sortOrder: number;
   }[];
   tablesNote: string;
+  guestPrice: number | null;
   photos: { url: string; caption: string | null; sortOrder: number }[];
   lineups: { artist: string; time: string }[];
 }
@@ -109,6 +110,7 @@ export async function createEvent(d: EventDraft) {
       genres: d.genres,
       categories: d.categories,
       list_price: d.listPrice,
+      guest_price: d.guestPrice,
       bank_account: d.bankAccount.trim() || null,
       status: "draft",
     })

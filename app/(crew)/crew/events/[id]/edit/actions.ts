@@ -42,6 +42,7 @@ export interface EventPatch {
     sortOrder: number;
   }[];
   tablesNote: string;
+  guestPrice: number | null;
   photos: { url: string; caption: string | null; sortOrder: number }[];
 }
 
@@ -107,6 +108,7 @@ export async function updateEvent(eventId: string, d: EventPatch) {
       genres: d.genres,
       categories: d.categories,
       list_price: d.listPrice,
+      guest_price: d.guestPrice,
       bank_account: d.bankAccount.trim() || null,
     })
     .eq("id", eventId);

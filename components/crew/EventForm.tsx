@@ -141,6 +141,10 @@ export function EventForm({
     })) ?? [],
   );
   const [tablesNote, setTablesNote] = useState(ev?.tables_note ?? "");
+  /** 초대 코드를 넣었을 때의 금액. 비우면 할인 없음 */
+  const [guestPrice, setGuestPrice] = useState(
+    ev?.guest_price == null ? "" : String(ev.guest_price),
+  );
 
   /** 상세에서만 보는 여러 장. 커버(대표 한 장)와 다른 것이다 */
   const [photos, setPhotos] = useState<
@@ -206,6 +210,7 @@ export function EventForm({
           sortOrder: i,
         })),
         tablesNote,
+        guestPrice: guestPrice.trim() === "" ? null : Number(guestPrice) || 0,
         photos: photos
           .filter((x) => x.url.trim())
           .map((x, i) => ({
@@ -568,6 +573,19 @@ export function EventForm({
       >
         차수 추가
       </button>
+
+      <h4 className="mb-1 text-base font-extrabold">게스트 가격</h4>
+      <p className="mb-3 text-[12.5px] leading-relaxed text-sub">
+        DJ·크루 초대 코드를 넣은 손님에게 적용할 금액. 비워 두면 코드는
+        <b className="text-ink"> 집계에만 </b>쓰이고 금액은 안 바뀝니다.
+      </p>
+      <input
+        className={`${input} mb-6`}
+        inputMode="numeric"
+        value={guestPrice}
+        placeholder="30000"
+        onChange={(e) => setGuestPrice(e.target.value.replace(/\D/g, ""))}
+      />
 
       {/* ── 테이블 (메뉴판) ── */}
       <h4 className="mb-1 text-base font-extrabold">테이블</h4>

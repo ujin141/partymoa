@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { BookingDone } from "@/components/BookingDone";
 import { won } from "@/lib/format";
@@ -51,6 +51,15 @@ export function BookingSheet(p: Props) {
   // 멤버 초대 링크(`?i=CODE`)로 들어오면 코드를 미리 채운다. 손으로
   // 옮겨 적으라고 하면 대부분 안 적고, 그러면 그 멤버 성과가 안 잡힌다
   const [invite, setInvite] = useState(p.invite ?? "");
+  /**
+   * 초대 확인 결과. **금액이 여기 달려 있다** — 유효한 코드면 게스트가로
+   * 바뀐다. 최종 금액은 서버가 다시 정하므로 여기 값은 보여 주기용이다.
+   */
+  const [inviteOk, setInviteOk] = useState<null | {
+    valid: boolean;
+    price: number | null;
+  }>(null);
+  const [checking, setChecking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState<Booking | null>(null);
@@ -59,11 +68,40 @@ export function BookingSheet(p: Props) {
   const leftF = p.genderBalanced ? gcap - p.bookedF : p.capacity - p.booked;
   const leftM = p.genderBalanced ? gcap - p.bookedM : p.capacity - p.booked;
 
+  // 타이핑할 때마다 부르면 글자 수만큼 왕복한다. 멈추고 나서 한 번만
+  useEffect(() => {
+    const code = invite.trim();
+    if (!code) {
+      setInviteOk(null);
+      return;
+    }
+    setChecking(true);
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/invite", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ eventId: p.eventId, code }),
+        });
+        setInviteOk(await res.json());
+      } catch {
+        setInviteOk(null);
+      } finally {
+        setChecking(false);
+      }
+    }, 450);
+    return () => clearTimeout(t);
+  }, [invite, p.eventId]);
+
+  const guestPrice =
+    inviteOk?.valid && inviteOk.price != null ? inviteOk.price : null;
+
   const tier = p.tiers.find((t) => t.id === tierId) ?? null;
   const unit = useMemo(() => {
     if (!tier || !gender) return null;
+    if (guestPrice != null) return guestPrice;
     return priceFor(tier.price, gender, p.maleMultiplier, tier.male_price);
-  }, [tier, gender, p.maleMultiplier]);
+  }, [tier, gender, p.maleMultiplier, guestPrice]);
   const total = unit ? unit * qty : null;
 
   const ready = Boolean(tierId && gender && name.trim() && phone.trim());
@@ -192,7 +230,9 @@ export function BookingSheet(p: Props) {
           {p.tiers.map((t) => {
             const sold = p.tierSold[t.id] ?? 0;
             const out = sold >= t.capacity;
-            const price = priceFor(t.price, gender ?? "F", p.maleMultiplier, t.male_price);
+            const price =
+              guestPrice ??
+              priceFor(t.price, gender ?? "F", p.maleMultiplier, t.male_price);
             return (
               <button
                 key={t.id}
@@ -313,9 +353,28 @@ export function BookingSheet(p: Props) {
             <input
               value={invite}
               onChange={(e) => setInvite(e.target.value.toUpperCase())}
-              placeholder="크루 멤버에게 받은 코드"
-              className="w-full rounded-xl border-[1.5px] border-transparent bg-soft p-3.5 text-[15.5px] uppercase outline-none focus:border-brand focus:bg-white"
+              placeholder="DJ · 크루에게 받은 코드"
+              className={`w-full rounded-xl border-[1.5px] bg-soft p-3.5 text-[15.5px] uppercase outline-none focus:bg-white ${
+                inviteOk?.valid
+                  ? "border-ok"
+                  : inviteOk && !inviteOk.valid
+                    ? "border-hot"
+                    : "border-transparent focus:border-brand"
+              }`}
             />
+            {/* **뭔지 모르면 아무도 안 넣는다.** 어디서 받는 것인지,
+                넣으면 뭐가 달라지는지를 그 자리에 적는다 */}
+            <p className="mt-1.5 text-[12.5px] leading-relaxed text-sub">
+              {checking
+                ? "확인 중…"
+                : inviteOk?.valid && guestPrice != null
+                  ? `게스트가 적용 — ${won(guestPrice)}`
+                  : inviteOk?.valid
+                    ? "확인됐어요. 누가 초대했는지 집계에 들어갑니다."
+                    : inviteOk && !inviteOk.valid
+                      ? "그런 코드가 없어요. 비워 두셔도 예매됩니다."
+                      : "DJ 나 크루에게 받은 코드를 넣으면 게스트 가격이 적용돼요."}
+            </p>
           </div>
           <div className="h-2" />
         </div>

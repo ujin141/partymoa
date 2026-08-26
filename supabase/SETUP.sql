@@ -331,11 +331,7 @@ begin
       using errcode = 'P0001';
   end if;
 
-  -- 금액도 서버가 정한다. 클라이언트가 보낸 금액은 쓰지 않는다.
-  -- 차수에 남성가가 적혀 있으면 그걸 쓰고, 없으면 계수로 계산한다
-  v_price := tier_price(v_tier, v_event, p_gender);
-  v_amount := v_price * p_quantity;
-
+  -- **초대를 먼저 확인한다.** 금액이 초대 여부에 달려 있기 때문이다
   v_invite := nullif(upper(trim(coalesce(p_invite_code, ''))), '');
   if v_invite is not null and not exists (
     select 1 from crew_members
@@ -343,6 +339,11 @@ begin
   ) then
     v_invite := null;   -- 없는 코드는 조용히 버린다. 예매 자체를 막지 않는다
   end if;
+
+  -- 금액도 서버가 정한다. 클라이언트가 보낸 금액은 쓰지 않는다.
+  -- 유효한 초대가 있으면 게스트가, 없으면 차수 가격(남성가 포함)
+  v_price := tier_price(v_tier, v_event, p_gender, v_invite is not null);
+  v_amount := v_price * p_quantity;
 
   insert into bookings (
     code, event_id, tier_id, user_id, name, phone, gender,
@@ -1460,6 +1461,185 @@ create policy event_photos_write on event_photos
   ) with check (
     exists (select 1 from events e where e.id = event_id and is_crew_staff(e.crew_id))
   );
+
+-- 웹 푸시 구독.
+--
+-- 로그인 없이 예매할 수 있는 앱이라, 푸시도 **익명 세션에 붙는다.**
+-- 브라우저를 지우면 같이 날아가는데, 그건 그 브라우저가 더 이상 그
+-- 사람이 아니라는 뜻이므로 맞다.
+--
+-- endpoint 가 사실상 키다. 같은 기기가 다시 구독하면 키가 같으므로
+-- 줄이 늘지 않는다.
+
+create table if not exists push_subscriptions (
+  endpoint text primary key,
+  user_id  uuid references auth.users on delete cascade,
+  p256dh   text not null,
+  auth     text not null,
+  -- 마지막으로 보내다 실패한 시각. 죽은 구독을 지우는 근거
+  failed_at timestamptz,
+  created_at timestamptz default now()
+);
+
+create index if not exists push_subs_user_idx on push_subscriptions (user_id);
+
+alter table push_subscriptions enable row level security;
+
+-- 본인 것만. 남의 endpoint 를 알면 그 기기로 알림을 보낼 수 있다
+drop policy if exists push_own on push_subscriptions;
+create policy push_own on push_subscriptions
+  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+-- ─────────────────────────────────────────── 보낼 것 찾기
+--
+-- 크론이 30분마다 부른다. **보낼 사람만 골라 준다** — 앱이 예매를 통째로
+-- 읽어 걸러 내면 그 순간 손님 명단이 서버 밖으로 나간다.
+--
+-- 두 가지를 본다.
+--   1. 미입금이 세 시간 뒤에 풀린다  → 지금 넣으라고 알린다
+--   2. 오늘 그 파티가 열린다         → 시간·장소를 알린다
+--
+-- 같은 걸 두 번 안 보내려고 보낸 기록을 남긴다.
+
+create table if not exists push_log (
+  booking_id uuid references bookings on delete cascade not null,
+  kind text not null check (kind in ('expiring', 'today', 'paid')),
+  sent_at timestamptz default now(),
+  primary key (booking_id, kind)
+);
+
+create or replace function push_targets()
+returns table (
+  booking_id uuid,
+  kind       text,
+  endpoint   text,
+  p256dh     text,
+  auth       text,
+  title      text,
+  body       text,
+  url        text
+)
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+#variable_conflict use_column
+begin
+  return query
+  with due as (
+    select b.id as bid,
+           case
+             when b.status = 'pending' then 'expiring'
+             else 'today'
+           end as k,
+           b.user_id as uid,
+           b.code as code,
+           e.title as ev_title,
+           e.slug as ev_slug,
+           to_char(e.starts_at at time zone 'Asia/Seoul', 'HH24:MI') as at_time,
+           e.venue_name as venue
+    from bookings b
+    join events e on e.id = b.event_id
+    where b.user_id is not null
+      and b.status <> 'cancelled'
+      and (
+        -- 세 시간 안에 풀린다
+        (b.status = 'pending'
+         and b.expires_at > now()
+         and b.expires_at < now() + interval '3 hours')
+        or
+        -- 오늘 열린다
+        (e.starts_at::date = (now() at time zone 'Asia/Seoul')::date
+         and e.starts_at > now())
+      )
+  )
+  select d.bid, d.k, s.endpoint, s.p256dh, s.auth,
+    case when d.k = 'expiring' then '자리가 곧 풀려요'
+         else '오늘이에요' end,
+    case when d.k = 'expiring'
+      then d.ev_title || ' · ' || d.code || ' 입금이 아직이에요. 세 시간 뒤 자동 취소됩니다.'
+      else d.ev_title || ' · ' || d.at_time || ' ' || d.venue || ' 에서 봬요.'
+    end,
+    '/tickets'
+  from due d
+  join push_subscriptions s on s.user_id = d.uid and s.failed_at is null
+  where not exists (
+    select 1 from push_log l where l.booking_id = d.bid and l.kind = d.k
+  );
+end $fn$;
+
+revoke all on function push_targets from public, anon, authenticated;
+
+-- 초대 코드 = 게스트가.
+--
+-- **지금까지 초대 코드는 금액을 안 바꿨다.** 누가 데려왔는지 집계에만
+-- 썼다. 그런데 실제로는 DJ 게스트가 30,000원, 그냥 온 사람이 49,000원
+-- 이다 — 그 차이를 크루가 손으로 고쳐 왔다.
+--
+-- 그러면 손님은 앱에서 49,000원을 보고 예매한 뒤 "게스트인데요" 라고
+-- DM 을 보내야 한다. 그걸 앱이 하게 만든다.
+--
+-- 비워 두면 예전과 똑같다 — 코드는 집계에만 쓰이고 금액은 안 바뀐다.
+alter table events add column if not exists guest_price int
+  check (guest_price is null or guest_price >= 0);
+
+comment on column events.guest_price is
+  '유효한 초대 코드를 넣었을 때의 금액. 비우면 할인 없음';
+
+-- **옛 3인자짜리를 먼저 지운다.** 기본값이 있는 4인자와 나란히 두면
+-- tier_price(t, e, 'M') 이 어느 쪽인지 모호해져서 예매가 통째로 막힌다
+drop function if exists tier_price(ticket_tiers, events, text);
+
+-- 금액 계산의 단일 진실. 초대가 있으면 게스트가가 이긴다
+create or replace function tier_price(
+  p_tier ticket_tiers,
+  p_event events,
+  p_gender text,
+  p_invited boolean default false
+)
+returns int language sql immutable as $$
+  select case
+    when p_invited and p_event.guest_price is not null then p_event.guest_price
+    when p_gender <> 'M' then p_tier.price
+    when p_tier.male_price is not null then p_tier.male_price
+    else (round(p_tier.price * p_event.male_price_multiplier / 1000.0) * 1000)::int
+  end;
+$$;
+
+-- 손님이 코드를 넣는 순간 금액이 바뀌어야 한다. 그러려면 화면이 코드를
+-- 물어볼 자리가 필요하다. **크루 정보는 안 준다** — 코드가 맞는지와
+-- 얼마인지만 준다
+create or replace function check_invite(p_event uuid, p_code text)
+returns table (valid boolean, price int)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $fn$
+#variable_conflict use_column
+declare
+  v_event  events;
+  v_code   text := nullif(upper(trim(coalesce(p_code, ''))), '');
+  v_ok     boolean := false;
+begin
+  select * into v_event from events where id = p_event;
+  if not found then
+    return query select false, null::int;
+    return;
+  end if;
+
+  if v_code is not null then
+    select exists (
+      select 1 from crew_members m
+      where m.crew_id = v_event.crew_id and m.invite_code = v_code
+    ) into v_ok;
+  end if;
+
+  return query select v_ok, case when v_ok then v_event.guest_price else null end;
+end $fn$;
+
+revoke all on function check_invite from public;
+grant execute on function check_invite to anon, authenticated;
 
 -- ─────────────────────────────────────────── 크루 온보딩
 --

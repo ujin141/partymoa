@@ -112,6 +112,21 @@ export type EventPhoto = {
   created_at: string;
 }
 
+export type PushSubscription = {
+  endpoint: string;
+  user_id: string | null;
+  p256dh: string;
+  auth: string;
+  failed_at: string | null;
+  created_at: string;
+}
+
+export type PushLog = {
+  booking_id: string;
+  kind: "expiring" | "today" | "paid";
+  sent_at: string;
+}
+
 export type EventRow = {
   id: string;
   crew_id: string;
@@ -133,6 +148,8 @@ export type EventRow = {
   categories: string[];
   list_price: number;
   bank_account: string | null;
+  /** 유효한 초대 코드를 넣었을 때의 금액. 비우면 할인 없음 */
+  guest_price: number | null;
   /** 테이블 전체에 붙는 공통 안내 */
   tables_note: string | null;
   status: EventStatus;
@@ -267,6 +284,11 @@ export type Database = {
     Tables: {
       crews: Table<Crew, Insertable<Crew, "name" | "slug">>;
       profiles: Table<Profile, Insertable<Profile, "user_id">>;
+      push_subscriptions: Table<
+        PushSubscription,
+        Insertable<PushSubscription, "endpoint" | "p256dh" | "auth">
+      >;
+      push_log: Table<PushLog, Insertable<PushLog, "booking_id" | "kind">>;
       event_photos: Table<
         EventPhoto,
         Insertable<EventPhoto, "event_id" | "url">
@@ -422,6 +444,23 @@ export type Database = {
           categories: string[];
           bookings: number;
           paid: number;
+        }[];
+      };
+      check_invite: {
+        Args: { p_event: string; p_code: string };
+        Returns: { valid: boolean; price: number | null }[];
+      };
+      push_targets: {
+        Args: Record<string, never>;
+        Returns: {
+          booking_id: string;
+          kind: string;
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+          title: string;
+          body: string;
+          url: string;
         }[];
       };
       member_summary: {
