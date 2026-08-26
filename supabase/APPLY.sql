@@ -144,6 +144,130 @@ end $fn$;
 revoke all on function create_booking from public;
 grant execute on function create_booking to anon, authenticated;
 
+-- 이름 + 연락처로 내 티켓 찾기.
+--
+-- 지금은 예매번호(PM0001)가 있어야 찾는다. 문자를 지웠거나 기기를 바꾼
+-- 사람은 그 번호를 모른다 — 정작 티켓이 필요한 순간에 못 찾는다.
+--
+-- **연락처만으로는 안 연다.** 번호만 넣으면 남의 번호를 아는 사람이
+-- 그 사람이 어느 파티에 가는지, 누구 이름으로 몇 명 예매했는지 다 본다.
+-- 파티 앱에서 그건 그냥 사생활이다. 이름을 같이 받으면 예매번호를 외울
+-- 필요는 없어지면서 아무나 열지는 못한다.
+--
+-- 이름은 띄어쓰기·대소문자를 무시하고 맞춘다. "송 우진" 이라고 적었다고
+-- 못 찾으면 안 된다.
+
+create or replace function find_bookings_by_phone(p_phone text, p_name text)
+returns setof bookings
+language plpgsql
+stable
+security definer
+set search_path = public
+as $fn$
+declare
+  v_digits text := regexp_replace(coalesce(p_phone, ''), '\D', '', 'g');
+  v_name   text := lower(regexp_replace(coalesce(p_name, ''), '\s', '', 'g'));
+begin
+  if length(v_digits) < 8 then
+    raise exception 'BAD_PHONE' using errcode = 'P0001';
+  end if;
+  if length(v_name) < 1 then
+    raise exception 'BAD_NAME' using errcode = 'P0001';
+  end if;
+
+  return query
+  select bk.*
+  from bookings bk
+  where regexp_replace(bk.phone, '\D', '', 'g') = v_digits
+    and lower(regexp_replace(bk.name, '\s', '', 'g')) = v_name
+    and bk.status <> 'cancelled'
+  order by bk.created_at desc;
+end $fn$;
+
+revoke all on function find_bookings_by_phone from public;
+grant execute on function find_bookings_by_phone to anon, authenticated;
+
+-- 찾은 걸 지금 세션에 전부 붙인다. 다음부터는 목록에 그냥 뜬다
+create or replace function claim_bookings_by_phone(p_phone text, p_name text)
+returns setof bookings
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  v_ids uuid[];
+begin
+  select array_agg(bk.id) into v_ids
+  from find_bookings_by_phone(p_phone, p_name) bk;
+
+  if v_ids is null then
+    raise exception 'NOT_FOUND' using errcode = 'P0001';
+  end if;
+
+  if auth.uid() is not null then
+    update bookings set user_id = auth.uid()
+    where id = any(v_ids) and user_id is null;
+  end if;
+
+  return query select bk.* from bookings bk
+  where bk.id = any(v_ids) order by bk.created_at desc;
+end $fn$;
+
+revoke all on function claim_bookings_by_phone from public;
+grant execute on function claim_bookings_by_phone to anon, authenticated;
+
+-- 테이블 예약 (VIP · VVIP · PLUS).
+--
+-- 차수(ticket_tiers)와 다른 것이다. 차수는 입장권이고, 테이블은 자리를
+-- 통째로 잡는 것이며 **테이블을 잡으면 입장비가 없다.** 같은 표에 섞으면
+-- 정원 계산이 깨진다 — 테이블 손님은 입장권을 안 사기 때문이다.
+--
+-- 값은 크루가 앱에서 넣는다. 여기에 미리 적어 두지 않는다 — 파티마다
+-- 다르고, 코드에 박아 두면 바꿀 때마다 배포해야 한다.
+
+create table if not exists event_tables (
+  id uuid primary key default gen_random_uuid(),
+  event_id uuid references events on delete cascade not null,
+  name  text not null,               -- VIP · VVIP · PLUS
+  -- 계좌이체 기준. 메뉴판이 그렇게 적혀 있다
+  price int not null check (price >= 0),
+  -- 카드로 결제하면 더 받는다. 비우면 안 띄운다
+  card_price int check (card_price is null or card_price >= 0),
+  -- 몇 명까지 앉나. 입장비가 없는 인원이 이 숫자다
+  seats int not null check (seats > 0),
+  note  text,                        -- 구성 (주류·안주 등)
+  sort_order int not null default 0,
+  created_at timestamptz default now()
+);
+
+-- 테이블 전체에 공통으로 붙는 안내 (샴페인 종류·추가 가격·예약 문의 등).
+-- 줄마다 반복하면 화면이 같은 말로 도배된다
+alter table events add column if not exists tables_note text;
+
+create index if not exists event_tables_event_idx
+  on event_tables (event_id, sort_order);
+
+alter table event_tables enable row level security;
+
+-- 손님이 봐야 파는 것이다. 파티가 보이면 테이블도 보인다
+drop policy if exists event_tables_read on event_tables;
+create policy event_tables_read on event_tables
+  for select using (
+    exists (
+      select 1 from events e
+      where e.id = event_id and (e.status in ('open', 'closed', 'done')
+        or is_crew_staff(e.crew_id))
+    )
+  );
+
+drop policy if exists event_tables_write on event_tables;
+create policy event_tables_write on event_tables
+  for all using (
+    exists (select 1 from events e where e.id = event_id and is_crew_staff(e.crew_id))
+  ) with check (
+    exists (select 1 from events e where e.id = event_id and is_crew_staff(e.crew_id))
+  );
+
 -- ───────────────────────────────────────── 1. 크루 신청
 
 -- 크루 신청.
@@ -548,6 +672,37 @@ update crews set instagram = 'blackoutcrew_official' where slug = 'blackout';
 -- 쓰면 카드가 뿌옇게 보인다. 파일은 우리 서버에 있다
 update events set cover_url = '/covers/after-sunset.jpg'
 where slug = 'after-sunset-20260829';
+
+-- AFTER SUNSET TABLE. 메뉴판(2026.08.13)에 적힌 값 그대로다.
+-- 가격은 계좌이체 기준이고 카드는 따로 적는다
+do $tb$
+declare v_event uuid;
+begin
+  select id into v_event from events where slug = 'after-sunset-20260829';
+  if v_event is null then return; end if;
+
+  delete from event_tables where event_id = v_event;
+  insert into event_tables (event_id, name, price, card_price, seats, note, sort_order)
+  values
+    (v_event, 'VIP',        300000,  350000, 4,
+     '샴페인 1병 · 음료수 3 · 생수 4', 0),
+    (v_event, 'VIP PLUS',   500000,  550000, 4,
+     '샴페인 2병 · 음료수 4 · 생수 4', 1),
+    (v_event, 'VVIP',      1500000, 1650000, 8,
+     '샴페인 5병 · 음료수 6 · 생수 8 · 전광판 · 폭죽', 2),
+    (v_event, 'VVIP PLUS', 2500000, 2750000, 8,
+     '샴페인 9병 · 음료수 8 · 생수 8 · 전광판 · 폭죽', 3);
+
+  update events set tables_note = concat_ws(E'
+',
+    '테이블 인원 전원 입장료 면제 · 방수 손목밴드 · 락커 포함',
+    'VVIP 이상 전광판 메시지 · 폭죽 서빙 · 스냅 우선 촬영',
+    '샴페인은 DEEP LUMINOUS 750ml',
+    '음료수 · 생수는 표기 수량만 제공 · 추가분은 바 메뉴 가격',
+    '샴페인 추가 1병 280,000원 (계좌이체 250,000원)',
+    '표시 가격은 계좌이체 기준'
+  ) where id = v_event;
+end $tb$;
 
 -- ───────────────────────────────────────── 확인
 

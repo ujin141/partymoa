@@ -50,6 +50,25 @@ export async function GET(
   const paid = b.status !== "pending";
   const ev = b.event;
 
+  /**
+   * **satori 의 <img> 는 절대 주소만 받는다.** 커버가 우리 서버에 있으면
+   * `/covers/...` 로 들어오는데 그대로 넘기면 사진 칸이 그냥 빈다.
+   */
+  const site =
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : new URL(_req.url).origin);
+  const cover = ev.cover_url
+    ? ev.cover_url.startsWith("/")
+      ? `${site}${ev.cover_url}`
+      : ev.cover_url
+    : null;
+
+  // 사진이 끝나는 높이. 아래 배경 그라데이션의 첫 구간을 여기까지 같은
+  // 색으로 잡아 두면 사진과 배경이 이어 붙은 자리가 안 보인다
+  const PHOTO = 1100;
+
   return new ImageResponse(
     (
       <div
@@ -58,24 +77,63 @@ export async function GET(
           height: H,
           display: "flex",
           flexDirection: "column",
-          background: `linear-gradient(160deg, ${BRAND} 0%, ${DEEP} 58%, #2A0B86 100%)`,
+          background: cover
+            ? `linear-gradient(180deg, ${DEEP} 0%, ${DEEP} ${(PHOTO / H) * 100}%, #2A0B86 100%)`
+            : `linear-gradient(160deg, ${BRAND} 0%, ${DEEP} 58%, #2A0B86 100%)`,
           fontFamily: "Pretendard",
           color: "#fff",
           position: "relative",
         }}
       >
-        {/* 큰 심볼을 배경으로 깔아 브랜드를 먼저 읽히게 한다 */}
-        <div
-          style={{
-            position: "absolute",
-            top: 470,
-            left: -260,
-            display: "flex",
-            opacity: 0.09,
-          }}
-        >
-          <Mark size={900} dot="#fff" accent="#fff" />
-        </div>
+        {/* 예매한 파티의 커버. **위를 사진으로 채운다** — 스토리에서
+            제일 먼저 눈에 들어오는 자리이고, 그림 없이 글자만 있으면
+            누가 올려도 똑같아 보인다 */}
+        {cover ? (
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: W,
+              height: PHOTO,
+              display: "flex",
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={cover}
+              alt=""
+              width={W}
+              height={PHOTO}
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
+            {/* 위는 살짝 눌러 워드마크가 읽히게, 아래는 배경색까지 녹인다 */}
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: W,
+                height: PHOTO,
+                display: "flex",
+                background: `linear-gradient(180deg, rgba(26,7,80,0.62) 0%, rgba(26,7,80,0.18) 26%, rgba(68,22,200,0.62) 72%, ${DEEP} 100%)`,
+              }}
+            />
+          </div>
+        ) : (
+          /* 커버가 없으면 큰 심볼로 채운다 */
+          <div
+            style={{
+              position: "absolute",
+              top: 470,
+              left: -260,
+              display: "flex",
+              opacity: 0.09,
+            }}
+          >
+            <Mark size={900} dot="#fff" accent="#fff" />
+          </div>
+        )}
 
         {/* 위 240px 은 비운다 — 인스타가 프로필 줄로 덮는다 */}
         <div style={{ display: "flex", height: 240 }} />

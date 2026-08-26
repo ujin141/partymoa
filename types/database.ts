@@ -88,6 +88,21 @@ export type ReviewStats = {
   rating: number;
 }
 
+export type EventTable = {
+  id: string;
+  event_id: string;
+  name: string;
+  /** 계좌이체 기준 */
+  price: number;
+  /** 카드 결제가. 비우면 안 띄운다 */
+  card_price: number | null;
+  /** 몇 명까지 앉나. 입장비가 없는 인원이 이 숫자다 */
+  seats: number;
+  note: string | null;
+  sort_order: number;
+  created_at: string;
+}
+
 export type EventRow = {
   id: string;
   crew_id: string;
@@ -109,6 +124,8 @@ export type EventRow = {
   categories: string[];
   list_price: number;
   bank_account: string | null;
+  /** 테이블 전체에 붙는 공통 안내 */
+  tables_note: string | null;
   status: EventStatus;
   created_at: string;
 }
@@ -241,6 +258,10 @@ export type Database = {
     Tables: {
       crews: Table<Crew, Insertable<Crew, "name" | "slug">>;
       profiles: Table<Profile, Insertable<Profile, "user_id">>;
+      event_tables: Table<
+        EventTable,
+        Insertable<EventTable, "event_id" | "name" | "price" | "seats">
+      >;
       reviews: Table<
         Review,
         Insertable<Review, "event_id" | "user_id" | "rating" | "body" | "nickname">
@@ -356,6 +377,14 @@ export type Database = {
       delete_post: { Args: { p_id: string }; Returns: undefined };
       delete_comment: { Args: { p_id: string }; Returns: undefined };
       can_review: { Args: { p_event: string }; Returns: boolean };
+      find_bookings_by_phone: {
+        Args: { p_phone: string; p_name: string };
+        Returns: Booking[];
+      };
+      claim_bookings_by_phone: {
+        Args: { p_phone: string; p_name: string };
+        Returns: Booking[];
+      };
       preference_stats: {
         Args: Record<string, never>;
         Returns: { kind: string; value: string; people: number }[];

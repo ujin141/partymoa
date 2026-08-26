@@ -11,7 +11,7 @@ import { longDate, timeRange, won } from "@/lib/format";
 import { getParty } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
 import { genderCap, priceFor, soldRate } from "@/lib/rules";
-import type { Review } from "@/types/database";
+import type { EventTable, Review } from "@/types/database";
 
 // **캐시를 안 쓴다.** 찜은 사람마다 다르고 잔여는 초 단위로 바뀐다.
 // revalidate 를 걸어 두면 남의 찜과 지난 잔여가 그대로 나간다
@@ -82,6 +82,14 @@ export default async function PartyPage({
         : Promise.resolve({ data: null }),
     ]);
   const reviews = (reviewRows ?? []) as Review[];
+
+  // 테이블 예약. 차수와 다른 것이라 따로 읽는다
+  const { data: tableRows } = await supabase
+    .from("event_tables")
+    .select("*")
+    .eq("event_id", event.id)
+    .order("sort_order");
+  const tables = (tableRows ?? []) as EventTable[];
   const mine = reviews.some((r) => r.user_id === user?.id);
   const me = profile as {
     nickname: string | null;
@@ -285,6 +293,71 @@ export default async function PartyPage({
             );
           })}
         </section>
+
+        {/* 테이블은 차수와 다른 물건이다 — **잡으면 입장비가 없다.**
+            가격 옆에 붙여야 "입장권을 살까 테이블을 잡을까" 를 그 자리에서
+            비교한다. 아래로 내리면 이미 예매를 누른 뒤에 보게 된다 */}
+        {tables.length > 0 ? (
+          <section className="border-b-8 border-soft px-4 py-4.5">
+            <h4 className="mb-1 text-base font-extrabold">테이블</h4>
+            <p className="mb-3 text-[12.5px] leading-relaxed text-sub">
+              테이블을 잡으면 <b className="text-ink">입장비가 없습니다.</b>{" "}
+              적힌 인원까지 그대로 들어와요.
+            </p>
+            {tables.map((t) => (
+              <div
+                key={t.id}
+                className="flex items-start gap-3 border-b border-line py-3 last:border-b-0"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <b className="text-[15px] font-extrabold">{t.name}</b>
+                    <span className="rounded bg-brand-soft px-1.5 py-0.5 text-[11px] font-bold text-brand">
+                      {`${t.seats}인 입장 무료`}
+                    </span>
+                  </div>
+                  {t.note ? (
+                    <p className="mt-1 whitespace-pre-wrap break-words text-[12.5px] leading-relaxed text-sub">
+                      {t.note}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="flex-none text-right">
+                  <b className="block text-[15px] font-extrabold">
+                    {won(t.price)}
+                  </b>
+                  {t.card_price ? (
+                    <span className="mt-0.5 block text-[11.5px] text-sub">
+                      {`카드 ${t.card_price.toLocaleString("ko-KR")}`}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+            {event.tables_note ? (
+              <p className="mt-3 whitespace-pre-wrap break-words rounded-xl bg-soft p-3.5 text-[12.5px] leading-6 text-sub">
+                {event.tables_note}
+              </p>
+            ) : null}
+
+            <p className="mt-3 text-[12.5px] leading-relaxed text-sub">
+              테이블은 앱에서 결제하지 않습니다.{" "}
+              {d.crew.instagram ? (
+                <a
+                  href={`https://instagram.com/${d.crew.instagram}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-brand underline"
+                >
+                  {`@${d.crew.instagram}`}
+                </a>
+              ) : (
+                "주최 크루"
+              )}{" "}
+              로 문의해 주세요.
+            </p>
+          </section>
+        ) : null}
 
         {lineups.length > 0 ? (
           <section className="border-b-8 border-soft px-4 py-4.5">
