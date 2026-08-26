@@ -113,28 +113,6 @@ export default async function HomePage() {
   const solo = parties.filter((p) => p.event.solo_friendly);
   const weekend = parties.filter((p) => isThisWeekend(p.event.starts_at));
 
-  /**
-   * **한 파티가 여러 칸에 겹쳐 나오지 않게 한다.**
-   *
-   * 파티가 하나뿐일 때 이 화면은 같은 카드를 세 번 보여 줬다 — 지금
-   * 뜨는 파티, 혼자 가도 좋아요, 이번 주말. 스크롤을 내리면 같은 사진이
-   * 계속 나와서 앱이 고장 난 것처럼 보인다.
-   *
-   * 위에서부터 먼저 나온 칸이 이긴다. 아래 칸은 남은 것만 받고, 남은 게
-   * 없으면 칸 자체가 사라진다.
-   */
-  const shown = new Set<string>();
-  const take = <T extends { event: { id: string } }>(list: T[], n: number) => {
-    const out = list.filter((d) => !shown.has(d.event.id)).slice(0, n);
-    out.forEach((d) => shown.add(d.event.id));
-    return out;
-  };
-  const sLiked = take(liked, 5);
-  const sRate = take(byRate, 5);
-  const sSolo = take(solo, 3);
-  const sClosing = take(closing, 4);
-  const sWeekend = take(weekend, 5);
-
   return (
     <>
       <header className="flex flex-none items-center gap-2.5 border-b border-line px-4 py-3">
@@ -226,25 +204,25 @@ export default async function HomePage() {
           </Empty>
         ) : null}
 
-        {sLiked.length > 0 ? (
+        {liked.length > 0 ? (
           <>
             <SectionTitle
               title={me?.nickname ? `${me.nickname} 님 취향` : "취향에 맞는 파티"}
               note="시작할 때 고른 지역·분위기로 골랐어요"
             />
             <div className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1">
-              {sLiked.map((d) => (
+              {liked.slice(0, 5).map((d) => (
                 <HeroCard key={d.event.id} d={d} />
               ))}
             </div>
           </>
         ) : null}
 
-        {sRate.length > 0 ? (
+        {byRate.length > 0 ? (
           <>
             <SectionTitle title="지금 뜨는 파티" note="예매가 빠르게 차는 순서" />
             <div className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1">
-              {sRate.map((d) => (
+              {byRate.slice(0, 5).map((d) => (
                 <HeroCard key={d.event.id} d={d} />
               ))}
             </div>
@@ -285,34 +263,34 @@ export default async function HomePage() {
           </>
         ) : null}
 
-        {sSolo.length > 0 ? (
+        {solo.length > 0 ? (
           <>
             <Divider />
             <SectionTitle
               title="혼자 가도 좋아요"
               note="1인 참여를 환영하는 파티만 모았어요"
             />
-            {sSolo.map((d) => (
+            {solo.slice(0, 3).map((d) => (
               <PartyCard key={d.event.id} d={d} />
             ))}
           </>
         ) : null}
 
-        {sClosing.length > 0 ? (
+        {closing.length > 0 ? (
           <>
             <Divider />
             <SectionTitle title="마감 임박" note="자리가 얼마 안 남았어요" />
-            {sClosing.map((d, i) => (
+            {closing.slice(0, 4).map((d, i) => (
               <MiniRow key={d.event.id} d={d} rank={i + 1} />
             ))}
           </>
         ) : null}
 
-        {sWeekend.length > 0 ? (
+        {weekend.length > 0 ? (
           <>
             <Divider />
             <SectionTitle title="이번 주말" note="금·토에 열리는 파티" />
-            {sWeekend.map((d) => (
+            {weekend.map((d) => (
               <PartyCard key={d.event.id} d={d} />
             ))}
           </>
