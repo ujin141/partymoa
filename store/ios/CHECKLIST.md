@@ -119,5 +119,31 @@ Xcode → Product → Destination 을 `Any iOS Device` 로 → Product → Archi
 | **실제 알림 전송** | **못 함 — 토큰과 `.p8` 이 있어야 한다** |
 | **실기기 동작** | **못 함 — 계정이 있어야 설치된다** |
 
-3 · 4번이 끝나면 실기기에서 알림 한 통을 실제로 보내 보는 게 좋다.
-그게 되는 걸 보기 전에는 알림이 된다고 말할 수 없다.
+## 알림이 진짜 가는지 확인하는 법
+
+**이걸 보기 전에는 알림이 된다고 말할 수 없다.** 시뮬레이터로는 안 된다 —
+애플이 토큰을 안 준다.
+
+1. 포털에서 APNs 키(`.p8`)를 만든다 (위 4번)
+2. Vercel 에 네 값을 넣고 **재배포**한다. 넣기만 하면 안 붙는다
+3. **같은 값을 `.env.local` 에도** 넣는다. 아래 스크립트가 그걸 읽는다
+4. 빌드를 App Store Connect 에 올리고 **TestFlight** 로 폰에 깐다
+5. 앱에서 마이 > 알림 설정 > **알림 켜기** → 허용
+6. Supabase > push_subscriptions 에서 `platform = 'ios'` 인 행을 찾는다.
+   그 행의 **endpoint 가 디바이스 토큰**이다. 복사한다
+7. 한 통 쏴 본다
+
+```bash
+node --experimental-strip-types scripts/apns-test.mts <디바이스토큰>
+```
+
+폰이 울리면 끝이다. 안 울리면 콘솔에 `[apns] 실패` 와 상태 코드가 찍힌다.
+
+**제일 흔한 실수** — `APNS_PRODUCTION` 이 빌드와 안 맞는 것.
+TestFlight · 앱스토어 빌드는 `true`, Xcode 로 직접 깐 빌드는 `false` 다.
+어긋나면 `BadDeviceToken` 이 온다. 서버 쪽 값과 앱의 entitlements
+(`App.entitlements` = development / `AppRelease.entitlements` = production)가
+짝이 맞아야 한다.
+
+**광고 발송 화면으로는 지금 테스트가 안 될 수 있다.** 21시~8시에는
+막혀 있다(정보통신망법 50조 3항).
