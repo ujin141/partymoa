@@ -19,7 +19,7 @@ export type ApplyInput = {
 };
 
 /**
- * 크루 신청.
+ * 호스트 신청.
  *
  * **로그인한 계정에 묶어서 받는다.** 익명 세션으로 받으면 승인해도 그
  * 계정에 권한을 이어 줄 수가 없고, 같은 사람이 몇 번을 냈는지도 모른다.
@@ -43,7 +43,7 @@ export async function applyForCrew(input: ApplyInput) {
   const email = input.email.trim().toLowerCase();
 
   if (crewName.length < 2) {
-    return { ok: false as const, message: "크루 이름을 적어 주세요." };
+    return { ok: false as const, message: "호스트 이름을 적어 주세요." };
   }
   if (!/^[a-z0-9-]{2,32}$/.test(slug)) {
     return {

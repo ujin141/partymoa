@@ -122,12 +122,12 @@ export default async function TicketsPage({
               {b.status === "paid" ? (
                 <p className="border-t border-line px-4 py-3 text-[12.5px] leading-relaxed text-sub">
                   {refundOpen(b.event.starts_at)
-                    ? `파티 ${REFUND_CUTOFF_DAYS}일 전까지 취소하면 주최 크루 기준에 따라 환불됩니다. 크루로 문의해 주세요.`
+                    ? `파티 ${REFUND_CUTOFF_DAYS}일 전까지 취소하면 호스트 기준에 따라 환불됩니다. 호스트로 문의해 주세요.`
                     : `환불 불가 기간이에요. 파티 ${REFUND_CUTOFF_DAYS}일 전부터는 환불되지 않습니다.`}
                 </p>
               ) : null}
 
-              {/* 미입금은 손님이 직접 뺄 수 있다. 크루에게 DM 을 보내고
+              {/* 미입금은 손님이 직접 뺄 수 있다. 호스트에게 DM 을 보내고
                   기다리는 동안 그 자리가 잠겨 있는 게 제일 아깝다 */}
               {b.status === "pending" ? (
                 <CancelBooking bookingId={b.id} eventTitle={b.event.title} />

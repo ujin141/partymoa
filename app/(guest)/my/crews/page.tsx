@@ -5,7 +5,7 @@ import { Empty } from "@/components/ui/primitives";
 import { listCrews } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "크루" };
+export const metadata = { title: "호스트" };
 
 export default async function CrewsPage() {
   const crews = await listCrews();
@@ -16,12 +16,12 @@ export default async function CrewsPage() {
         <Link href="/my" className="text-2xl leading-none" aria-label="뒤로">
           ‹
         </Link>
-        <span className="text-[17px] font-extrabold">크루</span>
+        <span className="text-[17px] font-extrabold">호스트</span>
       </header>
 
       <div className="flex-1 overflow-y-auto overscroll-contain">
         {crews.length === 0 ? (
-          <Empty>아직 등록된 크루가 없어요.</Empty>
+          <Empty>아직 등록된 호스트가 없어요.</Empty>
         ) : (
           crews.map((c) => (
             <Link
@@ -59,7 +59,7 @@ export default async function CrewsPage() {
           ))
         )}
         <p className="px-4 py-5 text-[12.5px] leading-relaxed text-sub">
-          팔로우 기능은 준비 중이에요. 지금은 크루를 누르면 그 크루의 파티만
+          팔로우 기능은 준비 중이에요. 지금은 호스트를 누르면 그 호스트의 파티만
           모아 봅니다.
         </p>
       </div>

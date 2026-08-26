@@ -144,6 +144,15 @@ export type EventRow = {
   gender_balanced: boolean;
   male_price_multiplier: number;
   solo_friendly: boolean;
+  /**
+   * 필터로만 쓰는 값들. **전부 비워 둘 수 있다.**
+   * 안 적은 파티가 목록에서 사라지면 그건 크루에게 벌을 주는 것이다.
+   */
+  couple_friendly: boolean;
+  age_min: number | null;
+  age_max: number | null;
+  /** 'korean' 한국인 위주 · 'mixed' 반반 · 'global' 외국인 많음 */
+  crowd: "korean" | "mixed" | "global" | null;
   genres: string[];
   categories: string[];
   list_price: number;

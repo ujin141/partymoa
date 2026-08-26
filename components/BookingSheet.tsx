@@ -313,7 +313,7 @@ export function BookingSheet(p: Props) {
           </label>
           {p.tiers.map((t) => {
             const sold = p.tierSold[t.id] ?? 0;
-            // 크루가 닫았으면 자리가 남아도 못 산다
+            // 호스트가 닫았으면 자리가 남아도 못 산다
             const out = Boolean(t.closed_at) || sold >= t.capacity;
             const price =
               guestPrice ??
@@ -438,7 +438,7 @@ export function BookingSheet(p: Props) {
             <input
               value={invite}
               onChange={(e) => setInvite(e.target.value.toUpperCase())}
-              placeholder="DJ · 크루에게 받은 코드"
+              placeholder="DJ · 호스트에게 받은 코드"
               className={`w-full rounded-xl border-[1.5px] bg-soft p-3.5 text-[15.5px] uppercase outline-none focus:bg-white ${
                 inviteOk?.valid
                   ? "border-ok"
@@ -458,7 +458,7 @@ export function BookingSheet(p: Props) {
                     ? "확인됐어요. 누가 초대했는지 집계에 들어갑니다."
                     : inviteOk && !inviteOk.valid
                       ? "그런 코드가 없어요. 비워 두셔도 예매됩니다."
-                      : "DJ 나 크루에게 받은 코드를 넣으면 게스트 가격이 적용돼요."}
+                      : "DJ 나 호스트에게 받은 코드를 넣으면 게스트 가격이 적용돼요."}
             </p>
           </div>
           {/* 스크롤 끝이 안내 문구에 바로 붙으면 위 입력칸이 잘린 것처럼

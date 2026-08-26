@@ -197,7 +197,7 @@ export default async function PartyPage({
             <dt className="text-[13.5px] text-sub">주최</dt>
             <dd className="m-0">
               {d.crew.name}
-              {/* 환불·문의는 크루가 받는다. 연락할 길을 여기 둔다 */}
+              {/* 환불·문의는 호스트가 받는다. 연락할 길을 여기 둔다 */}
               {d.crew.instagram ? (
                 <a
                   href={`https://instagram.com/${d.crew.instagram}`}
@@ -367,7 +367,7 @@ export default async function PartyPage({
                   {`@${d.crew.instagram}`}
                 </a>
               ) : (
-                "주최 크루"
+                "호스트"
               )}{" "}
               로 문의해 주세요.
             </p>
@@ -417,7 +417,7 @@ export default async function PartyPage({
             <b className="text-ink">
               {`파티 ${REFUND_CUTOFF_DAYS}일 전부터는 환불되지 않아요.`}
             </b>{" "}
-            그 전 취소는 주최 크루에 문의해 주세요.
+            그 전 취소는 호스트에 문의해 주세요.
           </div>
         </section>
         <div className="h-4" />

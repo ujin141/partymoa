@@ -8,17 +8,17 @@ import { createClient } from "@/lib/supabase/server";
 import type { CrewApplication } from "@/types/database";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "크루 신청" };
+export const metadata = { title: "호스트 신청" };
 
 /**
- * 크루 신청.
+ * 호스트 신청.
  *
- * 전에는 "크루로 전환하기" 가 크루 로그인으로 보냈다. 등록된 사람만
+ * 전에는 "호스트 화면으로" 가 크루 로그인으로 보냈다. 등록된 사람만
  * 들어가는 문이라 등록이 안 된 사람은 그냥 막혔고, 신청은 인스타 DM
  * 으로 받으라고 적어 뒀다. 그러면 무엇을 물어야 하는지 매번 다시 정하게
  * 된다. 받을 것을 화면으로 못 박는다.
  *
- * 이미 크루면 여기 있을 이유가 없다 — 바로 크루 화면으로 보낸다.
+ * 이미 크루면 여기 있을 이유가 없다 — 바로 호스트 화면으로 보낸다.
  */
 export default async function CrewApplyPage() {
   const supabase = await createClient();
@@ -49,7 +49,7 @@ export default async function CrewApplyPage() {
         <Link href="/my" className="text-2xl leading-none" aria-label="뒤로">
           ‹
         </Link>
-        <span className="text-[17px] font-extrabold">크루 신청</span>
+        <span className="text-[17px] font-extrabold">호스트 신청</span>
       </header>
 
       <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-6">
@@ -59,9 +59,9 @@ export default async function CrewApplyPage() {
               파티를 여시나요
             </h1>
             <p className="mt-2.5 text-[14px] leading-relaxed text-sub">
-              크루로 등록하면 예매를 받고, 명단·입금·입장·정산을 여기서
+              호스트로 등록하면 예매를 받고, 명단·입금·입장·정산을 여기서
               봅니다. 신청하려면 먼저 로그인해 주세요 — 승인하면 그 계정으로
-              크루 화면이 열립니다.
+              호스트 화면이 열립니다.
             </p>
             <Link
               href="/login?next=/my/crew-apply"
@@ -97,13 +97,13 @@ export default async function CrewApplyPage() {
               파티를 여시나요
             </h1>
             <p className="mt-2.5 text-[14px] leading-relaxed text-sub">
-              크루로 등록하면 예매를 받고, 명단·입금·입장·정산을 한 화면에서
+              호스트로 등록하면 예매를 받고, 명단·입금·입장·정산을 한 화면에서
               봅니다. 수수료는 입금이 확인된 티켓에만 붙습니다.
             </p>
             <div className="mb-7 mt-5 rounded-xl bg-soft px-4 py-3.5 text-[13px] leading-7 text-sub">
               신청 → 확인 → 승인되면 이메일로 알려 드려요.
               <br />
-              적어 주신 이메일로 로그인하면 크루 화면이 열립니다.
+              적어 주신 이메일로 로그인하면 호스트 화면이 열립니다.
             </div>
             <CrewApplyForm defaultEmail={user?.email ?? ""} />
           </>

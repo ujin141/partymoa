@@ -2,49 +2,26 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { PartyCard } from "@/components/PartyCard";
+import { ExploreFilters } from "@/components/ExploreFilters";
 import { SearchBar } from "@/components/SearchBar";
 import { Empty } from "@/components/ui/primitives";
-import { seoulWeekday } from "@/lib/format";
+import { passesFilters, type FilterKey } from "@/lib/filters";
+import { GENRES, genreByKey, inGenre } from "@/lib/genres";
 import { listAreas, listOpenParties, type PartyCardData } from "@/lib/queries";
 import { soldRate } from "@/lib/rules";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "둘러보기" };
 
-const CHIPS = [
-  "전체",
-  "1인 참여",
-  "풀파티",
-  "루프탑",
-  "테크노",
-  "이번 주말",
-] as const;
-
 const SORTS = {
   latest: "최신순",
-  hot: "인기순",
+  hot: "🔥 예약 많은 순",
   soon: "임박순",
 } as const;
 
 type Sort = keyof typeof SORTS;
 
-function isWeekend(iso: string) {
-  const d = new Date(iso);
-  const days = (d.getTime() - Date.now()) / 86400000;
-  // 요일도 서울 기준이다. UTC 서버에서 재면 토요일 새벽 행사가
-  // 금요일로 밀린다
-  const w = seoulWeekday(iso);
-  return days >= 0 && days <= 7 && (w === 5 || w === 6);
-}
-
-function matchesCategory(cat: string, e: PartyCardData["event"]) {
-  if (cat === "전체") return true;
-  if (cat === "1인 참여") return e.solo_friendly;
-  if (cat === "이번 주말") return isWeekend(e.starts_at);
-  return e.categories.includes(cat) || e.genres.includes(cat);
-}
-
-/** 제목·장소·지역·크루·장르를 한 번에 훑는다. 사람이 뭘 칠지 모른다 */
+/** 제목·장소·지역·호스트·장르를 한 번에 훑는다. 사람이 뭘 칠지 모른다 */
 function matchesQuery(q: string, d: PartyCardData) {
   if (!q) return true;
   const hay = [
@@ -67,13 +44,7 @@ function matchesQuery(q: string, d: PartyCardData) {
 export default async function ExplorePage({
   searchParams,
 }: {
-  searchParams: Promise<{
-    cat?: string;
-    sort?: string;
-    crew?: string;
-    area?: string;
-    q?: string;
-  }>;
+  searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const [sp, all, areas] = await Promise.all([
     searchParams,
@@ -81,16 +52,33 @@ export default async function ExplorePage({
     listAreas(),
   ]);
 
-  const cat =
-    sp.cat && CHIPS.includes(sp.cat as (typeof CHIPS)[number]) ? sp.cat : "전체";
   const sort: Sort = sp.sort && sp.sort in SORTS ? (sp.sort as Sort) : "latest";
-  const area = sp.area && areas.includes(sp.area) ? sp.area : "전체";
   const q = (sp.q ?? "").trim();
+  const genre = genreByKey(sp.g);
+
+  // 켜져 있는 필터만 모은다. 없는 지역이 걸려 있으면 무시한다
+  const KEYS: FilterKey[] = [
+    "area",
+    "date",
+    "age",
+    "rel",
+    "music",
+    "crowd",
+    "price",
+  ];
+  const on: Partial<Record<FilterKey, string>> = {};
+  for (const k of KEYS) {
+    const v = sp[k];
+    if (!v) continue;
+    if (k === "area" && !areas.includes(v)) continue;
+    on[k] = v;
+  }
 
   let list = all;
+  // 갈래가 먼저다. 그 안에서 필터·검색으로 좁힌다
+  if (genre) list = list.filter((d) => inGenre(genre, d.event));
   if (sp.crew) list = list.filter((d) => d.crew.slug === sp.crew);
-  if (area !== "전체") list = list.filter((d) => d.event.area === area);
-  list = list.filter((d) => matchesCategory(cat, d.event));
+  list = list.filter((d) => passesFilters(d, on));
   list = list.filter((d) => matchesQuery(q, d));
 
   if (sort === "hot") {
@@ -111,16 +99,26 @@ export default async function ExplorePage({
 
   const href = (next: Record<string, string>) => {
     const p = new URLSearchParams();
-    const merged = { cat, sort, area, ...(q ? { q } : {}), ...next };
+    const merged: Record<string, string | undefined> = {
+      sort,
+      ...on,
+      ...(genre ? { g: genre.key } : {}),
+      ...(q ? { q } : {}),
+      ...(sp.crew ? { crew: sp.crew } : {}),
+      ...next,
+    };
     for (const [k, v] of Object.entries(merged)) {
-      if (v && v !== "전체") p.set(k, v);
+      if (v) p.set(k, v);
     }
-    if (sp.crew) p.set("crew", sp.crew);
     const s = p.toString();
     return s ? `/explore?${s}` : "/explore";
   };
 
-  const filtered = cat !== "전체" || area !== "전체" || q || sp.crew;
+  const filtered =
+    Object.keys(on).length > 0 ||
+    Boolean(q) ||
+    Boolean(sp.crew) ||
+    Boolean(genre);
 
   return (
     <>
@@ -134,41 +132,42 @@ export default async function ExplorePage({
           <SearchBar />
         </Suspense>
 
-        <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 pb-0.5 pt-3">
-          {CHIPS.map((c) => (
+        {/* **갈래가 먼저다.** 태그 줄은 이미 뭘 찾는지 아는 사람에게만
+            쓸모가 있다. 처음 온 사람은 여기서 고른다 */}
+        <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 pt-3">
+          <Link
+            href={href({ g: "" })}
+            scroll={false}
+            className={`flex-none rounded-full border px-4 py-2 text-[14px] transition active:scale-95 ${
+              genre
+                ? "border-line bg-white font-medium text-sub"
+                : "border-brand bg-brand font-bold text-white"
+            }`}
+          >
+            전체
+          </Link>
+          {GENRES.map((g) => (
             <Link
-              key={c}
-              href={href({ cat: c })}
+              key={g.key}
+              href={href({ g: g.key })}
               scroll={false}
-              className={`flex-none rounded-full border px-3.5 py-2 text-[13.5px] transition active:scale-95 ${
-                c === cat
-                  ? "border-ink bg-ink font-semibold text-white"
+              className={`flex flex-none items-center gap-1 rounded-full border px-4 py-2 text-[14px] transition active:scale-95 ${
+                genre?.key === g.key
+                  ? "border-brand bg-brand font-bold text-white"
                   : "border-line bg-white font-medium text-sub"
               }`}
             >
-              {c}
+              <span aria-hidden="true">{g.icon}</span>
+              {g.label}
             </Link>
           ))}
         </div>
 
-        {areas.length > 1 ? (
-          <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 pt-2">
-            {["전체", ...areas].map((a) => (
-              <Link
-                key={a}
-                href={href({ area: a })}
-                scroll={false}
-                className={`flex-none rounded-full border px-3 py-1.5 text-[13px] transition active:scale-95 ${
-                  a === area
-                    ? "border-brand bg-brand-soft font-semibold text-brand"
-                    : "border-line bg-white text-sub"
-                }`}
-              >
-                {a === "전체" ? "지역 전체" : a}
-              </Link>
-            ))}
-          </div>
-        ) : null}
+        {/* 갈래 안에서 조건을 겹친다. 칩 하나가 항목 하나고, 누르면
+            시트가 올라온다 */}
+        <Suspense fallback={<div className="h-[42px]" />}>
+          <ExploreFilters areas={areas} />
+        </Suspense>
 
         <div className="flex items-center gap-3 px-4 pb-3 pt-3.5">
           {(Object.keys(SORTS) as Sort[]).map((s) => (

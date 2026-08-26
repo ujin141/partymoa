@@ -33,12 +33,12 @@ function Field({
 }
 
 /**
- * 크루 신청 폼.
+ * 호스트 신청 폼.
  *
  * **물어보는 것을 줄였다.** 안 쓸 값을 받으면 신청이 길어지고, 길면 안
  * 낸다. 여기 있는 것은 전부 승인 판단이나 연락에 실제로 쓰는 값이다.
  *
- * 주소(slug)는 크루 이름에서 자동으로 만들어 두되 고칠 수 있게 둔다 —
+ * 주소(slug)는 호스트 이름에서 자동으로 만들어 두되 고칠 수 있게 둔다 —
  * 한글 이름이면 자동 생성이 비어서 결국 직접 적어야 한다.
  */
 export function CrewApplyForm({ defaultEmail }: { defaultEmail: string }) {
@@ -76,14 +76,14 @@ export function CrewApplyForm({ defaultEmail }: { defaultEmail: string }) {
         <b className="block text-[15.5px]">신청 넣었어요.</b>
         확인하고 <b>{f.email}</b> 로 알려 드릴게요. 보통 하루 안에 답합니다.
         <br />
-        승인되면 이 화면에서 바로 크루 관리로 들어갈 수 있어요.
+        승인되면 이 화면에서 바로 호스트 관리로 들어갈 수 있어요.
       </div>
     );
   }
 
   return (
     <>
-      <Field label="크루 이름" required>
+      <Field label="호스트 이름" required>
         <input
           className={box}
           value={f.crewName}
@@ -118,7 +118,7 @@ export function CrewApplyForm({ defaultEmail }: { defaultEmail: string }) {
         />
       </Field>
 
-      <Field label="인스타그램" hint="여기서 크루를 확인합니다. 없으면 비워 두세요.">
+      <Field label="인스타그램" hint="여기서 호스트를 확인합니다. 없으면 비워 두세요.">
         <input
           className={box}
           value={f.instagram}
@@ -161,7 +161,7 @@ export function CrewApplyForm({ defaultEmail }: { defaultEmail: string }) {
         <Field
           label="이메일"
           required
-          hint="이 주소로 로그인하면 크루 화면이 열립니다. 승인 결과도 여기로 갑니다."
+          hint="이 주소로 로그인하면 호스트 화면이 열립니다. 승인 결과도 여기로 갑니다."
         >
           <input
             className={box}

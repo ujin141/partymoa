@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from "react";
  * 상자에 절대배치하면 위아래 가운데가 안 맞아 손으로 밀어야 하고, 그렇게
  * 밀면 글자 크기가 바뀔 때마다 또 어긋난다.
  */
-export function SearchBar({ placeholder = "파티, 장소, 크루 검색" }) {
+export function SearchBar({ placeholder = "파티, 장소, 호스트 검색" }) {
   const router = useRouter();
   const path = usePathname();
   const sp = useSearchParams();

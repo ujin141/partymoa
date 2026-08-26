@@ -49,6 +49,8 @@ function Field({
 const input =
   "w-full rounded-xl bg-soft p-3.5 text-[15px] outline-none border-[1.5px] border-transparent focus:border-brand focus:bg-white";
 
+type Crowd = "korean" | "mixed" | "global";
+
 export function EventForm({
   initial,
   crewId,
@@ -83,6 +85,20 @@ export function EventForm({
     String(ev?.male_price_multiplier ?? 1.25),
   );
   const [soloFriendly, setSoloFriendly] = useState(ev?.solo_friendly ?? true);
+  /**
+   * 둘러보기 필터에만 쓰는 값들. **전부 비워 둘 수 있다.**
+   * 안 적었다고 목록에서 사라지면 그건 호스트에게 벌을 주는 것이다.
+   */
+  const [coupleFriendly, setCoupleFriendly] = useState(
+    ev?.couple_friendly ?? false,
+  );
+  const [ageMin, setAgeMin] = useState(
+    ev?.age_min == null ? "" : String(ev.age_min),
+  );
+  const [ageMax, setAgeMax] = useState(
+    ev?.age_max == null ? "" : String(ev.age_max),
+  );
+  const [crowd, setCrowd] = useState<Crowd | "">(ev?.crowd ?? "");
   const [genres, setGenres] = useState<string[]>(ev?.genres ?? []);
   const [categories, setCategories] = useState<string[]>(ev?.categories ?? []);
   const [listPrice, setListPrice] = useState(String(ev?.list_price ?? 59000));
@@ -190,6 +206,10 @@ export function EventForm({
         genderBalanced,
         maleMultiplier: Number(maleMultiplier) || 1,
         soloFriendly,
+        coupleFriendly,
+        ageMin: ageMin.trim() === "" ? null : Number(ageMin) || null,
+        ageMax: ageMax.trim() === "" ? null : Number(ageMax) || null,
+        crowd: crowd === "" ? null : crowd,
         genres,
         categories,
         listPrice: Number(listPrice) || 0,
@@ -404,6 +424,78 @@ export function EventForm({
               }`}
             >
               {v ? "환영" : "표시 안 함"}
+            </button>
+          ))}
+        </div>
+      </Field>
+
+      <Field label="커플 환영">
+        <div className="grid grid-cols-2 gap-2.5">
+          {[true, false].map((v) => (
+            <button
+              key={String(v)}
+              type="button"
+              onClick={() => setCoupleFriendly(v)}
+              className={`rounded-xl border-[1.5px] py-3.5 text-[15px] font-semibold ${
+                coupleFriendly === v
+                  ? "border-brand bg-brand-soft text-brand"
+                  : "border-line bg-white"
+              }`}
+            >
+              {v ? "환영" : "표시 안 함"}
+            </button>
+          ))}
+        </div>
+        <p className="mt-1.5 text-[12px] leading-relaxed text-sub">
+          1인 참여 환영과 반대말이 아니에요. 둘 다 켜도 됩니다.
+        </p>
+      </Field>
+
+      <Field label="연령대 (선택)">
+        <div className="flex items-center gap-2">
+          <input
+            className={`${input} flex-1`}
+            inputMode="numeric"
+            value={ageMin}
+            onChange={(e) => setAgeMin(e.target.value.replace(/\D/g, ""))}
+            placeholder="23"
+          />
+          <span className="text-[15px] text-sub">~</span>
+          <input
+            className={`${input} flex-1`}
+            inputMode="numeric"
+            value={ageMax}
+            onChange={(e) => setAgeMax(e.target.value.replace(/\D/g, ""))}
+            placeholder="32"
+          />
+        </div>
+        <p className="mt-1.5 text-[12px] leading-relaxed text-sub">
+          비워 두면 연령대 필터에서 안 걸러집니다. 입장을 막는 값이
+          아니라 손님이 찾을 때 쓰는 값이에요.
+        </p>
+      </Field>
+
+      <Field label="한국인/외국인 (선택)">
+        <div className="grid grid-cols-4 gap-2">
+          {(
+            [
+              ["", "미정"],
+              ["korean", "한국인 위주"],
+              ["mixed", "반반"],
+              ["global", "외국인 많음"],
+            ] as [Crowd | "", string][]
+          ).map(([v, label]) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setCrowd(v)}
+              className={`rounded-xl border-[1.5px] py-3 text-[12.5px] font-semibold ${
+                crowd === v
+                  ? "border-brand bg-brand-soft text-brand"
+                  : "border-line bg-white text-sub"
+              }`}
+            >
+              {label}
             </button>
           ))}
         </div>

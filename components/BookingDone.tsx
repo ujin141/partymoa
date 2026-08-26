@@ -76,7 +76,7 @@ export function BookingDone({
         </div>
       ) : null}
 
-      {/* 2. 어떤 이름으로 — 여기서 틀리면 크루가 손으로 찾아야 한다 */}
+      {/* 2. 어떤 이름으로 — 여기서 틀리면 호스트가 손으로 찾아야 한다 */}
       <div className="mt-2.5 rounded-card bg-soft p-4">
         <small className="text-[12.5px] text-sub">
           2. 입금자명을 이렇게 적어 주세요

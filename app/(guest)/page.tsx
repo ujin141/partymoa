@@ -10,6 +10,7 @@ import { homeExtras, listAreas, listCrews, listOpenParties } from "@/lib/queries
 import { ago } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { seoulWeekday } from "@/lib/format";
+import { GENRES, inGenre } from "@/lib/genres";
 import { isClosingSoon, soldRate } from "@/lib/rules";
 
 // **캐시를 안 쓴다.** 찜은 사람마다 다르고 잔여는 초 단위로 바뀐다.
@@ -98,7 +99,7 @@ export default async function HomePage() {
    * 둘 다 맞아야 한다고 하면 서울에 파티가 몇 개 없는 지금은 거의 늘
    * 빈 칸이 된다.
    *
-   * 장르도 분위기로 친다. 크루가 '테크노' 를 장르에 넣었는지 카테고리에
+   * 장르도 분위기로 친다. 호스트가 '테크노' 를 장르에 넣었는지 카테고리에
    * 넣었는지는 고르는 사람 입장에서 아무 상관이 없다.
    */
   const liked =
@@ -193,6 +194,43 @@ export default async function HomePage() {
           어떤 파티를 찾으세요?
         </Link>
 
+        {/**
+          * **여섯 갈래가 이 앱의 첫 갈림길이다.**
+          *
+          * 태그를 한 줄로 늘어놓으면 이미 뭘 찾는지 아는 사람만 쓴다.
+          * 처음 온 사람은 하우스와 루프탑 중에 뭘 눌러야 자기가 갈
+          * 만한 파티가 나오는지 모른다. 가는 이유로 나눈다.
+          *
+          * **한 칸에 두 줄 이상 넣지 않는다.** 설명과 개수까지 붙이면
+          * 여섯 칸이 화면 절반을 먹고, 그러면 한눈에 보이지 않는다.
+          * 그림 하나와 이름 하나면 고를 수 있다.
+          *
+          * 파티가 없는 갈래도 그대로 둔다. 칸이 사라졌다 나타났다 하면
+          * 매번 다른 앱처럼 보인다 — 대신 흐리게 둔다.
+          */}
+        <div className="mt-3.5 grid grid-cols-3 gap-2 px-4">
+          {GENRES.map((g) => {
+            const n = parties.filter((p) => inGenre(g, p.event)).length;
+            return (
+              <Link
+                key={g.key}
+                href={`/explore?g=${g.key}`}
+                aria-label={`${g.label} — ${g.note}`}
+                className={`grid place-items-center gap-1 rounded-2xl bg-soft py-3.5 transition active:scale-95 ${
+                  n > 0 ? "" : "opacity-45"
+                }`}
+              >
+                <span className="text-[21px] leading-none" aria-hidden="true">
+                  {g.icon}
+                </span>
+                <b className="text-[12.5px] font-bold leading-none">
+                  {g.label}
+                </b>
+              </Link>
+            );
+          })}
+        </div>
+
         {areas.length > 1 ? (
           <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto px-4">
             {areas.map((a) => (
@@ -211,7 +249,7 @@ export default async function HomePage() {
           <Empty>
             아직 열린 파티가 없어요.
             <br />
-            크루가 파티를 올리면 여기에 보입니다.
+            호스트가 파티를 올리면 여기에 보입니다.
           </Empty>
         ) : null}
 
@@ -262,7 +300,7 @@ export default async function HomePage() {
 
         {crews.length > 0 ? (
           <>
-            <SectionTitle title="크루" note="파티를 여는 사람들" />
+            <SectionTitle title="호스트" note="파티를 여는 사람들" />
             <div className="no-scrollbar flex gap-4 overflow-x-auto px-4 pb-1">
               {crews.map((c) => (
                 <Link

@@ -23,6 +23,10 @@ export interface EventDraft {
   genderBalanced: boolean;
   maleMultiplier: number;
   soloFriendly: boolean;
+  coupleFriendly?: boolean;
+  ageMin?: number | null;
+  ageMax?: number | null;
+  crowd?: "korean" | "mixed" | "global" | null;
   genres: string[];
   categories: string[];
   listPrice: number;
@@ -109,6 +113,10 @@ export async function createEvent(d: EventDraft) {
       gender_balanced: d.genderBalanced,
       male_price_multiplier: d.maleMultiplier,
       solo_friendly: d.soloFriendly,
+      couple_friendly: d.coupleFriendly ?? false,
+      age_min: d.ageMin ?? null,
+      age_max: d.ageMax ?? null,
+      crowd: d.crowd || null,
       genres: d.genres,
       categories: d.categories,
       list_price: d.listPrice,

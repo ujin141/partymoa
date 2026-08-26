@@ -77,7 +77,7 @@ export default async function LoginPage({
 
         <div className="mt-8 border-t border-line pt-5 text-center">
           <Link href="/crew/login" className="text-[13px] text-sub underline">
-            파티를 여는 크루라면 여기로
+            파티를 여는 호스트라면 여기로
           </Link>
         </div>
       </div>

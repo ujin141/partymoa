@@ -115,7 +115,7 @@ export function ProfileForm({
         placeholder="010-0000-0000"
       />
       <p className="mb-6 mt-1.5 text-[12.5px] text-sub">
-        예매한 파티에 변경이 생기면 크루가 이 번호로 연락합니다.
+        예매한 파티에 변경이 생기면 호스트가 이 번호로 연락합니다.
       </p>
 
       <div className="mb-6 border-t border-line pt-6">

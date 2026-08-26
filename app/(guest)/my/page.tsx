@@ -22,7 +22,7 @@ export const metadata = { title: "마이" };
 const MINE = [
   { label: "프로필 편집", href: "/my/profile" },
   { label: "찜한 파티", href: "/my/favorites" },
-  { label: "팔로우한 크루", href: "/my/crews" },
+  { label: "팔로우한 호스트", href: "/my/crews" },
   { label: "알림 설정", href: "/my/alerts" },
 ];
 
@@ -60,7 +60,7 @@ export default async function MyPage() {
   const staff = crews.length > 0;
   const admin = Boolean(adminUser);
 
-  // 신청해 놓고 기다리는 사람에게 "크루 신청하기" 를 다시 띄우면 또
+  // 신청해 놓고 기다리는 사람에게 "호스트 신청하기" 를 다시 띄우면 또
   // 낸다. 심사 중인지 아닌지를 줄에 그대로 적는다
   const { data: appRow } = signedIn && !staff
     ? await supabase
@@ -147,7 +147,7 @@ export default async function MyPage() {
               waiting ? "text-sub" : "text-brand"
             }`}
           >
-            {staff ? "크루로 전환하기" : waiting ? "크루 신청 심사 중" : "크루 신청하기"}
+            {staff ? "호스트 화면으로" : waiting ? "호스트 신청 심사 중" : "호스트 신청하기"}
           </b>
           <span className="ml-auto text-[19px] text-[#C0C4CC]">›</span>
         </Link>
@@ -179,7 +179,7 @@ export default async function MyPage() {
         {/* 숫자를 다시 적지 않는다. 예전에 7% 로 적어 두고 요율만 올려서
             화면과 실제가 어긋나 있었다 */}
         <p className="px-4 pb-4 pt-6 text-[12.5px] leading-relaxed text-sub">
-          {`파티모아는 티켓 금액의 ${Math.round(FEE_RATE * 100)}%를 수수료로 받습니다. 결제는 크루 계좌로 직접 입금하는 방식이에요.`}
+          {`파티모아는 티켓 금액의 ${Math.round(FEE_RATE * 100)}%를 수수료로 받습니다. 결제는 호스트 계좌로 직접 입금하는 방식이에요.`}
         </p>
 
         {/* 되돌릴 수 없는 것은 눈에 덜 띄게. 찾는 사람은 어차피 찾는다 */}

@@ -15,7 +15,7 @@ const MAIL = "ujin141@naver.com";
  * 로그인 없이 열리는 곳에 "어떻게 지우는지" 가 적혀 있어야 한다.
  * 그래서 이 화면은 로그인 여부와 상관없이 열린다.
  *
- * **다 지운다고 적지 않는다.** 확정된 예매는 크루의 정산 근거라
+ * **다 지운다고 적지 않는다.** 확정된 예매는 호스트의 정산 근거라
  * 바로 못 지운다. 그걸 숨기고 "전부 삭제" 라고 적으면 그게 거짓말이
  * 되고, 심사에서도 방침과 어긋난다고 잡힌다. 남는 게 무엇이고
  * 언제까지인지 그대로 적는다.
@@ -47,7 +47,7 @@ export default async function DeletePage() {
           <ul className="list-disc pl-5 text-[14px] leading-7 text-sub">
             <li>로그인 계정과 이메일</li>
             <li>프로필 — 이름, 관심 지역, 좋아하는 장르</li>
-            <li>찜한 파티, 팔로우한 크루</li>
+            <li>찜한 파티, 팔로우한 호스트</li>
             <li>커뮤니티 글과 댓글</li>
             <li>파티 후기</li>
             <li>알림 수신 설정</li>
@@ -59,7 +59,7 @@ export default async function DeletePage() {
           <h2 className="mb-2 text-[16px] font-extrabold">남는 것</h2>
           <p className="text-[14px] leading-7 text-sub">
             입금이 확인됐거나 아직 진행 중인 예매는 계정에서 떼어 내지만
-            줄 자체는 남습니다. 주최 크루의 정산 근거이고 환불 분쟁이
+            줄 자체는 남습니다. 호스트의 정산 근거이고 환불 분쟁이
             남아 있어서입니다.
           </p>
           <p className="mt-3 text-[14px] leading-7 text-sub">
