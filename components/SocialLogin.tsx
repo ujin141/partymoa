@@ -75,11 +75,19 @@ function Icon({ p }: { p: Provider }) {
 /**
  * **켜 둔 제공자만 보여 준다.**
  *
- * 카카오·애플은 Supabase 프로젝트에서 아직 안 켰다. 버튼만 있고 누르면
+ * 카카오는 Supabase 프로젝트에서 아직 안 켰다. 버튼만 있고 누르면
  * "provider is not enabled" 가 뜨는 게 제일 나쁘다 — 손님은 앱이 고장 난
  * 줄 안다. 대시보드에서 켠 다음 여기에 넣으면 그대로 붙는다.
+ *
+ * **애플은 아이폰 앱 때문에 필수다.** 서드파티 로그인만 두면 애플이
+ * 동등한 대안을 함께 두라고 요구한다(심사 가이드라인 4.8). 구글만
+ * 두고 내면 반려된다.
+ *
+ * 애플 로그인의 client secret 은 **6개월마다 만료된다.** 만료되면
+ * 애플만 조용히 죽고 구글은 멀쩡해서 한참 모른다 —
+ * scripts/apple-secret.mts 로 다시 만들어 Supabase 에 넣는다.
  */
-const ENABLED: Provider[] = ["google"];
+const ENABLED: Provider[] = ["google", "apple"];
 
 export function SocialLogin({ next = "/my" }: { next?: string }) {
   const [busy, setBusy] = useState<Provider | null>(null);
