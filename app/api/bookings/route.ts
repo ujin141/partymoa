@@ -1,5 +1,7 @@
+import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
+import { PARTY_TAG } from "@/lib/queries";
 import { limit, who } from "@/lib/ratelimit";
 import { createClient } from "@/lib/supabase/server";
 
@@ -111,6 +113,10 @@ export async function POST(req: Request) {
       { status: 500 },
     );
   }
+  // **잔여가 바뀌었으니 목록 캐시를 즉시 버린다.** 안 버리면 마감된
+  // 파티가 잠깐 열려 보이고, 들어와서 매진을 본다
+  revalidateTag(PARTY_TAG);
+
 
   return NextResponse.json(data);
 }

@@ -1,7 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
+import { PARTY_TAG } from "@/lib/queries";
 import { pushReady, sendPush } from "@/lib/push";
 import { createClient } from "@/lib/supabase/server";
 
@@ -29,6 +30,7 @@ export async function setPaid(bookingId: string, paid: boolean) {
   if (paid) await notifyPaid(bookingId).catch(() => null);
 
   revalidatePath("/crew", "layout");
+  revalidateTag(PARTY_TAG);
   return { ok: true };
 }
 
@@ -83,6 +85,7 @@ export async function setCheckedIn(bookingId: string, inside: boolean) {
     .eq("id", bookingId);
   if (error) return { ok: false, message: error.message };
   revalidatePath("/crew", "layout");
+  revalidateTag(PARTY_TAG);
   return { ok: true };
 }
 
@@ -94,6 +97,7 @@ export async function cancelBooking(bookingId: string) {
     .eq("id", bookingId);
   if (error) return { ok: false, message: error.message };
   revalidatePath("/crew", "layout");
+  revalidateTag(PARTY_TAG);
   return { ok: true };
 }
 
@@ -108,6 +112,7 @@ export async function setEventStatus(
     .eq("id", eventId);
   if (error) return { ok: false, message: error.message };
   revalidatePath("/crew", "layout");
+  revalidateTag(PARTY_TAG);
   revalidatePath("/", "layout");
   return { ok: true };
 }

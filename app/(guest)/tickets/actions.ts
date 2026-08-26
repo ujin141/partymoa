@@ -1,7 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
+import { PARTY_TAG } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
 
 const SAY: Record<string, string> = {
@@ -29,5 +30,6 @@ export async function cancelMyBooking(bookingId: string) {
   }
   revalidatePath("/tickets");
   revalidatePath("/", "layout");
+  revalidateTag(PARTY_TAG);
   return { ok: true as const };
 }

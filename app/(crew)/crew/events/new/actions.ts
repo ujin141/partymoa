@@ -1,9 +1,10 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 import { myCrew } from "@/lib/crew";
 import { fromSeoulInput } from "@/lib/format";
+import { PARTY_TAG } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
 
 export interface EventDraft {
@@ -176,5 +177,6 @@ export async function createEvent(d: EventDraft) {
   }
 
   revalidatePath("/crew", "layout");
+  revalidateTag(PARTY_TAG);
   return { ok: true as const, eventId: event.id };
 }
