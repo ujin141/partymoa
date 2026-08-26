@@ -62,3 +62,12 @@ android/*.jks
 # 서명 키 비밀번호. 절대 커밋 금지
 android/.keypw
 android/KEY.txt
+
+# iOS — Xcode 가 다시 만드는 것들
+ios/App/build/
+ios/App/App/public/
+ios/App/App/capacitor.config.json
+ios/App/*.xcodeproj/xcuserdata/
+ios/App/*.xcworkspace/xcuserdata/
+ios/DerivedData/
+*.xcuserstate

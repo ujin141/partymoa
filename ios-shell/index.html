@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>파티모아</title>
+<!--
+  네트워크가 끊겼을 때만 보이는 화면.
+
+  평소에는 capacitor.config.ts 의 server.url 이 www.partymoa.com 을 띄우므로
+  이 파일은 안 보인다. 입구에서 신호가 죽었을 때 여기로 떨어진다.
+
+  **여기서 서버를 부르지 않는다.** 부를 수 있으면 이 화면이 뜰 이유가 없다.
+  티켓은 네이티브 저장소에 넣어 둔 것을 읽어서 그린다.
+-->
+<style>
+  :root { --brand: #5B2BE8; --ink: #16181D; --sub: #6B7280; --line: #E5E7EB; }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    font: 400 16px/1.6 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
+    color: var(--ink); background: #fff;
+    padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom);
+    min-height: 100vh; display: flex; flex-direction: column;
+  }
+  main { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 20px; }
+  h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+  p { color: var(--sub); font-size: 14.5px; }
+  .ticket { border: 1px solid var(--line); border-radius: 16px; padding: 20px; }
+  .ticket .code {
+    font: 700 34px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: 0.06em; margin: 6px 0 14px;
+  }
+  .ticket .row { display: flex; justify-content: space-between; font-size: 14px; padding: 5px 0; }
+  .ticket .row span:first-child { color: var(--sub); }
+  .label { font-size: 11.5px; font-weight: 700; letter-spacing: 0.12em; color: var(--brand); }
+  #qr { width: 100%; max-width: 220px; margin: 16px auto 4px; display: block; }
+  button {
+    width: 100%; padding: 16px; border: 0; border-radius: 12px;
+    background: var(--brand); color: #fff; font: 700 16px/1 inherit;
+  }
+  .empty { text-align: center; }
+</style>
+</head>
+<body>
+<main id="root">
+  <div class="empty">
+    <h1>연결이 끊겼어요</h1>
+    <p>신호가 돌아오면 자동으로 이어집니다.</p>
+  </div>
+</main>
+<button onclick="location.reload()">다시 시도</button>
+
+<script type="module">
+  // 네이티브에 저장해 둔 티켓을 읽는다. Capacitor 가 없으면(브라우저에서 열면)
+  // 아무것도 없는 게 정상이다
+  const root = document.getElementById("root");
+
+  async function stored() {
+    const cap = window.Capacitor;
+    if (!cap?.Plugins?.Preferences) return null;
+    const { value } = await cap.Plugins.Preferences.get({ key: "offlineTicket" });
+    return value ? JSON.parse(value) : null;
+  }
+
+  const t = await stored().catch(() => null);
+  if (!t) {
+    // 저장된 티켓이 없으면 기본 안내 그대로 둔다
+  } else {
+    root.innerHTML = `
+      <div>
+        <p class="label">내 티켓</p>
+        <h1>${t.eventTitle ?? "파티"}</h1>
+      </div>
+      <div class="ticket">
+        <p class="label">예매번호</p>
+        <p class="code">${t.code ?? ""}</p>
+        ${t.qr ? `<img id="qr" src="${t.qr}" alt="입장 QR" />` : ""}
+        <div class="row"><span>일시</span><span>${t.when ?? "-"}</span></div>
+        <div class="row"><span>장소</span><span>${t.place ?? "-"}</span></div>
+        <div class="row"><span>상태</span><span>${t.status ?? "-"}</span></div>
+      </div>
+      <p>연결이 끊겨서 저장해 둔 티켓을 보여 주고 있어요. 입구에서 이 번호를 보여 주시면 됩니다.</p>
+    `;
+  }
+</script>
+</body>
+</html>
