@@ -87,9 +87,25 @@ export function isClosingSoon(booked: number, capacity: number): boolean {
   return (capacity - booked) / capacity <= 0.3;
 }
 
-/** 정산: 확정 매출에서 수수료와 크루 지출을 뺀다 (사양서 6절) */
-export function settle(paidRevenue: number, expenses: number[]) {
+/**
+ * 정산: 확정 매출에서 수수료와 크루 지출을 뺀다 (사양서 6절).
+ *
+ * **수수료는 티켓 매출에만 붙는다.** 테이블 판매처럼 티켓이 아닌 수입은
+ * 따로 더하고 수수료 계산에서 뺀다 — 사양서 3-5 가 "티켓당 수수료" 다.
+ */
+export function settle(
+  paidRevenue: number,
+  expenses: number[],
+  incomes: number[] = [],
+) {
   const fee = Math.round(paidRevenue * FEE_RATE);
   const spend = expenses.reduce((a, b) => a + b, 0);
-  return { gross: paidRevenue, fee, spend, net: paidRevenue - fee - spend };
+  const extra = incomes.reduce((a, b) => a + b, 0);
+  return {
+    gross: paidRevenue,
+    fee,
+    spend,
+    extra,
+    net: paidRevenue + extra - fee - spend,
+  };
 }

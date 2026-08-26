@@ -30,6 +30,7 @@ export default async function CrewListPage({
         bookings={current.bookings}
         tiers={current.tiers}
         members={current.members}
+        tables={current.tables}
         eventTitle={current.event.title}
         bankAccount={current.event.bank_account}
         guestPrice={current.event.guest_price}

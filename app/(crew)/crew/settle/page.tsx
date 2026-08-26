@@ -65,10 +65,15 @@ export default async function CrewSettlePage({
     id: string;
     label: string;
     amount: number;
+    kind?: "expense" | "income";
   }[];
+  // 테이블 판매처럼 티켓이 아닌 수입은 따로 더한다. 수수료는 안 붙는다
+  const incomes = list.filter((x) => x.kind === "income");
+  const spends = list.filter((x) => x.kind !== "income");
   const s = settle(
     money(paid),
-    list.map((x) => x.amount),
+    spends.map((x) => x.amount),
+    incomes.map((x) => x.amount),
   );
 
   const unpaidRows = rows.filter((b) => b.status === "pending");
@@ -93,7 +98,10 @@ export default async function CrewSettlePage({
           value={s.fee}
           negative
         />
-        {list.map((x) => (
+        {incomes.map((x) => (
+          <Line key={x.id} label={x.label} value={x.amount} />
+        ))}
+        {spends.map((x) => (
           <Line key={x.id} label={x.label} value={x.amount} negative />
         ))}
         <div className="mt-1 flex items-center border-t-2 border-ink py-3">
@@ -104,13 +112,21 @@ export default async function CrewSettlePage({
         </div>
         <p className="mt-2 text-[12.5px] leading-relaxed text-sub">
           바 매출은 장소 귀속이라 이 계산에 넣지 않았어요.
+          {incomes.length > 0
+            ? " 테이블처럼 티켓이 아닌 수입에는 플랫폼 수수료가 붙지 않습니다."
+            : ""}
         </p>
       </div>
 
       <Divider />
 
       <div className="px-4 pt-4">
-        <h4 className="mb-3 text-base font-extrabold">지출</h4>
+        <h4 className="mb-1 text-base font-extrabold">지출 · 수입</h4>
+        <p className="mb-3 text-[12.5px] leading-relaxed text-sub">
+          테이블 판매처럼 티켓이 아닌 돈은 수입으로 넣으세요. 예매 금액에
+          얹으면 그 손님 한 명이 큰 금액짜리로 보이고, 플랫폼 수수료까지
+          붙습니다.
+        </p>
         <ExpenseEditor eventId={current.event.id} items={list} />
       </div>
 

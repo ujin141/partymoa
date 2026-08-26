@@ -121,3 +121,25 @@ export function ago(iso: string) {
   const t = seoul(iso);
   return `${t.m}/${t.d}`;
 }
+
+/**
+ * 연락처를 010-1234-5678 로 통일해서 보여준다.
+ *
+ * 명단에 하이픈이 있는 번호와 없는 번호가 섞여 있다 — 앱으로 들어온 건은
+ * 손님이 친 대로, SQL 로 넣은 건은 적은 대로 저장됐기 때문이다. 눈으로
+ * 훑을 때 자릿수가 안 맞으면 그때부터 번호를 못 읽는다.
+ *
+ * **저장된 값을 바꾸지 않는다.** 보여줄 때만 맞춘다 — 검색은 이미
+ * 숫자만 뽑아 비교하므로 어느 쪽이든 걸린다.
+ */
+export function phoneText(raw: string | null | undefined): string {
+  const d = (raw ?? "").replace(/\D/g, "");
+  if (d.length === 11) return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
+  if (d.length === 10) {
+    // 02 는 지역번호가 두 자리다. 011·016 같은 옛 번호는 세 자리
+    return d.startsWith("02")
+      ? `${d.slice(0, 2)}-${d.slice(2, 6)}-${d.slice(6)}`
+      : `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
+  }
+  return raw ?? "";
+}

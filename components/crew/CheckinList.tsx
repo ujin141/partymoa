@@ -7,7 +7,7 @@ import { setCheckedIn } from "@/app/(crew)/crew/actions";
 import { won } from "@/lib/format";
 import { Gauge } from "@/components/ui/primitives";
 import { createClient } from "@/lib/supabase/client";
-import type { Booking } from "@/types/database";
+import type { Booking, EventTable } from "@/types/database";
 
 /**
  * 입장 확인. 사양서 6절.
@@ -24,11 +24,16 @@ import type { Booking } from "@/types/database";
  */
 export function CheckinList({
   bookings,
+  tables,
   eventId,
 }: {
   bookings: Booking[];
+  tables: EventTable[];
   eventId: string;
 }) {
+  // 입구에서 제일 먼저 필요한 건 "이 사람 어디 앉나" 다
+  const tableName = (id: string | null) =>
+    (id && tables.find((t) => t.id === id)?.name) || null;
   const router = useRouter();
   const [q, setQ] = useState("");
   const [busy, start] = useTransition();
@@ -67,8 +72,13 @@ export function CheckinList({
     // 숫자만 쳤으면 예매번호 뒷자리로 본다 — '7' → PM0007
     const digits = needle.replace(/\D/g, "");
     return rows.filter((b) => {
-      if (`${b.name}${b.phone}${b.code}`.toLowerCase().includes(needle))
-        return true;
+      // 번호는 하이픈 있는 벌과 숫자만인 벌을 둘 다 넣는다. 명단에
+      // 두 형식이 섞여 있어서, 한 쪽만 보면 그 사람을 못 찾는다
+      const phoneDigits = b.phone.replace(/\D/g, "");
+      const hay =
+        `${b.name}${b.phone}${phoneDigits}${b.code}`.toLowerCase();
+      if (hay.includes(needle)) return true;
+      if (digits.length > 0 && hay.includes(digits)) return true;
       return digits.length > 0 && b.code.replace(/\D/g, "").endsWith(digits);
     });
   }, [rows, q]);
@@ -185,7 +195,11 @@ export function CheckinList({
                   ) : null}
                 </div>
                 <div className="mt-1 text-[12.5px] text-sub">
-                  {b.invite_code ? `${b.code} · ${b.invite_code} 게스트` : b.code}
+                  {tableName(b.table_id)
+                    ? `${b.code} · ${tableName(b.table_id)} 테이블`
+                    : b.invite_code
+                      ? `${b.code} · ${b.invite_code} 게스트`
+                      : b.code}
                 </div>
                 {/* **문 앞에서 얼마를 받아야 하는지.** 미입금인 사람이
                     왔을 때 금액이 안 보이면 명단을 따로 켜야 한다.
@@ -200,7 +214,9 @@ export function CheckinList({
                       ? `⚠ 미입금 · 현장 ${won(b.amount)}`
                       : "⚠ 미입금"
                     : b.amount === 0
-                      ? "무료입장"
+                      ? tableName(b.table_id)
+                        ? "테이블 · 입장비 없음"
+                        : "무료입장"
                       : "입금 완료"}
                 </div>
               </div>

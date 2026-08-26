@@ -7,6 +7,7 @@ import type {
   CrewMember,
   EventRow,
   EventStats,
+  EventTable,
   TicketTier,
   TierStats,
 } from "@/types/database";
@@ -68,6 +69,8 @@ export interface AdminEvent {
   tiers: (TicketTier & { sold: number })[];
   bookings: Booking[];
   members: CrewMember[];
+  /** 테이블 메뉴. 명단에서 예매를 이름으로 바꿔 보여주는 데 쓴다 */
+  tables: EventTable[];
 }
 
 /**
@@ -83,8 +86,14 @@ export async function adminEvent(eventId: string): Promise<AdminEvent | null> {
     .maybeSingle();
   if (!event) return null;
 
-  const [{ data: stats }, { data: tiers }, { data: tierStats }, { data: bookings }, { data: members }] =
-    await Promise.all([
+  const [
+    { data: stats },
+    { data: tiers },
+    { data: tierStats },
+    { data: bookings },
+    { data: members },
+    { data: tables },
+  ] = await Promise.all([
       supabase.from("event_stats").select("*").eq("event_id", eventId).maybeSingle(),
       supabase.from("ticket_tiers").select("*").eq("event_id", eventId).order("sort_order"),
       supabase.from("tier_stats").select("*").eq("event_id", eventId),
@@ -94,6 +103,11 @@ export async function adminEvent(eventId: string): Promise<AdminEvent | null> {
         .eq("event_id", eventId)
         .order("created_at", { ascending: false }),
       supabase.from("crew_members").select("*").eq("crew_id", (event as EventRow).crew_id),
+      supabase
+        .from("event_tables")
+        .select("*")
+        .eq("event_id", eventId)
+        .order("sort_order"),
     ]);
 
   const sold = new Map(
@@ -117,6 +131,7 @@ export async function adminEvent(eventId: string): Promise<AdminEvent | null> {
     })),
     bookings: (bookings ?? []) as Booking[],
     members: (members ?? []) as CrewMember[],
+    tables: (tables ?? []) as EventTable[],
   };
 }
 

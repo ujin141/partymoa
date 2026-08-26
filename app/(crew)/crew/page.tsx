@@ -180,6 +180,14 @@ export default async function CrewDashboard({
             </b>
           </div>
           <div className="rounded-xl bg-soft px-3 py-2.5">
+            <small className="text-[12px] text-sub">테이블</small>
+            <b className="mt-0.5 block text-[17px] font-extrabold">
+              {heads(rows.filter((b) => b.table_id))}명
+            </b>
+          </div>
+        </div>
+        <div className="mt-2 grid grid-cols-3 gap-2">
+          <div className="rounded-xl bg-soft px-3 py-2.5">
             <small className="text-[12px] text-sub">예매 건수</small>
             <b className="mt-0.5 block text-[17px] font-extrabold">
               {rows.length}건

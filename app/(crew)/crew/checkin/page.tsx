@@ -26,7 +26,8 @@ export default async function CrewCheckinPage({
     <div className="flex-1 overflow-y-auto overscroll-contain">
       <CrewPicker crews={crews} current={crew.id} />
       <EventPicker events={events} current={current.event.id} />
-      <CheckinList bookings={current.bookings} eventId={current.event.id} />
+      <CheckinList bookings={current.bookings}
+        tables={current.tables} eventId={current.event.id} />
     </div>
   );
 }

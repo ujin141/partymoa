@@ -7,14 +7,20 @@ import {
   setBookingInvite,
   setPaid,
 } from "@/app/(crew)/crew/actions";
-import { stampFull, won } from "@/lib/format";
+import { phoneText, stampFull, won } from "@/lib/format";
 import { priceFor } from "@/lib/rules";
-import type { Booking, CrewMember, TicketTier } from "@/types/database";
+import type {
+  Booking,
+  CrewMember,
+  EventTable,
+  TicketTier,
+} from "@/types/database";
 
 const FILTERS = [
   "전체",
   "일반",
   "게스트",
+  "테이블",
   "무료",
   "미입금",
   "입금완료",
@@ -33,18 +39,50 @@ type Filter = (typeof FILTERS)[number];
  * 판단 근거는 저장된 값이다. 초대 코드가 있으면 그 DJ 의 게스트고,
  * 0원이면 무료입장이다. 따로 표시를 저장하지 않는다.
  */
-type Kind = "일반" | "게스트" | "무료";
+type Kind = "일반" | "게스트" | "테이블" | "무료";
+
+/**
+ * **테이블이 제일 먼저다.** 테이블 손님은 입장비가 0 원이라 예전에는
+ * 무료입장으로 분류됐다 — 크루가 그냥 넣어 준 사람과 30만원짜리 테이블을
+ * 잡은 손님이 문 앞에서 똑같이 보였다.
+ *
+ * 추천인이 같이 적혀 있어도 테이블이 이긴다. 입구에서 필요한 건
+ * "이 사람 어디 앉나" 지 "누가 데려왔나" 가 아니다.
+ */
 const kindOf = (b: Booking): Kind =>
-  b.invite_code ? "게스트" : b.amount === 0 ? "무료" : "일반";
+  b.table_id
+    ? "테이블"
+    : b.invite_code
+      ? "게스트"
+      : b.amount === 0
+        ? "무료"
+        : "일반";
+
+/**
+ * 검색 한 건. 번호는 **하이픈 있는 벌과 숫자만인 벌을 둘 다** 넣는다.
+ *
+ * 앱으로 들어온 건은 손님이 친 대로, 손으로 넣은 건은 적은 대로 저장돼서
+ * 형식이 섞여 있다. 입구에서 "2624" 를 쳤는데 안 나오면 그 사람을 못 찾는다.
+ */
+function hits(b: Booking, needle: string): boolean {
+  const digits = b.phone.replace(/\D/g, "");
+  const hay =
+    `${b.name}${b.phone}${digits}${b.code}${b.invite_code ?? ""}`.toLowerCase();
+  if (hay.includes(needle)) return true;
+  const nd = needle.replace(/\D/g, "");
+  return nd.length > 0 && hay.includes(nd);
+}
 
 function csvDownload(
   rows: Booking[],
   tierName: (id: string) => string,
   memberName: (code: string | null) => string,
+  tableName: (id: string | null) => string,
   fileName: string,
 ) {
   const head = [
     "구분",
+    "테이블",
     "추천인",
     "초대코드",
     "이름",
@@ -60,7 +98,7 @@ function csvDownload(
   ];
   // **구분 → DJ → 이름 순으로 정렬해서 내보낸다.** 엑셀에서 다시 정렬하지
   // 않아도 게스트가 DJ 별로 묶여 나온다 — 정산할 때 그대로 쓴다
-  const order: Record<Kind, number> = { 일반: 0, 게스트: 1, 무료: 2 };
+  const order: Record<Kind, number> = { 일반: 0, 게스트: 1, 테이블: 2, 무료: 3 };
   const sorted = [...rows].sort(
     (x, y) =>
       order[kindOf(x)] - order[kindOf(y)] ||
@@ -69,10 +107,11 @@ function csvDownload(
   );
   const body = sorted.map((b) => [
     kindOf(b),
+    tableName(b.table_id),
     memberName(b.invite_code),
     b.invite_code ?? "",
     b.name,
-    b.phone,
+    phoneText(b.phone),
     b.gender === "F" ? "여" : "남",
     b.quantity,
     tierName(b.tier_id),
@@ -102,6 +141,7 @@ export function GuestList({
   bookings,
   tiers,
   members,
+  tables,
   eventTitle,
   bankAccount,
   guestPrice,
@@ -110,6 +150,7 @@ export function GuestList({
   bookings: Booking[];
   tiers: TicketTier[];
   members: CrewMember[];
+  tables: EventTable[];
   eventTitle: string;
   bankAccount: string | null;
   guestPrice: number | null;
@@ -130,6 +171,9 @@ export function GuestList({
    * 멤버에서 지운 코드는 이름을 못 찾지만 집계는 남아야 하므로,
    * 못 찾으면 코드를 그대로 쓴다.
    */
+  const tableOf = (id: string | null) =>
+    id ? (tables.find((t) => t.id === id) ?? null) : null;
+
   const memberName = (code: string | null) =>
     (code && members.find((m) => m.invite_code === code)?.display_name) ||
     code ||
@@ -156,15 +200,12 @@ export function GuestList({
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return rows.filter((b) => {
-      if (
-        needle &&
-        !`${b.name}${b.phone}${b.code}${b.invite_code ?? ""}`
-          .toLowerCase()
-          .includes(needle)
-      )
-        return false;
+      // **번호에 하이픈이 있는 건과 없는 건이 섞여 있다.** 숫자만 쳐도,
+      // 하이픈째 쳐도 걸리게 두 벌을 다 넣고 본다
+      if (needle && !hits(b, needle)) return false;
       if (filter === "일반") return kindOf(b) === "일반";
       if (filter === "게스트") return kindOf(b) === "게스트";
+      if (filter === "테이블") return kindOf(b) === "테이블";
       if (filter === "무료") return kindOf(b) === "무료";
       if (filter === "미입금") return b.status === "pending";
       if (filter === "입금완료") return b.status === "paid";
@@ -181,7 +222,7 @@ export function GuestList({
    * 별로 이어 붙여서, 그 DJ 가 몇 명 데려왔는지 줄만 세면 보이게 한다.
    */
   const groups = useMemo(() => {
-    const order: Kind[] = ["일반", "게스트", "무료"];
+    const order: Kind[] = ["일반", "게스트", "테이블", "무료"];
     return order
       .map((kind) => ({
         kind,
@@ -189,6 +230,7 @@ export function GuestList({
           .filter((b) => kindOf(b) === kind)
           .sort(
             (x, y) =>
+              (x.table_id ?? "").localeCompare(y.table_id ?? "") ||
               (x.invite_code ?? "").localeCompare(y.invite_code ?? "") ||
               x.name.localeCompare(y.name, "ko"),
           ),
@@ -224,7 +266,7 @@ export function GuestList({
         </span>
       </div>
       <p className="px-4 pb-3 text-[12.5px] text-sub">
-        {`일반 ${tally("일반")} · 게스트 ${tally("게스트")} · 무료 ${tally("무료")}`}
+        {`일반 ${tally("일반")} · 게스트 ${tally("게스트")} · 테이블 ${tally("테이블")} · 무료 ${tally("무료")}`}
       </p>
 
       <div className="px-4">
@@ -262,7 +304,7 @@ export function GuestList({
             <button
               type="button"
               onClick={() =>
-                copy(unpaid.map((b) => b.phone).join(", "), "phones")
+                copy(unpaid.map((b) => phoneText(b.phone)).join(", "), "phones")
               }
               className="rounded-lg border border-line bg-white py-2.5 text-[13px] font-semibold"
             >
@@ -304,9 +346,11 @@ export function GuestList({
               <b className="text-[12.5px] font-extrabold">
                 {g.kind === "게스트"
                   ? "DJ 게스트"
-                  : g.kind === "무료"
-                    ? "무료입장"
-                    : "일반 예매"}
+                  : g.kind === "테이블"
+                    ? "테이블"
+                    : g.kind === "무료"
+                      ? "무료입장"
+                      : "일반 예매"}
               </b>
               <span className="text-[12px] text-sub">
                 {`${g.rows.reduce((a, b) => a + b.quantity, 0)}명`}
@@ -323,6 +367,28 @@ export function GuestList({
             <Fragment key={b.id}>
             {/* DJ 가 바뀌는 자리에 이름을 한 줄 끼운다. 게스트는 DJ 별로
                 줄만 세면 몇 명 데려왔는지 보여야 한다 */}
+            {g.kind === "테이블" &&
+            b.table_id !== g.rows[i - 1]?.table_id ? (
+              <div className="flex items-center gap-2 bg-white px-4 pb-1 pt-3">
+                <b className="text-[13px] font-extrabold text-brand">
+                  {tableOf(b.table_id)?.name ?? "테이블"}
+                </b>
+                <span className="text-[12px] text-sub">
+                  {`${g.rows
+                    .filter((x) => x.table_id === b.table_id)
+                    .reduce((a, x) => a + x.quantity, 0)}명`}
+                </span>
+                {tableOf(b.table_id)?.note ? (
+                  <span className="truncate text-[11.5px] text-sub">
+                    {tableOf(b.table_id)!.note}
+                  </span>
+                ) : null}
+                {/* 테이블 정가. 실제로 받은 돈은 정산의 수입 항목에 있다 */}
+                <span className="ml-auto flex-none text-[12px] font-bold text-sub">
+                  {won(tableOf(b.table_id)?.price ?? 0)}
+                </span>
+              </div>
+            ) : null}
             {g.kind === "게스트" &&
             b.invite_code !== g.rows[i - 1]?.invite_code ? (
               <div className="flex items-center gap-2 bg-white px-4 pb-1 pt-3">
@@ -374,7 +440,7 @@ export function GuestList({
                     onClick={(e) => e.stopPropagation()}
                     className="underline"
                   >
-                    {b.phone}
+                    {phoneText(b.phone)}
                   </a>
                   <a
                     href={`sms:${b.phone.replace(/[^0-9+]/g, "")}`}
@@ -493,7 +559,13 @@ export function GuestList({
         <button
           type="button"
           onClick={() =>
-            csvDownload(rows, tierName, memberName, `${eventTitle}_명단.csv`)
+            csvDownload(
+              rows,
+              tierName,
+              memberName,
+              (id) => tableOf(id)?.name ?? "",
+              `${eventTitle}_명단.csv`,
+            )
           }
           className="w-full rounded-xl border border-line py-3.5 text-[15px] font-semibold"
         >

@@ -217,6 +217,8 @@ export type Booking = {
   quantity: number;
   amount: number;
   invite_code: string | null;
+  /** 앉는 테이블. **표시용이고 금액은 안 담는다** — 한 테이블에 여럿이 앉는다 */
+  table_id: string | null;
   status: BookingStatus;
   paid_at: string | null;
   checked_in_at: string | null;
@@ -229,6 +231,8 @@ export type EventExpense = {
   event_id: string;
   label: string;
   amount: number;
+  /** expense = 정산에서 뺀다 · income = 더한다(수수료 안 붙음) */
+  kind: "expense" | "income";
   sort_order: number;
   created_at: string;
 }

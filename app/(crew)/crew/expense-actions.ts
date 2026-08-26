@@ -8,6 +8,7 @@ export async function addExpense(
   eventId: string,
   label: string,
   amount: number,
+  kind: "expense" | "income" = "expense",
 ) {
   if (!label.trim() || !Number.isFinite(amount) || amount < 0) {
     return { ok: false, message: "항목과 금액을 확인해 주세요." };
@@ -17,6 +18,7 @@ export async function addExpense(
     event_id: eventId,
     label: label.trim(),
     amount: Math.round(amount),
+    kind,
     sort_order: Date.now() % 100000,
   });
   if (error) return { ok: false, message: error.message };
