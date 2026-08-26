@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { pushReady, sendPush } from "@/lib/push";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
  * 보낼 알림을 찾아 보낸다. Vercel 크론이 30분마다 부른다.
@@ -41,7 +41,12 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, reason: "VAPID 키 없음" });
   }
 
-  const supabase = await createClient();
+  // **서비스 롤로 부른다.** 요청에 사람이 없어서 anon 으로는
+  // push_targets 도, 죽은 구독 정리도 못 한다
+  const supabase = createAdminClient();
+  if (!supabase) {
+    return NextResponse.json({ ok: false, reason: "SUPABASE_SERVICE_ROLE_KEY 없음" });
+  }
   const { data, error } = await supabase.rpc("push_targets");
   if (error) {
     return NextResponse.json({ ok: false, reason: error.message }, { status: 500 });

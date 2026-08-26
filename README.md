@@ -77,6 +77,33 @@ supabase/seed.sql     로컬 시드 (임시값이다. 프로덕션에 넣지 말
               →  status = 'cancelled' → 정원 자동 반환
 ```
 
+## 환경변수
+
+`.env.local` 은 `.gitignore` 에 걸려 있다. 새 기기에서는 손으로 만든다.
+
+```
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+NEXT_PUBLIC_SITE_URL
+```
+
+푸시까지 돌리려면 다섯 개가 더 필요하다. **하나라도 없으면 알림이
+조용히 안 간다** — 알림은 곁다리라, 키가 없다고 예매 같은 진짜 일이
+막히면 안 되기 때문이다.
+
+```
+NEXT_PUBLIC_VAPID_PUBLIC_KEY   npx web-push generate-vapid-keys
+VAPID_PRIVATE_KEY              같은 명령이 같이 뱉는다
+VAPID_SUBJECT                  mailto:주소
+SUPABASE_SERVICE_ROLE_KEY      크론이 push_targets 를 부를 때만 쓴다
+CRON_SECRET                    비우면 누구나 손님에게 알림을 울릴 수 있다
+```
+
+**VAPID 키를 나중에 바꾸면 기존 구독이 전부 죽는다.** 한 번 만들어서
+계속 쓴다.
+
+`NEXT_PUBLIC_` 이 붙은 값은 빌드에 박힌다 — 바꾸면 재배포해야 한다.
+
 ## 남은 설정
 
 - [ ] Supabase 대시보드에서 **익명 로그인(Anonymous sign-ins)** 켜기.

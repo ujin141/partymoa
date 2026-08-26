@@ -4,6 +4,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 
 import { PARTY_TAG } from "@/lib/queries";
 import { pushReady, sendPush } from "@/lib/push";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -37,7 +38,9 @@ export async function setPaid(bookingId: string, paid: boolean) {
 /** 입금 확정 알림. 그 사람 기기로만 간다 */
 async function notifyPaid(bookingId: string) {
   if (!pushReady()) return;
-  const supabase = await createClient();
+  // 손님 구독을 읽어야 하는데 정책이 "본인 것만" 이다. 여기만 뚫는다
+  const supabase = createAdminClient();
+  if (!supabase) return;
 
   const { data } = await supabase
     .from("bookings")
