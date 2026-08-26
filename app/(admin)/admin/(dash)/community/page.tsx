@@ -1,7 +1,7 @@
 import { HideButton } from "@/components/admin/HideButton";
 import { ago } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
-import type { PostComment, PostListRow } from "@/types/database";
+import type { OpenReport, PostComment, PostListRow } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "커뮤니티 관리" };
@@ -15,7 +15,8 @@ export const metadata = { title: "커뮤니티 관리" };
  */
 export default async function AdminCommunityPage() {
   const supabase = await createClient();
-  const [{ data: posts }, { data: comments }] = await Promise.all([
+  const [{ data: posts }, { data: comments }, { data: reports }] =
+    await Promise.all([
     supabase
       .from("post_list")
       .select("*")
@@ -27,10 +28,13 @@ export default async function AdminCommunityPage() {
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(50),
+    // 신고함. **제일 먼저 봐야 하는 것이라 맨 위에 둔다**
+    supabase.from("open_reports").select("*").limit(50),
   ]);
 
   const list = (posts ?? []) as PostListRow[];
   const cs = (comments ?? []) as PostComment[];
+  const rs = (reports ?? []) as OpenReport[];
 
   return (
     <div className="flex-1 overflow-y-auto overscroll-contain">
@@ -40,6 +44,37 @@ export default async function AdminCommunityPage() {
           내린 글은 목록에서 사라지지만 기록은 남습니다.
         </p>
       </div>
+
+      {/* 신고가 있으면 그것부터. 없으면 이 칸 자체가 안 뜬다 */}
+      {rs.length > 0 ? (
+        <>
+          <h2 className="px-4 pb-2 pt-3 text-[15px] font-extrabold text-hot">
+            {`신고 ${rs.length}`}
+          </h2>
+          {rs.map((r) => (
+            <div key={r.id} className="border-b border-line px-4 py-3">
+              <div className="flex items-center gap-2">
+                <span className="rounded bg-[#FDECEF] px-1.5 py-0.5 text-[11px] font-bold text-hot">
+                  {r.target_type === "post" ? "글" : "댓글"}
+                </span>
+                <span className="text-[13px] font-bold">{r.reason}</span>
+                <span className="ml-auto text-[12px] text-sub">
+                  {ago(r.created_at)}
+                </span>
+              </div>
+              <p className="mt-1.5 line-clamp-3 whitespace-pre-wrap text-[13.5px] leading-relaxed text-sub">
+                {r.author ? `${r.author} · ` : ""}
+                {r.body ?? "이미 지워진 글"}
+              </p>
+              {r.body ? (
+                <div className="mt-2">
+                  <HideButton id={r.target_id} kind={r.target_type} />
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </>
+      ) : null}
 
       <h2 className="px-4 pb-2 pt-3 text-[15px] font-extrabold">
         글 {list.length}

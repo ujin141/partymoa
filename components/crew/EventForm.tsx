@@ -96,6 +96,7 @@ export function EventForm({
       price: string;
       malePrice: string;
       capacity: string;
+      closed: boolean;
     }[]
   >(
     initial?.tiers.length
@@ -106,6 +107,7 @@ export function EventForm({
           price: String(t.price),
           malePrice: t.male_price == null ? "" : String(t.male_price),
           capacity: String(t.capacity),
+          closed: Boolean(t.closed_at),
         }))
       : [
           {
@@ -114,6 +116,7 @@ export function EventForm({
             price: "39000",
             malePrice: "",
             capacity: "40",
+            closed: false,
           },
         ],
   );
@@ -198,6 +201,7 @@ export function EventForm({
           price: Number(t.price) || 0,
           malePrice: t.malePrice.trim() === "" ? null : Number(t.malePrice) || 0,
           capacity: Number(t.capacity) || 0,
+          closed: t.closed,
         })),
         lineups,
         tables: tables.map((t, i) => ({
@@ -553,6 +557,27 @@ export function EventForm({
               />
             </div>
           </div>
+
+          {/* **자리 수와 "판다/안 판다" 는 다른 이야기다.** 정원으로만
+              판단하면, 끝난 차수에서 한 건이 취소되는 순간 그 차수가
+              다시 열리고 가격이 옛 가격으로 돌아간다 */}
+          <label className="mt-2.5 flex items-center gap-2 text-[13px]">
+            <input
+              type="checkbox"
+              checked={t.closed}
+              onChange={(e) =>
+                setTiers(
+                  tiers.map((x, j) =>
+                    j === i ? { ...x, closed: e.target.checked } : x,
+                  ),
+                )
+              }
+              className="h-4 w-4 accent-brand"
+            />
+            <span className={t.closed ? "font-bold text-hot" : "text-sub"}>
+              마감 — 자리가 남아도 안 팝니다
+            </span>
+          </label>
         </div>
       ))}
       <button
@@ -566,6 +591,7 @@ export function EventForm({
               price: "",
               malePrice: "",
               capacity: "",
+              closed: false,
             },
           ])
         }

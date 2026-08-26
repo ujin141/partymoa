@@ -313,7 +313,8 @@ export function BookingSheet(p: Props) {
           </label>
           {p.tiers.map((t) => {
             const sold = p.tierSold[t.id] ?? 0;
-            const out = sold >= t.capacity;
+            // 크루가 닫았으면 자리가 남아도 못 산다
+            const out = Boolean(t.closed_at) || sold >= t.capacity;
             const price =
               guestPrice ??
               priceFor(t.price, gender ?? "F", p.maleMultiplier, t.male_price);
@@ -460,12 +461,14 @@ export function BookingSheet(p: Props) {
                       : "DJ 나 크루에게 받은 코드를 넣으면 게스트 가격이 적용돼요."}
             </p>
           </div>
-          <div className="h-2" />
+          {/* 스크롤 끝이 안내 문구에 바로 붙으면 위 입력칸이 잘린 것처럼
+              보인다. 한 칸 띄운다 */}
+          <div className="h-4" />
         </div>
 
         {/* **누르기 전에 보여 준다.** 결제하고 나서 알려 주면 그게
             분쟁이 된다 */}
-        <p className="px-4 pb-2 text-[12px] leading-relaxed text-sub">
+        <p className="border-t border-line px-4 pb-2 pt-2.5 text-[12px] leading-relaxed text-sub">
           {`신청 후 ${HOLD_HOURS}시간 안에 입금하지 않으면 자동 취소돼요. 파티 ${REFUND_CUTOFF_DAYS}일 전부터는 환불되지 않습니다.`}
         </p>
 
@@ -473,12 +476,22 @@ export function BookingSheet(p: Props) {
           <p className="px-4 pb-2 text-[13px] font-semibold text-hot">{err}</p>
         ) : null}
 
-        <div className="flex items-center gap-3 border-t border-line px-4 pb-[calc(0.7rem+env(safe-area-inset-bottom))] pt-2.5">
+        <div className="flex items-center gap-3 px-4 pb-[calc(0.7rem+env(safe-area-inset-bottom))] pt-1">
           <div className="flex-1">
             <small className="block text-xs text-sub">총 결제금액</small>
-            <b className="text-lg font-extrabold">
-              {total ? won(total) : "—"}
-            </b>
+            {total ? (
+              <b className="text-lg font-extrabold">{won(total)}</b>
+            ) : (
+              /* 값이 없으면 "—" 대신 뭘 해야 하는지 적는다. 대시만 있으면
+                 버튼이 왜 안 눌리는지 알 수 없다 */
+              <b className="text-[13.5px] font-semibold text-sub">
+                {!tierId
+                  ? "차수를 골라 주세요"
+                  : !gender
+                    ? "성별을 골라 주세요"
+                    : "이름과 연락처를 적어 주세요"}
+              </b>
+            )}
           </div>
           <button
             type="button"

@@ -267,7 +267,7 @@ export default async function PartyPage({
           <h4 className="mb-3 text-base font-extrabold">가격</h4>
           {tiers.map((t) => {
             const sold = tierSold[t.id] ?? 0;
-            const out = sold >= t.capacity;
+            const out = Boolean(t.closed_at) || sold >= t.capacity;
             return (
               <div
                 key={t.id}

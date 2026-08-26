@@ -113,6 +113,28 @@ export default async function HomePage() {
   const solo = parties.filter((p) => p.event.solo_friendly);
   const weekend = parties.filter((p) => isThisWeekend(p.event.starts_at));
 
+  /**
+   * **한 파티가 여러 칸에 겹쳐 나오지 않게 한다.**
+   *
+   * 파티가 하나뿐일 때 이 화면은 같은 카드를 세 번 보여 줬다 — 지금
+   * 뜨는 파티, 혼자 가도 좋아요, 이번 주말. 스크롤을 내리면 같은 사진이
+   * 계속 나와서 앱이 고장 난 것처럼 보인다.
+   *
+   * 위에서부터 먼저 나온 칸이 이긴다. 아래 칸은 남은 것만 받고, 남은 게
+   * 없으면 칸 자체가 사라진다.
+   */
+  const shown = new Set<string>();
+  const take = <T extends { event: { id: string } }>(list: T[], n: number) => {
+    const out = list.filter((d) => !shown.has(d.event.id)).slice(0, n);
+    out.forEach((d) => shown.add(d.event.id));
+    return out;
+  };
+  const sLiked = take(liked, 5);
+  const sRate = take(byRate, 5);
+  const sSolo = take(solo, 3);
+  const sClosing = take(closing, 4);
+  const sWeekend = take(weekend, 5);
+
   return (
     <>
       <header className="flex flex-none items-center gap-2.5 border-b border-line px-4 py-3">
@@ -204,25 +226,25 @@ export default async function HomePage() {
           </Empty>
         ) : null}
 
-        {liked.length > 0 ? (
+        {sLiked.length > 0 ? (
           <>
             <SectionTitle
               title={me?.nickname ? `${me.nickname} 님 취향` : "취향에 맞는 파티"}
               note="시작할 때 고른 지역·분위기로 골랐어요"
             />
             <div className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1">
-              {liked.slice(0, 5).map((d) => (
+              {sLiked.map((d) => (
                 <HeroCard key={d.event.id} d={d} />
               ))}
             </div>
           </>
         ) : null}
 
-        {byRate.length > 0 ? (
+        {sRate.length > 0 ? (
           <>
             <SectionTitle title="지금 뜨는 파티" note="예매가 빠르게 차는 순서" />
             <div className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1">
-              {byRate.slice(0, 5).map((d) => (
+              {sRate.map((d) => (
                 <HeroCard key={d.event.id} d={d} />
               ))}
             </div>
@@ -263,40 +285,91 @@ export default async function HomePage() {
           </>
         ) : null}
 
-        {solo.length > 0 ? (
+        {sSolo.length > 0 ? (
           <>
             <Divider />
             <SectionTitle
               title="혼자 가도 좋아요"
               note="1인 참여를 환영하는 파티만 모았어요"
             />
-            {solo.slice(0, 3).map((d) => (
+            {sSolo.map((d) => (
               <PartyCard key={d.event.id} d={d} />
             ))}
           </>
         ) : null}
 
-        {closing.length > 0 ? (
+        {sClosing.length > 0 ? (
           <>
             <Divider />
             <SectionTitle title="마감 임박" note="자리가 얼마 안 남았어요" />
-            {closing.slice(0, 4).map((d, i) => (
+            {sClosing.map((d, i) => (
               <MiniRow key={d.event.id} d={d} rank={i + 1} />
             ))}
           </>
         ) : null}
 
-        {weekend.length > 0 ? (
+        {sWeekend.length > 0 ? (
           <>
             <Divider />
             <SectionTitle title="이번 주말" note="금·토에 열리는 파티" />
-            {weekend.map((d) => (
+            {sWeekend.map((d) => (
               <PartyCard key={d.event.id} d={d} />
             ))}
           </>
         ) : null}
 
-        <div className="h-4" />
+        {/**
+          * 피드 아래를 비워 두지 않는다.
+          *
+          * 서울에 파티가 매일 열리는 게 아니라서, 목록이 한두 개면 화면
+          * 절반이 흰 여백이 된다. 처음 온 사람은 그걸 보고 "아직 아무것도
+          * 없는 앱" 이라고 읽는다.
+          *
+          * 그 자리에 두 가지를 둔다. 처음 온 사람에게는 예매가 어떻게
+          * 돌아가는지, 파티를 여는 사람에게는 들어오는 문.
+          */}
+        <Divider />
+
+        <div className="px-4 pt-5">
+          <h4 className="text-[15px] font-extrabold">이렇게 예매해요</h4>
+          <ol className="mt-3 grid gap-3">
+            {[
+              ["파티와 차수를 고릅니다", "로그인 안 해도 됩니다"],
+              ["크루 계좌로 입금합니다", "24시간 안에 넣으면 확정돼요"],
+              ["입장할 때 티켓을 보여 줍니다", "내 티켓에서 언제든 꺼낼 수 있어요"],
+            ].map(([t, d], i) => (
+              <li key={t} className="flex gap-3">
+                <span className="mt-0.5 grid h-6 w-6 flex-none place-items-center rounded-full bg-brand-soft text-[12.5px] font-extrabold text-brand">
+                  {i + 1}
+                </span>
+                <span className="min-w-0">
+                  <b className="block text-[14px] font-bold">{t}</b>
+                  <span className="mt-0.5 block text-[12.5px] leading-relaxed text-sub">
+                    {d}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ol>
+          <p className="mt-3.5 text-[12.5px] leading-relaxed text-sub">
+            앱 안에서는 결제하지 않습니다. 파티 7일 전부터는 환불되지 않아요.
+          </p>
+        </div>
+
+        <div className="px-4 pb-8 pt-5">
+          <Link
+            href="/my/crew-apply"
+            className="flex items-center gap-3 rounded-2xl bg-soft px-4 py-4 transition active:opacity-70"
+          >
+            <span className="min-w-0 flex-1">
+              <b className="block text-[14.5px] font-bold">파티를 여시나요</b>
+              <span className="mt-0.5 block text-[12.5px] leading-relaxed text-sub">
+                예매 명단·입금 확인·현장 입장까지 한 화면에서 합니다
+              </span>
+            </span>
+            <span className="flex-none text-[19px] text-[#C0C4CC]">›</span>
+          </Link>
+        </div>
       </div>
     </>
   );

@@ -33,6 +33,7 @@ export interface EventDraft {
     price: number;
     malePrice: number | null;
     capacity: number;
+    closed?: boolean;
   }[];
   tables: {
     id?: string;
@@ -129,6 +130,7 @@ export async function createEvent(d: EventDraft) {
     price: t.price,
     male_price: t.malePrice,
     capacity: t.capacity,
+    closed_at: t.closed ? new Date().toISOString() : null,
     sort_order: i,
   }));
   const { error: tErr } = await supabase.from("ticket_tiers").insert(tierRows);

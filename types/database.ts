@@ -165,8 +165,28 @@ export type TicketTier = {
   /** 남성가. null 이면 events.male_price_multiplier 로 계산한다 */
   male_price: number | null;
   capacity: number;
+  /**
+   * 마감한 차수. **자리가 남아 있어도 안 판다.**
+   *
+   * 정원으로만 판단하면, 이미 끝난 차수에서 한 건이 취소되는 순간
+   * 그 차수가 다시 열리고 화면의 가격이 옛 가격으로 되돌아간다.
+   * 실제로 그 일이 났다 — 2차가 끝났는데 홈에 49,000원이 떴다.
+   */
+  closed_at: string | null;
   sort_order: number;
 }
+
+/** 아직 처리 안 한 신고. 운영 화면이 이걸 본다 */
+export type OpenReport = {
+  id: string;
+  target_type: "post" | "comment";
+  target_id: string;
+  reason: string;
+  created_at: string;
+  author: string | null;
+  body: string | null;
+  post_id: string | null;
+};
 
 export type Lineup = {
   id: string;
@@ -361,6 +381,7 @@ export type Database = {
       event_stats: View<EventStats>;
       tier_stats: View<TierStats>;
       post_list: View<PostListRow>;
+      open_reports: View<OpenReport>;
       review_stats: View<ReviewStats>;
       platform_stats: View<{
         event_id: string;
@@ -451,6 +472,15 @@ export type Database = {
         Returns: boolean;
       };
       promote_anonymous: { Args: Record<string, never>; Returns: boolean };
+      report_content: {
+        Args: { p_type: string; p_id: string; p_reason: string };
+        Returns: boolean;
+      };
+      block_author: {
+        Args: { p_type: string; p_id: string };
+        Returns: boolean;
+      };
+      unblock_all: { Args: Record<string, never>; Returns: number };
       delete_my_account: {
         Args: Record<string, never>;
         Returns: { deleted: boolean; kept_bookings: number };

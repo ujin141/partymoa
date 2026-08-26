@@ -31,6 +31,7 @@ export interface EventPatch {
     price: number;
     malePrice: number | null;
     capacity: number;
+    closed?: boolean;
   }[];
   lineups: { artist: string; time: string }[];
   tables: {
@@ -146,6 +147,7 @@ export async function updateEvent(eventId: string, d: EventPatch) {
       price: t.price,
       male_price: t.malePrice,
       capacity: t.capacity,
+      closed_at: t.closed ? new Date().toISOString() : null,
       sort_order: i,
     };
     const { error: tErr } = t.id

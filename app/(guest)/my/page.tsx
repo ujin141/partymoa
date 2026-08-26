@@ -10,15 +10,26 @@ import { createClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "마이" };
 
-const ROWS = [
+/**
+ * 두 덩어리로 나눈다.
+ *
+ * 여덟 줄이 똑같은 굵기로 늘어서 있으면 찾는 데 시간이 걸린다. 자주
+ * 누르는 것(내 것)과 가끔 읽는 것(안내)은 성격이 다르다.
+ *
+ * **계정 삭제는 여기 안 넣는다.** 되돌릴 수 없는 것이 약관 링크와 같은
+ * 모양으로 나란히 있으면 안 된다. 맨 아래에 따로, 작게 둔다.
+ */
+const MINE = [
   { label: "프로필 편집", href: "/my/profile" },
   { label: "찜한 파티", href: "/my/favorites" },
   { label: "팔로우한 크루", href: "/my/crews" },
   { label: "알림 설정", href: "/my/alerts" },
+];
+
+const INFO = [
   { label: "고객센터", href: "/my/help" },
   { label: "이용약관", href: "/terms" },
   { label: "개인정보처리방침", href: "/privacy" },
-  { label: "계정 삭제", href: "/delete" },
 ];
 
 export default async function MyPage() {
@@ -101,7 +112,20 @@ export default async function MyPage() {
           ) : null}
         </div>
 
-        {ROWS.map((r) => (
+        {MINE.map((r) => (
+          <Link
+            key={r.href}
+            href={r.href}
+            className="flex w-full items-center gap-3 border-b border-line px-4 py-4"
+          >
+            <b className="text-[15px] font-semibold">{r.label}</b>
+            <span className="ml-auto text-[19px] text-[#C0C4CC]">›</span>
+          </Link>
+        ))}
+
+        <div className="h-2 bg-soft" />
+
+        {INFO.map((r) => (
           <Link
             key={r.href}
             href={r.href}
@@ -154,9 +178,17 @@ export default async function MyPage() {
 
         {/* 숫자를 다시 적지 않는다. 예전에 7% 로 적어 두고 요율만 올려서
             화면과 실제가 어긋나 있었다 */}
-        <p className="px-4 py-6 text-[12.5px] leading-relaxed text-sub">
+        <p className="px-4 pb-4 pt-6 text-[12.5px] leading-relaxed text-sub">
           {`파티모아는 티켓 금액의 ${Math.round(FEE_RATE * 100)}%를 수수료로 받습니다. 결제는 크루 계좌로 직접 입금하는 방식이에요.`}
         </p>
+
+        {/* 되돌릴 수 없는 것은 눈에 덜 띄게. 찾는 사람은 어차피 찾는다 */}
+        <Link
+          href="/delete"
+          className="block px-4 pb-8 text-[12.5px] text-[#A6ABB5] underline"
+        >
+          계정 삭제
+        </Link>
       </div>
     </>
   );

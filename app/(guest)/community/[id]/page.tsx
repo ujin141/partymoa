@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { CommentComposer } from "@/components/community/Composer";
 import { DeleteButton } from "@/components/community/DeleteButton";
+import { ReportMenu } from "@/components/community/ReportMenu";
 import { currentUserId, getPost, listComments } from "@/lib/community";
 import { ago } from "@/lib/format";
 
@@ -38,11 +39,13 @@ export default async function PostPage({
             <span className="text-[12.5px] text-sub">
               {ago(post.created_at)}
             </span>
-            {uid && post.user_id === uid ? (
-              <span className="ml-auto">
+            <span className="ml-auto flex items-center gap-1">
+              {uid && post.user_id === uid ? (
                 <DeleteButton id={post.id} kind="post" redirectTo="/community" />
-              </span>
-            ) : null}
+              ) : (
+                <ReportMenu type="post" id={post.id} />
+              )}
+            </span>
           </div>
           <p className="mt-3 whitespace-pre-wrap text-[15.5px] leading-7">
             {post.body}
@@ -76,11 +79,13 @@ export default async function PostPage({
               <div className="flex items-center gap-2">
                 <span className="text-[13.5px] font-bold">{c.nickname}</span>
                 <span className="text-[12px] text-sub">{ago(c.created_at)}</span>
-                {uid && c.user_id === uid ? (
-                  <span className="ml-auto">
+                <span className="ml-auto flex items-center gap-1">
+                  {uid && c.user_id === uid ? (
                     <DeleteButton id={c.id} postId={post.id} kind="comment" />
-                  </span>
-                ) : null}
+                  ) : (
+                    <ReportMenu type="comment" id={c.id} />
+                  )}
+                </span>
               </div>
               <p className="mt-1 whitespace-pre-wrap text-[14.5px] leading-relaxed">
                 {c.body}

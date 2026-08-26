@@ -53,7 +53,16 @@ function emptyStats(e: EventRow): EventStats {
 /**
  * 지금 팔리는 차수를 고른다. 얼리버드가 소진되면 자동으로 다음 차수다
  * (사양서 3-2). 판매량은 tier_stats 에서 온다 — 앱이 세지 않는다.
+ *
+ * **정원만 보면 안 된다.** 끝난 차수에서 한 건이 취소되면 자리가 한 칸
+ * 생기고, 그 순간 그 차수가 다시 "지금 파는 차수" 가 된다. 홈 카드의
+ * 가격이 옛 가격으로 돌아가고 할인 표시까지 붙는다 — 실제로 났던 일이다.
+ * 크루가 닫은 차수는 자리가 남아도 건너뛴다.
  */
+export function tierClosed(t: TicketTier, sold: Map<string, number>) {
+  return Boolean(t.closed_at) || (sold.get(t.id) ?? 0) >= t.capacity;
+}
+
 export function currentTier(
   tiers: TicketTier[],
   sold: Map<string, number>,
@@ -61,7 +70,7 @@ export function currentTier(
   return (
     [...tiers]
       .sort((a, b) => a.sort_order - b.sort_order)
-      .find((t) => (sold.get(t.id) ?? 0) < t.capacity) ?? null
+      .find((t) => !tierClosed(t, sold)) ?? null
   );
 }
 
