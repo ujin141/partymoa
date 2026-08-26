@@ -71,6 +71,9 @@ export default async function AdminLayout({
           <Link href="/admin/community" className="text-sub">
             커뮤니티
           </Link>
+          <Link href="/admin/push" className="text-sub">
+            광고 알림
+          </Link>
         </nav>
         {crews.length ? (
           <Link

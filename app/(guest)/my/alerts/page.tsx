@@ -1,8 +1,11 @@
 import Link from "next/link";
 
+import { MarketingToggle } from "@/components/MarketingToggle";
 import { PushToggle } from "@/components/PushToggle";
 import { HOLD_HOURS } from "@/lib/rules";
+import { createClient } from "@/lib/supabase/server";
 
+export const dynamic = "force-dynamic";
 export const metadata = { title: "알림 설정" };
 
 const WHAT = [
@@ -26,8 +29,27 @@ const WHAT = [
  * **무엇을 보내는지 먼저 적는다.** "알림 켜기" 만 있는 화면에서 켜는
  * 사람은 거의 없다. 광고가 올까 봐 안 켠다.
  */
-export default function AlertsPage() {
+export default async function AlertsPage() {
   const vapid = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  // **칸이 아직 없을 수 있다.** PUSH_ADS.sql 을 안 돌린 채 배포가 먼저
+  // 나가면 여기서 오류가 난다. 그때는 스위치를 아예 안 띄운다 —
+  // 눌러도 안 되는 스위치를 보여 주는 게 더 나쁘다
+  let marketing = false;
+  let marketingReady = false;
+  if (user) {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("marketing_push")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    marketingReady = !error;
+    marketing = Boolean(data?.marketing_push);
+  }
 
   return (
     <>
@@ -45,7 +67,8 @@ export default function AlertsPage() {
           알려 드려요
         </h1>
         <p className="mt-2.5 text-[14px] leading-relaxed text-sub">
-          광고는 안 보냅니다. 예매한 건에 대해서만, 아래 세 가지만 갑니다.
+          예매한 건에 대해서만, 아래 세 가지만 갑니다. 광고는 아래에서 따로
+          동의한 분께만 보냅니다.
         </p>
 
         <div className="mb-7 mt-6">
@@ -58,6 +81,10 @@ export default function AlertsPage() {
         </div>
 
         <PushToggle vapid={vapid} />
+
+        {vapid && marketingReady ? (
+          <MarketingToggle initial={marketing} />
+        ) : null}
 
         {!vapid ? (
           <p className="mt-3 text-[12.5px] leading-relaxed text-sub">

@@ -67,6 +67,10 @@ export type Profile = {
   categories: string[];
   /** 시작 화면을 본 시각. 취향을 안 골라도 다시 안 띄운다 */
   onboarded_at: string | null;
+  /** 광고성 푸시 동의. 예매 알림과 **별개다** (정보통신망법 50조) */
+  marketing_push: boolean;
+  /** 동의한 시각. 동의 근거라 껐다고 지우지 않는다 */
+  marketing_push_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -226,6 +230,20 @@ export type Booking = {
   created_at: string;
 }
 
+/** 보낸 광고. 수신거부 분쟁의 근거라 지우지 않는다 */
+export type MarketingLog = {
+  id: string;
+  title: string;
+  body: string;
+  url: string | null;
+  sent_by: string | null;
+  /** 보내려 한 기기 수 */
+  targets: number;
+  /** 실제로 간 기기 수 */
+  sent: number;
+  created_at: string;
+}
+
 export type EventExpense = {
   id: string;
   event_id: string;
@@ -362,6 +380,10 @@ export type Database = {
         Insertable<Lineup, "event_id" | "artist_name" | "starts_at" | "sort_order">
       >;
       bookings: Table<Booking, Insertable<Booking, "event_id" | "tier_id">>;
+      marketing_log: Table<
+        MarketingLog,
+        Insertable<MarketingLog, "title" | "body">
+      >;
       event_expenses: Table<
         EventExpense,
         Insertable<EventExpense, "event_id" | "label" | "amount">
@@ -510,6 +532,15 @@ export type Database = {
       set_booking_gender: {
         Args: { p_booking: string; p_gender: string; p_reprice: boolean };
         Returns: Booking;
+      };
+      marketing_targets: {
+        Args: Record<string, never>;
+        Returns: {
+          user_id: string;
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+        }[];
       };
       push_targets: {
         Args: Record<string, never>;
