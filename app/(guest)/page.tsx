@@ -318,58 +318,7 @@ export default async function HomePage() {
           </>
         ) : null}
 
-        {/**
-          * 피드 아래를 비워 두지 않는다.
-          *
-          * 서울에 파티가 매일 열리는 게 아니라서, 목록이 한두 개면 화면
-          * 절반이 흰 여백이 된다. 처음 온 사람은 그걸 보고 "아직 아무것도
-          * 없는 앱" 이라고 읽는다.
-          *
-          * 그 자리에 두 가지를 둔다. 처음 온 사람에게는 예매가 어떻게
-          * 돌아가는지, 파티를 여는 사람에게는 들어오는 문.
-          */}
-        <Divider />
-
-        <div className="px-4 pt-5">
-          <h4 className="text-[15px] font-extrabold">이렇게 예매해요</h4>
-          <ol className="mt-3 grid gap-3">
-            {[
-              ["파티와 차수를 고릅니다", "로그인 안 해도 됩니다"],
-              ["크루 계좌로 입금합니다", "24시간 안에 넣으면 확정돼요"],
-              ["입장할 때 티켓을 보여 줍니다", "내 티켓에서 언제든 꺼낼 수 있어요"],
-            ].map(([t, d], i) => (
-              <li key={t} className="flex gap-3">
-                <span className="mt-0.5 grid h-6 w-6 flex-none place-items-center rounded-full bg-brand-soft text-[12.5px] font-extrabold text-brand">
-                  {i + 1}
-                </span>
-                <span className="min-w-0">
-                  <b className="block text-[14px] font-bold">{t}</b>
-                  <span className="mt-0.5 block text-[12.5px] leading-relaxed text-sub">
-                    {d}
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ol>
-          <p className="mt-3.5 text-[12.5px] leading-relaxed text-sub">
-            앱 안에서는 결제하지 않습니다. 파티 7일 전부터는 환불되지 않아요.
-          </p>
-        </div>
-
-        <div className="px-4 pb-8 pt-5">
-          <Link
-            href="/my/crew-apply"
-            className="flex items-center gap-3 rounded-2xl bg-soft px-4 py-4 transition active:opacity-70"
-          >
-            <span className="min-w-0 flex-1">
-              <b className="block text-[14.5px] font-bold">파티를 여시나요</b>
-              <span className="mt-0.5 block text-[12.5px] leading-relaxed text-sub">
-                예매 명단·입금 확인·현장 입장까지 한 화면에서 합니다
-              </span>
-            </span>
-            <span className="flex-none text-[19px] text-[#C0C4CC]">›</span>
-          </Link>
-        </div>
+        <div className="h-4" />
       </div>
     </>
   );
