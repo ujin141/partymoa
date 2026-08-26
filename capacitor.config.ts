@@ -12,7 +12,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
  * 붙여야 앱일 이유가 생긴다. webDir 은 그 오프라인 화면이 들어갈 자리다.
  */
 const config: CapacitorConfig = {
-  appId: "com.partymoa.app",
+  appId: "io.partymoa.app",
   appName: "파티모아",
   webDir: "ios-shell",
   server: {

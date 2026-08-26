@@ -82,7 +82,7 @@ Supabase → SQL Editor 에 `supabase/PUSH_APNS.sql` 을 붙여 넣고 실행.
 
 <https://appstoreconnect.apple.com> → 앱 → `+` → 신규 앱
 
-번들 ID `com.partymoa.app` 를 고르고, `store/ios/SUBMIT.md` 의 내용을
+번들 ID `io.partymoa.app` 를 고르고, `store/ios/SUBMIT.md` 의 내용을
 채운다. 연령 등급은 **17+** 로 잡는다(술이 나오는 야간 파티 + 게시판).
 
 ## 8. 업로드

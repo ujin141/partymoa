@@ -21,7 +21,7 @@ import http2 from "node:http2";
 const HOST_PROD = "https://api.push.apple.com";
 const HOST_DEV = "https://api.sandbox.push.apple.com";
 
-const BUNDLE_ID = "com.partymoa.app";
+const BUNDLE_ID = "io.partymoa.app";
 
 export function apnsReady() {
   return Boolean(

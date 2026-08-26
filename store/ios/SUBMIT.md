@@ -12,7 +12,7 @@ App Store Connect 에 넣을 것들. 스크린샷은 `screenshots/` 에 있다.
 |---|---|
 | 이름 | 파티모아 |
 | 부제 | 서울 파티 사전예매 |
-| 번들 ID | `com.partymoa.app` |
+| 번들 ID | `io.partymoa.app` |
 | 기본 언어 | 한국어 |
 | 카테고리 | 엔터테인먼트 (2차: 라이프스타일) |
 | 가격 | 무료 |
