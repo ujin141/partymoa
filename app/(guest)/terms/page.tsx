@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { FEE_RATE, HOLD_HOURS } from "@/lib/rules";
+import { FEE_RATE, HOLD_HOURS, REFUND_CUTOFF_DAYS } from "@/lib/rules";
 
 export const metadata = { title: "이용약관" };
 
@@ -60,8 +60,19 @@ export default function TermsPage() {
       body: (
         <>
           <p>
-            <b className="text-ink">환불은 주최 크루가 처리합니다.</b> 기준도
-            크루가 정합니다. 파티 상세 화면의 크루 연락처로 문의하세요.
+            <b className="text-ink">
+              파티 시작 {REFUND_CUTOFF_DAYS}일 전부터는 환불되지 않습니다.
+            </b>{" "}
+            파티는 인원에 맞춰 술·자리·인력을 미리 잡습니다. 코앞에서 빠지면
+            그 비용이 그대로 남습니다.
+          </p>
+          <p className="mt-3">
+            그 전에 취소하는 경우의 기준은 주최 크루가 정합니다. 파티 상세
+            화면의 크루 연락처로 문의하세요.
+          </p>
+          <p className="mt-3">
+            입금 전 예매는 언제든 손님이 직접 취소할 수 있습니다. 돌려드릴
+            돈이 없고, 빨리 빼 주는 편이 다음 사람에게 자리가 갑니다.
           </p>
           <p className="mt-3">
             파티모아는 입금을 대신 받지 않습니다. 돈은 크루 계좌로 직접

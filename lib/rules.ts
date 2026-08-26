@@ -19,6 +19,24 @@ export const FEE_RATE = 0.1;
 /** 신청 후 이 시간 안에 입금이 없으면 자동 취소된다 */
 export const HOLD_HOURS = 24;
 
+/**
+ * 행사 며칠 전부터 환불이 안 되는가.
+ *
+ * 파티는 인원에 맞춰 술·자리·인력을 미리 잡는다. 코앞에서 빠지면 그
+ * 비용이 그대로 남는다 — 그래서 일주일을 자른다.
+ *
+ * **미입금 취소와는 다른 이야기다.** 돈을 안 낸 건은 돌려줄 것이 없고,
+ * 오히려 빨리 빼 줘야 자리가 돈다. 이 규칙은 입금이 확인된 건에만 건다.
+ */
+export const REFUND_CUTOFF_DAYS = 7;
+
+/** 아직 환불을 요청할 수 있는 기간인가 */
+export function refundOpen(startsAt: string, now: Date = new Date()): boolean {
+  const days =
+    (new Date(startsAt).getTime() - now.getTime()) / 86_400_000;
+  return days > REFUND_CUTOFF_DAYS;
+}
+
 export type Gender = "F" | "M";
 export type BookingStatus = "pending" | "paid" | "checked_in" | "cancelled";
 

@@ -11,7 +11,12 @@ import { Gauge, Tag } from "@/components/ui/primitives";
 import { longDate, timeRange, won } from "@/lib/format";
 import { getParty } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
-import { genderCap, priceFor, soldRate } from "@/lib/rules";
+import {
+  genderCap,
+  priceFor,
+  REFUND_CUTOFF_DAYS,
+  soldRate,
+} from "@/lib/rules";
 import type { EventPhoto, EventTable, Review } from "@/types/database";
 
 // **캐시를 안 쓴다.** 찜은 사람마다 다르고 잔여는 초 단위로 바뀐다.
@@ -409,7 +414,10 @@ export default async function PartyPage({
             입금자명은 <b className="text-ink">예매번호 + 이름</b>으로 넣어
             주세요.
             <br />
-            환불·문의는 주최 크루에 직접 연락해 주세요.
+            <b className="text-ink">
+              {`파티 ${REFUND_CUTOFF_DAYS}일 전부터는 환불되지 않아요.`}
+            </b>{" "}
+            그 전 취소는 주최 크루에 문의해 주세요.
           </div>
         </section>
         <div className="h-4" />

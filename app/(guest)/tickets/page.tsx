@@ -7,6 +7,7 @@ import { FindTicket } from "@/components/FindTicket";
 import { StoryShare } from "@/components/StoryShare";
 import { Empty, StatusPill } from "@/components/ui/primitives";
 import { longDate, won } from "@/lib/format";
+import { REFUND_CUTOFF_DAYS, refundOpen } from "@/lib/rules";
 import { myBookings } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
 
@@ -114,6 +115,16 @@ export default async function TicketsPage({
                     이름만 넣으면 같은 이름이 여럿이라 확인이 늦어져요.
                   </p>
                 </div>
+              ) : null}
+
+              {/* 입금한 건은 손님이 못 뺀다. 그러면 최소한 **환불이
+                  되는 기간인지**는 그 자리에서 알려 줘야 한다 */}
+              {b.status === "paid" ? (
+                <p className="border-t border-line px-4 py-3 text-[12.5px] leading-relaxed text-sub">
+                  {refundOpen(b.event.starts_at)
+                    ? `파티 ${REFUND_CUTOFF_DAYS}일 전까지 취소하면 주최 크루 기준에 따라 환불됩니다. 크루로 문의해 주세요.`
+                    : `환불 불가 기간이에요. 파티 ${REFUND_CUTOFF_DAYS}일 전부터는 환불되지 않습니다.`}
+                </p>
               ) : null}
 
               {/* 미입금은 손님이 직접 뺄 수 있다. 크루에게 DM 을 보내고

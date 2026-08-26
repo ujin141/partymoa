@@ -5,7 +5,13 @@ import { useEffect, useMemo, useState } from "react";
 
 import { BookingDone } from "@/components/BookingDone";
 import { won } from "@/lib/format";
-import { genderCap, priceFor, type Gender } from "@/lib/rules";
+import {
+  genderCap,
+  HOLD_HOURS,
+  priceFor,
+  REFUND_CUTOFF_DAYS,
+  type Gender,
+} from "@/lib/rules";
 import type { Booking, TicketTier } from "@/types/database";
 
 interface Props {
@@ -456,6 +462,12 @@ export function BookingSheet(p: Props) {
           </div>
           <div className="h-2" />
         </div>
+
+        {/* **누르기 전에 보여 준다.** 결제하고 나서 알려 주면 그게
+            분쟁이 된다 */}
+        <p className="px-4 pb-2 text-[12px] leading-relaxed text-sub">
+          {`신청 후 ${HOLD_HOURS}시간 안에 입금하지 않으면 자동 취소돼요. 파티 ${REFUND_CUTOFF_DAYS}일 전부터는 환불되지 않습니다.`}
+        </p>
 
         {err ? (
           <p className="px-4 pb-2 text-[13px] font-semibold text-hot">{err}</p>
