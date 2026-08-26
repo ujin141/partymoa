@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { InAppBrowserNotice } from "@/components/InAppBrowserNotice";
 import { LoginForm } from "@/components/crew/LoginForm";
+import { PasswordLogin } from "@/components/PasswordLogin";
 import { myCrew } from "@/lib/crew";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +40,7 @@ export default async function CrewLoginPage({
       <InAppBrowserNotice />
       <div className="mt-6">
         <LoginForm next={next ?? "/crew"} />
+        <PasswordLogin next={next ?? "/crew"} />
       </div>
     </div>
   );

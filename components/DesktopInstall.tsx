@@ -71,7 +71,12 @@ export function DesktopInstall() {
     };
   }, []);
 
-  if (!show) return null;
+  /**
+   * **약관·방침 화면에서는 안 띄운다.** 이 두 화면은 스토어 심사자가
+   * PC 로 열어서 읽는다. 가운데에 창이 뜨면 정책을 가린 것으로 보고
+   * 그 자체가 반려 사유가 된다.
+   */
+  if (!show || path === "/privacy" || path === "/terms") return null;
 
   function close() {
     // 세션에만 남긴다. 영영 안 뜨게 하면 다음에 설치하고 싶어도 길이 없다

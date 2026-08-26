@@ -451,6 +451,10 @@ export type Database = {
         Returns: boolean;
       };
       promote_anonymous: { Args: Record<string, never>; Returns: boolean };
+      delete_my_account: {
+        Args: Record<string, never>;
+        Returns: { deleted: boolean; kept_bookings: number };
+      };
       cancel_my_booking: { Args: { p_booking: string }; Returns: Booking };
       check_invite: {
         Args: { p_event: string; p_code: string };

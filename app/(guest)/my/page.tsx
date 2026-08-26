@@ -18,6 +18,7 @@ const ROWS = [
   { label: "고객센터", href: "/my/help" },
   { label: "이용약관", href: "/terms" },
   { label: "개인정보처리방침", href: "/privacy" },
+  { label: "계정 삭제", href: "/delete" },
 ];
 
 export default async function MyPage() {

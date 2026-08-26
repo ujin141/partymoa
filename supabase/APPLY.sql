@@ -37,9 +37,29 @@ do $$ begin
 exception when duplicate_object then null;
 end $$;
 
-create or replace function tier_price(p_tier ticket_tiers, p_event events, p_gender text)
+-- 게스트가 컬럼. 아래 tier_price 가 이걸 본다
+alter table events add column if not exists guest_price int;
+do $$ begin
+  alter table events add constraint events_guest_price_check
+    check (guest_price is null or guest_price >= 0);
+exception when duplicate_object then null;
+end $$;
+
+-- **옛 3인자짜리를 먼저 지운다.** 기본값이 있는 4인자와 나란히 두면
+-- tier_price(t, e, 'M') 이 어느 쪽인지 모호해져서 예매가 통째로 막힌다
+drop function if exists tier_price(ticket_tiers, events, text);
+
+-- 금액 계산의 단일 진실. 초대가 있으면 게스트가가 이긴다.
+-- **create_booking 보다 먼저 만든다** — 그 안에서 이걸 부른다
+create or replace function tier_price(
+  p_tier ticket_tiers,
+  p_event events,
+  p_gender text,
+  p_invited boolean default false
+)
 returns int language sql immutable as $$
   select case
+    when p_invited and p_event.guest_price is not null then p_event.guest_price
     when p_gender <> 'M' then p_tier.price
     when p_tier.male_price is not null then p_tier.male_price
     else (round(p_tier.price * p_event.male_price_multiplier / 1000.0) * 1000)::int
@@ -427,31 +447,7 @@ revoke all on function push_targets from public, anon, authenticated;
 -- DM 을 보내야 한다. 그걸 앱이 하게 만든다.
 --
 -- 비워 두면 예전과 똑같다 — 코드는 집계에만 쓰이고 금액은 안 바뀐다.
-alter table events add column if not exists guest_price int
-  check (guest_price is null or guest_price >= 0);
-
-comment on column events.guest_price is
-  '유효한 초대 코드를 넣었을 때의 금액. 비우면 할인 없음';
-
--- **옛 3인자짜리를 먼저 지운다.** 기본값이 있는 4인자와 나란히 두면
--- tier_price(t, e, 'M') 이 어느 쪽인지 모호해져서 예매가 통째로 막힌다
-drop function if exists tier_price(ticket_tiers, events, text);
-
--- 금액 계산의 단일 진실. 초대가 있으면 게스트가가 이긴다
-create or replace function tier_price(
-  p_tier ticket_tiers,
-  p_event events,
-  p_gender text,
-  p_invited boolean default false
-)
-returns int language sql immutable as $$
-  select case
-    when p_invited and p_event.guest_price is not null then p_event.guest_price
-    when p_gender <> 'M' then p_tier.price
-    when p_tier.male_price is not null then p_tier.male_price
-    else (round(p_tier.price * p_event.male_price_multiplier / 1000.0) * 1000)::int
-  end;
-$$;
+-- (게스트가와 tier_price 는 맨 앞에서 이미 만들었다)
 
 -- 손님이 코드를 넣는 순간 금액이 바뀌어야 한다. 그러려면 화면이 코드를
 -- 물어볼 자리가 필요하다. **크루 정보는 안 준다** — 코드가 맞는지와
@@ -1171,3 +1167,85 @@ order by 3 desc, 1;
 
 select '수수료' as 구분, title as 파티, revenue_paid as 확정매출, fee as 수수료
 from platform_stats order by starts_at desc;
+
+-- ───────────────────────────────────────── 계정 삭제
+--
+-- **구글 플레이가 요구한다.** 계정을 만들 수 있는 앱은 지우는 길도
+-- 있어야 하고, 로그인 없이 열리는 주소에 그 방법이 적혀 있어야 한다.
+--
+-- 다 지울 수는 없다. 확정된 예매는 크루의 정산 근거고 환불 분쟁이
+-- 남아 있다. 그래서 **계정과 예매를 끊고, 예매 줄은 남긴다.** 남은
+-- 줄의 이름·연락처는 행사가 끝나고 6개월 뒤에 purge_old_bookings 가
+-- 지운다 — 방침에 적어 둔 그 기간이다.
+--
+-- 취소된 예매는 바로 지운다. 남겨 둘 이유가 없다.
+
+create or replace function delete_my_account()
+returns json
+language plpgsql
+security definer
+set search_path = public, auth
+as $fn$
+declare
+  v_id   uuid := auth.uid();
+  v_kept int;
+begin
+  if v_id is null then
+    raise exception 'NOT_SIGNED_IN' using errcode = 'P0001';
+  end if;
+
+  -- 취소된 건은 흔적을 안 남긴다
+  delete from bookings where user_id = v_id and status = 'cancelled';
+
+  -- 살아 있는 예매는 계정에서만 떼어 낸다. 크루 명단에는 그대로 있다
+  update bookings set user_id = null where user_id = v_id;
+  get diagnostics v_kept = row_count;
+
+  delete from post_comments      where user_id = v_id;
+  delete from posts              where user_id = v_id;
+  delete from reviews            where user_id = v_id;
+  delete from favorites          where user_id = v_id;
+  delete from crew_follows       where user_id = v_id;
+  delete from push_subscriptions where user_id = v_id;
+  delete from crew_applications  where user_id = v_id;
+  delete from profiles           where user_id = v_id;
+
+  -- 크루 스태프였다면 그 자리도 뺀다
+  delete from crew_members where user_id = v_id;
+
+  delete from auth.users where id = v_id;
+
+  return json_build_object('deleted', true, 'kept_bookings', v_kept);
+end $fn$;
+
+revoke all on function delete_my_account from public, anon;
+grant execute on function delete_my_account to authenticated;
+
+/**
+ * 지난 행사의 개인정보를 지운다.
+ *
+ * 방침에 "행사 종료 후 6개월" 이라고 적었으면 실제로 지워야 한다.
+ * 예매 줄 자체는 남긴다 — 정원과 매출 집계의 근거다. 사람을 가리키는
+ * 값만 없앤다.
+ *
+ * 크론으로 하루 한 번 부르면 된다. 손으로 돌려도 된다.
+ */
+create or replace function purge_old_bookings()
+returns int
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare v_n int;
+begin
+  update bookings b
+  set name = '삭제됨', phone = ''
+  from events e
+  where e.id = b.event_id
+    and e.starts_at < now() - interval '6 months'
+    and b.name <> '삭제됨';
+  get diagnostics v_n = row_count;
+  return v_n;
+end $fn$;
+
+revoke all on function purge_old_bookings from public, anon, authenticated;

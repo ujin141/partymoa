@@ -56,7 +56,7 @@ begin
     -- 시간은 우진이 준 값 그대로. 19시 오픈 · 자정 종료
     starts_at   = timestamptz '2026-08-29 19:00+09',
     ends_at     = timestamptz '2026-08-30 00:00+09',
-    bank_account = '은행 000-0000-0000-00 (예금주)',
+    bank_account = '농협 352-0860-4459-03 (송우진)',
     solo_friendly = true,
     status      = 'open',
     description = concat_ws(E'\n',

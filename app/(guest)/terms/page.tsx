@@ -133,7 +133,11 @@ export default function TermsPage() {
       h: "8. 문의",
       body: (
         <p>
-          서비스 문의는 <b className="text-ink">⬛이메일</b> 로 주세요. 특정
+          서비스 문의는{" "}
+          <a href="mailto:ujin141@naver.com" className="font-bold text-brand underline">
+            ujin141@naver.com
+          </a>{" "}
+          로 주세요. 특정
           파티의 예매·환불은 그 파티의 주최 크루에게 직접 문의하세요.
         </p>
       ),

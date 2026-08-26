@@ -8,8 +8,6 @@ export const metadata = { title: "개인정보처리방침" };
  * **실제로 하는 것만 적는다.** 안 하는 걸 적어 두면 그게 곧 거짓말이고,
  * 하는 걸 빠뜨리면 고지 의무 위반이다. 이 앱이 실제로 무엇을 받고
  * 누구에게 넘기는지 코드 기준으로 썼다.
- *
- * ⬛ 표시한 곳은 우진이 정해야 하는 값이다.
  */
 const SECTIONS: { h: string; body: React.ReactNode }[] = [
   {
@@ -89,8 +87,8 @@ const SECTIONS: { h: string; body: React.ReactNode }[] = [
       <>
         <ul>
           <li>
-            예매 기록 — 행사 종료 후 <b className="text-ink">⬛개월</b>. 정산과
-            환불 분쟁에 대비해 둡니다
+            예매 기록 — 행사 종료 후 6개월. 정산과 환불 분쟁에 대비해
+            둡니다. 관계 법령이 더 긴 보관을 요구하면 그 기간을 따릅니다
           </li>
           <li>
             자동 취소된 예매 — 취소 상태로 남습니다. 정원 계산의 근거라 바로
@@ -120,7 +118,11 @@ const SECTIONS: { h: string; body: React.ReactNode }[] = [
     body: (
       <>
         <p>
-          개인정보 관련 문의는 <b className="text-ink">⬛이메일</b> 로 주세요.
+          개인정보 관련 문의는{" "}
+          <a href="mailto:ujin141@naver.com" className="font-bold text-brand underline">
+            ujin141@naver.com
+          </a>{" "}
+          로 주세요.
         </p>
         <p className="mt-3">
           특정 파티의 예매·환불은 그 파티의 주최 크루가 처리합니다. 파티 상세

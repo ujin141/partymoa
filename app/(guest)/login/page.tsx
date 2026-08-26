@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { InAppBrowserNotice } from "@/components/InAppBrowserNotice";
+import { PasswordLogin } from "@/components/PasswordLogin";
 import { SocialLogin } from "@/components/SocialLogin";
 import { Symbol } from "@/components/Symbol";
 import { createClient } from "@/lib/supabase/server";
@@ -53,6 +54,7 @@ export default async function LoginPage({
 
         <InAppBrowserNotice />
         <SocialLogin next={next ?? "/my"} />
+        <PasswordLogin next={next ?? "/my"} />
 
         <Link
           href="/"
