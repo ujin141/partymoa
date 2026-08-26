@@ -6,6 +6,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 const TABS = [
   { href: "/crew", label: "현황" },
   { href: "/crew/list", label: "명단" },
+  { href: "/crew/promo", label: "홍보" },
   { href: "/crew/checkin", label: "입장" },
   { href: "/crew/settle", label: "정산" },
 ];
@@ -22,7 +23,7 @@ export function CrewTabs() {
   const q = keep.toString();
 
   return (
-    <nav className="grid flex-none grid-cols-4 border-t border-line bg-white pb-[env(safe-area-inset-bottom)]">
+    <nav className="grid flex-none grid-cols-5 border-t border-line bg-white pb-[env(safe-area-inset-bottom)]">
       {TABS.map((t) => {
         const on = t.href === "/crew" ? path === "/crew" : path.startsWith(t.href);
         return (

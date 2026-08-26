@@ -12,9 +12,12 @@ import { createClient } from "@/lib/supabase/client";
  * 비밀번호를 단톡방에 돌리게 되면 그게 그대로 명단 접근 권한이 된다.
  * 구글은 각자 자기 계정으로 들어간다.
  *
- * 이메일·비밀번호도 남겨 둔다. 구글 계정이 없는 사람이 있고,
- * 행사 당일 구글이 막히는 상황도 없다고 못 한다.
+ * 이메일·비밀번호는 **지금 꺼 둔다.** Supabase 에서 Email provider 를
+ * 껐기 때문에 눌러도 "Email logins are disabled" 만 뜬다. 되는 척하는
+ * 버튼이 제일 나쁘다 — 손님은 앱이 고장 난 줄 안다.
+ * 대시보드에서 다시 켜면 아래 EMAIL_LOGIN 만 true 로 바꾸면 된다.
  */
+const EMAIL_LOGIN = false;
 export function LoginForm({ next = "/crew" }: { next?: string }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -101,7 +104,7 @@ export function LoginForm({ next = "/crew" }: { next?: string }) {
         <p className="mt-2.5 text-[13px] font-semibold text-hot">{err}</p>
       ) : null}
 
-      {!showPw ? (
+      {!EMAIL_LOGIN ? null : !showPw ? (
         <button
           type="button"
           onClick={() => setShowPw(true)}

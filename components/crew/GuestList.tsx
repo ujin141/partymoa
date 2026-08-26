@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 
-import { setPaid } from "@/app/(crew)/crew/actions";
+import { cancelBooking, setPaid } from "@/app/(crew)/crew/actions";
 import { stampFull, won } from "@/lib/format";
 import type { Booking, TicketTier } from "@/types/database";
 
@@ -245,20 +245,39 @@ export function GuestList({
               <span className="text-[14px] font-extrabold">
                 {won(b.amount)}
               </span>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() =>
-                  start(() => void setPaid(b.id, b.status === "pending"))
-                }
-                className={`rounded-lg px-3 py-1.5 text-[12.5px] font-bold ${
-                  b.status === "pending"
-                    ? "bg-soft text-sub"
-                    : "bg-[#E7F7EF] text-ok"
-                }`}
-              >
-                {b.status === "pending" ? "입금 확인" : "입금 완료"}
-              </button>
+              <div className="flex gap-1.5">
+                {/* **거절은 되돌릴 수 없다.** 자리가 바로 다음 사람에게
+                    넘어가므로 누구를 자르는지 이름을 대고 묻는다 */}
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    const paid = b.status !== "pending";
+                    const warn = paid
+                      ? `${b.name} 님은 입금이 확인된 예매예요. 거절하면 자리가 풀리고 환불은 따로 해 주셔야 해요. 계속할까요?`
+                      : `${b.name} 님의 예매를 거절할까요? 자리가 바로 풀립니다.`;
+                    if (!confirm(warn)) return;
+                    start(() => void cancelBooking(b.id));
+                  }}
+                  className="rounded-lg border border-line px-2.5 py-1.5 text-[12.5px] font-bold text-sub"
+                >
+                  거절
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    start(() => void setPaid(b.id, b.status === "pending"))
+                  }
+                  className={`rounded-lg px-3 py-1.5 text-[12.5px] font-bold ${
+                    b.status === "pending"
+                      ? "bg-soft text-sub"
+                      : "bg-[#E7F7EF] text-ok"
+                  }`}
+                >
+                  {b.status === "pending" ? "입금 확인" : "입금 완료"}
+                </button>
+              </div>
             </div>
           </div>
         ))

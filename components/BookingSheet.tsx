@@ -23,6 +23,8 @@ interface Props {
   closed: boolean;
   currentTierName: string | null;
   currentPrice: number | null;
+  /** 초대 링크로 들어왔을 때 미리 채울 코드 */
+  invite?: string | null;
   bankAccount: string | null;
 }
 
@@ -41,7 +43,9 @@ export function BookingSheet(p: Props) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [qty, setQty] = useState(1);
-  const [invite, setInvite] = useState("");
+  // 멤버 초대 링크(`?i=CODE`)로 들어오면 코드를 미리 채운다. 손으로
+  // 옮겨 적으라고 하면 대부분 안 적고, 그러면 그 멤버 성과가 안 잡힌다
+  const [invite, setInvite] = useState(p.invite ?? "");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState<Booking | null>(null);

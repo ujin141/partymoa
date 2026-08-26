@@ -78,7 +78,8 @@ select
   coalesce(sum(b.quantity) filter (where b.status <> 'cancelled'), 0)::int as booked,
   coalesce(sum(b.amount) filter (where b.status in ('paid', 'checked_in')), 0)::bigint as revenue_paid,
   round(
-    coalesce(sum(b.amount) filter (where b.status in ('paid', 'checked_in')), 0) * 0.07
+      -- lib/rules.ts 의 FEE_RATE 와 같아야 한다
+    coalesce(sum(b.amount) filter (where b.status in ('paid', 'checked_in')), 0) * 0.10
   )::bigint as fee
 from events e
 join crews c on c.id = e.crew_id

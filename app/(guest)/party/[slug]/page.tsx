@@ -37,8 +37,11 @@ export async function generateMetadata({
 
 export default async function PartyPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  /** `?i=CODE` — 크루 멤버 초대 링크 */
+  searchParams: Promise<{ i?: string }>;
 }) {
   const { slug } = await params;
   const d = await getParty(slug);
@@ -285,6 +288,7 @@ export default async function PartyPage({
         currentPrice={
           tier ? priceFor(tier.price, "F", Number(event.male_price_multiplier)) : null
         }
+        invite={(await searchParams).i ?? null}
         bankAccount={event.bank_account}
       />
     </>
