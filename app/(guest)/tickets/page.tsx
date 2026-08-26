@@ -4,9 +4,10 @@ import { Countdown, Deadline } from "@/components/Countdown";
 import { CancelBooking } from "@/components/CancelBooking";
 import { CopyButton } from "@/components/CopyButton";
 import { FindTicket } from "@/components/FindTicket";
+import { OfflineTicket } from "@/components/OfflineTicket";
 import { StoryShare } from "@/components/StoryShare";
 import { Empty, StatusPill } from "@/components/ui/primitives";
-import { longDate, won } from "@/lib/format";
+import { longDate, stamp, won } from "@/lib/format";
 import { REFUND_CUTOFF_DAYS, refundOpen } from "@/lib/rules";
 import { myBookings } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
@@ -27,8 +28,33 @@ export default async function TicketsPage({
   ]);
   const signedIn = Boolean(auth?.user && !auth.user.is_anonymous);
 
+  /**
+   * 입구에서 신호가 죽어도 보여야 하는 **한 장**.
+   * 가장 먼저 열리는 파티다 — 지난 것은 입구에서 쓸 일이 없다.
+   */
+  const next = [...list]
+    .filter((b) => new Date(b.event.starts_at).getTime() > Date.now() - 6 * 3600_000)
+    .sort(
+      (a, z) =>
+        new Date(a.event.starts_at).getTime() -
+        new Date(z.event.starts_at).getTime(),
+    )[0];
+
   return (
     <>
+      <OfflineTicket
+        ticket={
+          next
+            ? {
+                code: next.code,
+                eventTitle: next.event.title,
+                when: `${longDate(next.event.starts_at)} ${stamp(next.event.starts_at)}`,
+                place: next.event.venue_name,
+                status: next.status === "paid" ? "입금 완료" : "입금 대기",
+              }
+            : null
+        }
+      />
       <header className="flex flex-none items-center gap-2.5 border-b border-line px-4 py-3.5">
         <span className="text-[17px] font-extrabold">내 티켓</span>
         <span className="ml-auto text-[13px] text-sub">{list.length}건</span>
