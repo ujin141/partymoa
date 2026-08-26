@@ -4,6 +4,7 @@ import { Fragment, useMemo, useState, useTransition } from "react";
 
 import {
   cancelBooking,
+  setBookingGender,
   setBookingInvite,
   setPaid,
 } from "@/app/(crew)/crew/actions";
@@ -186,6 +187,17 @@ export function GuestList({
    * **화면용 사본이다.** 실제 금액은 서버의 tier_price() 가 정했고,
    * 둘이 어긋나면 서버가 맞다 — 그래서 깎인 게 아니면 아무것도 안 띄운다.
    */
+  /**
+   * 성별을 바꾸면 얼마가 되는지. 화면용 사본이고 실제 계산은 서버가 한다.
+   * 게스트는 성별과 무관하게 게스트가라 안 바뀐다.
+   */
+  const wouldCost = (b: Booking, gender: "F" | "M") => {
+    if (b.invite_code && guestPrice != null) return guestPrice * b.quantity;
+    const t = tiers.find((x) => x.id === b.tier_id);
+    if (!t) return null;
+    return priceFor(t.price, gender, maleMultiplier, t.male_price) * b.quantity;
+  };
+
   const listPriceOf = (b: Booking) => {
     const t = tiers.find((x) => x.id === b.tier_id);
     if (!t) return null;
@@ -419,7 +431,32 @@ export function GuestList({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <span className="truncate text-[15px] font-bold">{b.name}</span>
-                  <span
+                  {/* **성별은 성비 정원에 그대로 들어간다.** 잘못 받은 걸
+                      고치러 노트북을 열 수는 없어서 여기서 바로 바꾼다.
+                      금액이 달라지는 경우에는 한 번 더 묻는다 */}
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => {
+                      const next = b.gender === "F" ? "M" : "F";
+                      const label = next === "F" ? "여성" : "남성";
+                      if (!confirm(`${b.name} 님을 ${label}으로 바꿀까요?`))
+                        return;
+                      const now = b.amount;
+                      const then = wouldCost(b, next);
+                      const reprice =
+                        then != null &&
+                        then !== now &&
+                        confirm(
+                          `금액도 ${won(now)} → ${won(then)} 으로 바꿀까요?
+` +
+                            `취소를 누르면 성별만 바꿉니다.`,
+                        );
+                      start(async () => {
+                        const r = await setBookingGender(b.id, next, reprice);
+                        if (!r.ok) alert(r.message);
+                      });
+                    }}
                     className={`rounded px-1.5 py-0.5 text-[11px] font-bold ${
                       b.gender === "F"
                         ? "bg-[#FDE8EE] text-[#C2185B]"
@@ -427,7 +464,7 @@ export function GuestList({
                     }`}
                   >
                     {b.gender === "F" ? "여" : "남"}
-                  </span>
+                  </button>
                   {b.invite_code && g.kind !== "게스트" ? (
                     <span className="rounded bg-brand-soft px-1.5 py-0.5 text-[11px] font-bold text-brand">
                       {memberName(b.invite_code)}

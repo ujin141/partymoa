@@ -507,6 +507,10 @@ export type Database = {
         Args: { p_booking: string; p_code: string | null };
         Returns: Booking;
       };
+      set_booking_gender: {
+        Args: { p_booking: string; p_gender: string; p_reprice: boolean };
+        Returns: Booking;
+      };
       push_targets: {
         Args: Record<string, never>;
         Returns: {

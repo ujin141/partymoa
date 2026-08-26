@@ -136,6 +136,41 @@ export async function setBookingInvite(bookingId: string, code: string) {
   return { ok: true as const, amount: (data as { amount: number }).amount };
 }
 
+/**
+ * 성별을 고친다. **금액을 같이 바꿀지는 호출한 쪽이 정한다.**
+ *
+ * 성별이 바뀌면 가격이 달라질 수 있는데(남성가), 이미 그 금액으로 입금이
+ * 끝난 사람이 있다. 자동으로 바꾸면 받은 돈과 기록이 어긋난다.
+ */
+export async function setBookingGender(
+  bookingId: string,
+  gender: "F" | "M",
+  reprice: boolean,
+) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("set_booking_gender", {
+    p_booking: bookingId,
+    p_gender: gender,
+    p_reprice: reprice,
+  });
+  if (error) {
+    const kind = (error.message ?? "").trim();
+    return {
+      ok: false as const,
+      message:
+        kind === "FORBIDDEN"
+          ? "이 행사의 스태프만 고칠 수 있어요."
+          : kind === "NOT_FOUND"
+            ? "그 예매를 찾을 수 없어요."
+            : /Could not find the function|does not exist/i.test(kind)
+              ? "아직 준비가 안 된 기능이에요. GENDER_EDIT.sql 을 먼저 실행해 주세요."
+              : error.message,
+    };
+  }
+  revalidatePath("/crew", "layout");
+  return { ok: true as const, amount: (data as { amount: number }).amount };
+}
+
 export async function setEventStatus(
   eventId: string,
   status: "draft" | "open" | "closed" | "done",
