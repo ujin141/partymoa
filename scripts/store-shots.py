@@ -82,9 +82,10 @@ def fit_lines(draw, lines, font_path, idx, start, max_w):
     return ImageFont.truetype(font_path, size, index=idx)
 
 
-def compose(src_path, head, sub, out_path):
+def compose(src_path, head, sub, out_path, canvas_size=None):
+    """canvas_size 를 주면 그 규격으로 만든다 — 아이패드처럼 비율이 다를 때"""
     shot = Image.open(src_path).convert("RGB")
-    W, H = shot.size
+    W, H = canvas_size or shot.size
 
     canvas = gradient(W, H)
     d = ImageDraw.Draw(canvas)
@@ -104,8 +105,9 @@ def compose(src_path, head, sub, out_path):
     d.text((M, y), sub, font=f_sub, fill=(228, 216, 255))
 
     # ── 화면 ─────────────────────────────────────────────
-    # 아래로 흘려보낸다. 꽉 채우면 답답하고, 다 보이게 하면 작아진다
-    sw = int(W * 0.80)
+    # 아래로 흘려보낸다. 꽉 채우면 답답하고, 다 보이게 하면 작아진다.
+    # 아이패드처럼 넓은 판에서는 폰이 우스꽝스럽게 커지므로 좁게 잡는다
+    sw = int(W * (0.80 if H / W > 1.9 else 0.46))
     sh = int(shot.height * sw / shot.width)
     small = shot.resize((sw, sh), Image.LANCZOS)
     r = int(sw * 0.055)
@@ -125,8 +127,14 @@ def compose(src_path, head, sub, out_path):
     return out_path
 
 
+# 아이패드는 **아이폰 전용 앱이면 안 올려도 된다.** 빌드가 버전에 붙기
+# 전에는 App Store Connect 가 탭을 다 띄워서, 막힐 때만 쓰라고 만들어 둔다.
+IPAD_13 = (2064, 2752)
+
+
 if __name__ == "__main__":
-    for src_dir, out_dir in [("screenshots", "upload/69"), ("screenshots-65", "upload/65")]:
+    for src_dir, out_dir in [("screenshots", "upload/69"), ("screenshots-65", "upload/65"),
+                             ("screenshots", "upload/ipad13")]:
         s = os.path.join(STORE, src_dir)
         o = os.path.join(STORE, out_dir)
         if not os.path.isdir(s):
@@ -138,6 +146,7 @@ if __name__ == "__main__":
             if not os.path.exists(src):
                 print(f"  없음 {src}")
                 continue
-            p = compose(src, head, sub, os.path.join(o, f"{name}.png"))
+            p = compose(src, head, sub, os.path.join(o, f"{name}.png"),
+                        IPAD_13 if out_dir.endswith("ipad13") else None)
             im = Image.open(p)
             print(f"  {out_dir}/{name}.png  {im.width}x{im.height}")
