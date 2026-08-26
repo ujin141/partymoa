@@ -15,7 +15,7 @@ export interface EventFormInitial {
   lineups: Lineup[];
 }
 
-const CATEGORIES = ["풀파티", "루프탑", "클럽", "라운지", "야외"];
+const CATEGORIES = ["풀파티", "솔로파티", "루프탑", "클럽", "라운지", "야외"];
 const GENRES = ["하우스", "테크노", "디스코", "딥하우스", "힙합", "R&B"];
 
 function Field({

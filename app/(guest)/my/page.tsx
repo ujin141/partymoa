@@ -3,6 +3,7 @@ import Link from "next/link";
 import { LogoutButton } from "@/components/LogoutButton";
 import { Symbol } from "@/components/Symbol";
 import { isAdmin } from "@/lib/admin";
+import { FEE_RATE } from "@/lib/rules";
 import { myCrews } from "@/lib/crew";
 import { createClient } from "@/lib/supabase/server";
 
@@ -132,9 +133,10 @@ export default async function MyPage() {
           </LogoutButton>
         ) : null}
 
+        {/* 숫자를 다시 적지 않는다. 예전에 7% 로 적어 두고 요율만 올려서
+            화면과 실제가 어긋나 있었다 */}
         <p className="px-4 py-6 text-[12.5px] leading-relaxed text-sub">
-          파티모아는 티켓 금액의 7%를 수수료로 받습니다. 결제는 크루 계좌로
-          직접 입금하는 방식이에요.
+          {`파티모아는 티켓 금액의 ${Math.round(FEE_RATE * 100)}%를 수수료로 받습니다. 결제는 크루 계좌로 직접 입금하는 방식이에요.`}
         </p>
       </div>
     </>

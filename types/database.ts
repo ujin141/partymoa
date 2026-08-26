@@ -62,6 +62,11 @@ export type Profile = {
   nickname: string | null;
   real_name: string | null;
   phone: string | null;
+  /** 취향. 비어 있으면 전체를 보여 준다 */
+  areas: string[];
+  categories: string[];
+  /** 시작 화면을 본 시각. 취향을 안 골라도 다시 안 띄운다 */
+  onboarded_at: string | null;
   created_at: string;
   updated_at: string;
 }

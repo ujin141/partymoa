@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { adoptCookiePreferences } from "@/app/(guest)/onboarding/actions";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -50,6 +51,10 @@ export async function GET(req: Request) {
   const supabase = await createClient();
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) return fail(error.message);
+
+  // 로그인 전에 시작 화면에서 고른 취향을 계정으로 옮긴다. 실패해도
+  // 로그인은 그대로 진행한다 — 취향 때문에 로그인이 막히면 안 된다
+  await adoptCookiePreferences().catch(() => null);
 
   return NextResponse.redirect(new URL(next, url.origin));
 }

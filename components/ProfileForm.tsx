@@ -8,6 +8,49 @@ import type { Profile } from "@/types/database";
 const box =
   "w-full rounded-xl bg-soft p-3.5 text-[15px] outline-none border-[1.5px] border-transparent focus:border-brand focus:bg-white";
 
+// 시작 화면과 같은 목록이어야 한다. 여기만 늘리면 고른 값이 필터에 안 걸린다
+const AREAS = ["강남", "홍대", "이태원", "성수", "양재", "잠실"];
+const CATEGORIES = [
+  "풀파티",
+  "솔로파티",
+  "루프탑",
+  "클럽",
+  "라운지",
+  "야외",
+  "테크노",
+  "하우스",
+  "힙합",
+];
+
+function Chips({
+  items,
+  picked,
+  onToggle,
+}: {
+  items: string[];
+  picked: string[];
+  onToggle: (v: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {items.map((v) => (
+        <button
+          key={v}
+          type="button"
+          onClick={() => onToggle(v)}
+          className={`rounded-full border px-3.5 py-2 text-[13.5px] ${
+            picked.includes(v)
+              ? "border-brand bg-brand font-bold text-white"
+              : "border-line text-sub"
+          }`}
+        >
+          {v}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /**
  * 프로필 편집.
  *
@@ -25,6 +68,8 @@ export function ProfileForm({
   const [nickname, setNickname] = useState(profile?.nickname ?? "");
   const [realName, setRealName] = useState(profile?.real_name ?? "");
   const [phone, setPhone] = useState(profile?.phone ?? "");
+  const [areas, setAreas] = useState<string[]>(profile?.areas ?? []);
+  const [cats, setCats] = useState<string[]>(profile?.categories ?? []);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, start] = useTransition();
@@ -73,6 +118,33 @@ export function ProfileForm({
         예매한 파티에 변경이 생기면 크루가 이 번호로 연락합니다.
       </p>
 
+      <div className="mb-6 border-t border-line pt-6">
+        <h3 className="mb-1 text-[15px] font-extrabold">취향</h3>
+        <p className="mb-4 text-[12.5px] leading-relaxed text-sub">
+          고른 것부터 홈에 먼저 보여 드려요. 아무것도 안 고르면 전체가 나옵니다.
+        </p>
+
+        <h4 className="mb-2.5 text-[13.5px] font-bold">지역</h4>
+        <Chips
+          items={AREAS}
+          picked={areas}
+          onToggle={(v) =>
+            setAreas(
+              areas.includes(v) ? areas.filter((x) => x !== v) : [...areas, v],
+            )
+          }
+        />
+
+        <h4 className="mb-2.5 mt-5 text-[13.5px] font-bold">분위기</h4>
+        <Chips
+          items={CATEGORIES}
+          picked={cats}
+          onToggle={(v) =>
+            setCats(cats.includes(v) ? cats.filter((x) => x !== v) : [...cats, v])
+          }
+        />
+      </div>
+
       {msg ? (
         <p className="mb-3 rounded-xl bg-[#E7F7EF] px-4 py-3 text-[13.5px] text-ok">
           {msg}
@@ -89,7 +161,13 @@ export function ProfileForm({
           start(async () => {
             setErr(null);
             setMsg(null);
-            const r = await saveProfile({ nickname, realName, phone });
+            const r = await saveProfile({
+              nickname,
+              realName,
+              phone,
+              areas,
+              categories: cats,
+            });
             if (!r.ok) {
               setErr(r.message);
               return;

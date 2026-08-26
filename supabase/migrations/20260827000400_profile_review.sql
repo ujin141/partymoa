@@ -103,3 +103,13 @@ where deleted_at is null
 group by event_id;
 
 grant select on review_stats to anon, authenticated;
+
+-- ─────────────────────────────────────────── 취향
+--
+-- 처음 들어온 사람에게 무엇을 먼저 보여 줄지 정할 근거가 없었다.
+-- 지역과 카테고리만 받는다 — 더 물으면 시작 화면이 길어지고, 길면
+-- 건너뛴다. 비어 있으면 예전처럼 전체를 보여 준다.
+alter table profiles add column if not exists areas      text[] not null default '{}';
+alter table profiles add column if not exists categories text[] not null default '{}';
+-- 시작 화면을 봤는지. 취향을 안 골라도 다시 안 띄운다
+alter table profiles add column if not exists onboarded_at timestamptz;

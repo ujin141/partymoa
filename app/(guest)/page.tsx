@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -5,6 +6,7 @@ import { HeroCard, MiniRow, PartyCard } from "@/components/PartyCard";
 import { Wordmark } from "@/components/Symbol";
 import { Divider, Empty, SectionTitle } from "@/components/ui/primitives";
 import { listAreas, listCrews, listOpenParties } from "@/lib/queries";
+import { createClient } from "@/lib/supabase/server";
 import { seoulWeekday } from "@/lib/format";
 import { isClosingSoon, soldRate } from "@/lib/rules";
 
@@ -23,11 +25,69 @@ function isThisWeekend(iso: string) {
 }
 
 export default async function HomePage() {
-  const [parties, crews, areas] = await Promise.all([
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const [parties, crews, areas, { data: profile }] = await Promise.all([
     listOpenParties(),
     listCrews(),
     listAreas(),
+    // 시작 화면에서 고른 취향. 안 고른 사람은 예전과 똑같이 보인다
+    user && !user.is_anonymous
+      ? supabase
+          .from("profiles")
+          .select("areas, categories, nickname")
+          .eq("user_id", user.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
+
+  let me = profile as {
+    areas: string[];
+    categories: string[];
+    nickname: string | null;
+  } | null;
+
+  // 로그인 전에 고른 취향은 쿠키에 있다. 프로필이 있으면 그쪽이 이긴다
+  if (!me) {
+    const raw = (await cookies()).get("pm_prefs")?.value;
+    if (raw) {
+      try {
+        const v = JSON.parse(decodeURIComponent(raw)) as {
+          areas?: string[];
+          categories?: string[];
+        };
+        me = {
+          areas: Array.isArray(v.areas) ? v.areas : [],
+          categories: Array.isArray(v.categories) ? v.categories : [],
+          nickname: null,
+        };
+      } catch {
+        // 손댄 쿠키. 그냥 취향 없는 것으로 본다
+      }
+    }
+  }
+
+  /**
+   * 취향에 맞는 파티. **지역이나 분위기 중 하나만 걸려도 넣는다** —
+   * 둘 다 맞아야 한다고 하면 서울에 파티가 몇 개 없는 지금은 거의 늘
+   * 빈 칸이 된다.
+   *
+   * 장르도 분위기로 친다. 크루가 '테크노' 를 장르에 넣었는지 카테고리에
+   * 넣었는지는 고르는 사람 입장에서 아무 상관이 없다.
+   */
+  const liked =
+    me && (me.areas.length || me.categories.length)
+      ? parties.filter(
+          (p) =>
+            me.areas.includes(p.event.area) ||
+            [...p.event.categories, ...p.event.genres].some((t) =>
+              me.categories.includes(t),
+            ),
+        )
+      : [];
 
   const byRate = [...parties].sort(
     (a, b) =>
@@ -84,6 +144,20 @@ export default async function HomePage() {
             <br />
             크루가 파티를 올리면 여기에 보입니다.
           </Empty>
+        ) : null}
+
+        {liked.length > 0 ? (
+          <>
+            <SectionTitle
+              title={me?.nickname ? `${me.nickname} 님 취향` : "취향에 맞는 파티"}
+              note="시작할 때 고른 지역·분위기로 골랐어요"
+            />
+            <div className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1">
+              {liked.slice(0, 5).map((d) => (
+                <HeroCard key={d.event.id} d={d} />
+              ))}
+            </div>
+          </>
         ) : null}
 
         {byRate.length > 0 ? (

@@ -1042,6 +1042,16 @@ drop policy if exists profiles_own on profiles;
 create policy profiles_own on profiles
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
+-- ─────────────────────────────────────────── 취향
+--
+-- 처음 들어온 사람에게 무엇을 먼저 보여 줄지 정할 근거가 없었다.
+-- 지역과 카테고리만 받는다 — 더 물으면 시작 화면이 길어지고, 길면
+-- 건너뛴다. 비어 있으면 예전처럼 전체를 보여 준다.
+alter table profiles add column if not exists areas      text[] not null default '{}';
+alter table profiles add column if not exists categories text[] not null default '{}';
+-- 시작 화면을 봤는지. 취향을 안 골라도 다시 안 띄운다
+alter table profiles add column if not exists onboarded_at timestamptz;
+
 create table if not exists reviews (
   id uuid primary key default gen_random_uuid(),
   event_id uuid references events on delete cascade not null,
