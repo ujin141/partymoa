@@ -56,10 +56,25 @@ export default function HelpPage() {
             <p className="mt-2.5 text-[14px] leading-7 text-sub">{x.a}</p>
           </details>
         ))}
-        <p className="px-4 py-6 text-[12.5px] leading-relaxed text-sub">
-          여기서 안 풀리면 파티 상세의 호스트에게 직접 문의해 주세요.
-          예매·환불은 호스트가 처리합니다.
-        </p>
+        {/* **연락처가 여기 있어야 한다.** 이 화면이 앱스토어의 지원 URL 이고,
+            애플은 지원 페이지에 연락할 길이 있는지 본다. 예매·환불은 호스트가
+            처리하지만 서비스 자체 문제는 우리에게 와야 한다 */}
+        <div className="px-4 py-6 text-[12.5px] leading-relaxed text-sub">
+          <p>
+            예매·환불은 파티 상세의 호스트에게 직접 문의해 주세요. 호스트가
+            처리합니다.
+          </p>
+          <p className="mt-3">
+            앱이 안 되거나 서비스 자체에 문제가 있으면{" "}
+            <a
+              href="mailto:ujin141@naver.com"
+              className="font-bold text-brand underline"
+            >
+              ujin141@naver.com
+            </a>{" "}
+            로 알려 주세요. 보통 하루 안에 답합니다.
+          </p>
+        </div>
       </div>
     </>
   );
