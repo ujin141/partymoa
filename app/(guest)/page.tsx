@@ -2,30 +2,18 @@ import { cookies } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
 
-import { HeroCard, MiniRow, PartyCard } from "@/components/PartyCard";
+import { HeroCard, PartyCard } from "@/components/PartyCard";
 import { Wordmark } from "@/components/Symbol";
 import { Divider, Empty, SectionTitle } from "@/components/ui/primitives";
 import { listPosts } from "@/lib/community";
 import { homeExtras, listAreas, listCrews, listOpenParties } from "@/lib/queries";
 import { ago } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
-import { seoulWeekday } from "@/lib/format";
 import { GENRES, inGenre } from "@/lib/genres";
-import { isClosingSoon, soldRate } from "@/lib/rules";
 
 // **캐시를 안 쓴다.** 찜은 사람마다 다르고 잔여는 초 단위로 바뀐다.
 // revalidate 를 걸어 두면 남의 찜과 지난 잔여가 그대로 나간다
 export const dynamic = "force-dynamic";
-
-function isThisWeekend(iso: string) {
-  const d = new Date(iso);
-  const now = new Date();
-  const days = (d.getTime() - now.getTime()) / 86400000;
-  // 요일도 서울 기준이다. UTC 서버에서 재면 토요일 새벽 행사가
-  // 금요일로 밀린다
-  const w = seoulWeekday(iso);
-  return days >= 0 && days <= 7 && (w === 5 || w === 6);
-}
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -113,17 +101,27 @@ export default async function HomePage() {
         )
       : [];
 
-  const byRate = [...parties].sort(
-    (a, b) =>
-      soldRate(b.stats.booked, b.stats.capacity) -
-      soldRate(a.stats.booked, a.stats.capacity),
+  /**
+   * **칸을 줄인다.**
+   *
+   * 예전에는 지금 뜨는 파티 · 혼자 가도 좋아요 · 마감 임박 · 이번 주말이
+   * 각각 칸이었다. 서울에 파티가 매일 열리는 게 아니라서, 그 넷이 전부
+   * 같은 파티 한 장으로 채워졌다. 스크롤을 내리면 같은 사진이 계속
+   * 나온다.
+   *
+   * 그 넷은 이제 둘러보기의 필터다(❤️ 솔로/커플 · 📅 날짜 · 🔥 예약
+   * 많은 순). 홈은 **한 목록**만 보여 준다 — 다가오는 순서로.
+   */
+  const upcoming = [...parties].sort(
+    (a, b) => +new Date(a.event.starts_at) - +new Date(b.event.starts_at),
   );
-  // **정말 임박한 것만.** 예매율 순으로 자르면 0% 팔린 파티가 1위로 올라온다
-  const closing = byRate.filter((p) =>
-    isClosingSoon(p.stats.booked, p.stats.capacity),
-  );
-  const solo = parties.filter((p) => p.event.solo_friendly);
-  const weekend = parties.filter((p) => isThisWeekend(p.event.starts_at));
+
+  /**
+   * 취향 칸은 **실제로 좁혀 줄 때만** 띄운다. 파티가 셋인데 셋 다
+   * 취향에 맞으면 그 칸은 아래 목록과 똑같고, 같은 걸 두 번 보여 주는
+   * 셈이 된다.
+   */
+  const showLiked = liked.length > 0 && liked.length < parties.length;
 
   return (
     <>
@@ -253,7 +251,7 @@ export default async function HomePage() {
           </Empty>
         ) : null}
 
-        {liked.length > 0 ? (
+        {showLiked ? (
           <>
             <SectionTitle
               title={me?.nickname ? `${me.nickname} 님 취향` : "취향에 맞는 파티"}
@@ -267,22 +265,20 @@ export default async function HomePage() {
           </>
         ) : null}
 
-        {byRate.length > 0 ? (
+        {upcoming.length > 0 ? (
           <>
-            <SectionTitle title="지금 뜨는 파티" note="예매가 빠르게 차는 순서" />
-            <div className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1">
-              {byRate.slice(0, 5).map((d) => (
-                <HeroCard key={d.event.id} d={d} />
-              ))}
-            </div>
+            <SectionTitle title="다가오는 파티" note="빠른 날짜 순서" />
+            {upcoming.map((d) => (
+              <PartyCard key={d.event.id} d={d} />
+            ))}
           </>
         ) : null}
 
         {/* **DJ 가 표를 판다.** 클럽 씬에서 "언제 어디" 보다 "누가 트는지"
-            가 먼저다. 라인업이 카드 안에 묻혀 있으면 그걸 보려고 상세까지
-            들어가야 한다 */}
+            가 먼저다 */}
         {extras.djs.length > 0 ? (
           <>
+            <Divider />
             <SectionTitle title="라인업" note="이 사람들이 틉니다" />
             <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 pb-1">
               {extras.djs.map((d) => (
@@ -298,8 +294,34 @@ export default async function HomePage() {
           </>
         ) : null}
 
+        {/* 커버 한 장으로는 어떤 파티인지 안 전해진다 */}
+        {extras.photos.length > 0 ? (
+          <>
+            <Divider />
+            <SectionTitle title="현장" note="이런 분위기예요" />
+            <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 pb-1">
+              {extras.photos.map((p) => (
+                <Link
+                  key={p.id}
+                  href={`/party/${p.slug}`}
+                  className="relative h-[150px] w-[112px] flex-none overflow-hidden rounded-xl bg-soft"
+                >
+                  <Image
+                    src={p.url}
+                    alt={p.caption ?? ""}
+                    fill
+                    sizes="112px"
+                    className="object-cover"
+                  />
+                </Link>
+              ))}
+            </div>
+          </>
+        ) : null}
+
         {crews.length > 0 ? (
           <>
+            <Divider />
             <SectionTitle title="호스트" note="파티를 여는 사람들" />
             <div className="no-scrollbar flex gap-4 overflow-x-auto px-4 pb-1">
               {crews.map((c) => (
@@ -329,65 +351,6 @@ export default async function HomePage() {
                 </Link>
               ))}
             </div>
-          </>
-        ) : null}
-
-        {solo.length > 0 ? (
-          <>
-            <Divider />
-            <SectionTitle
-              title="혼자 가도 좋아요"
-              note="1인 참여를 환영하는 파티만 모았어요"
-            />
-            {solo.slice(0, 3).map((d) => (
-              <PartyCard key={d.event.id} d={d} />
-            ))}
-          </>
-        ) : null}
-
-        {/* 커버 한 장으로는 어떤 파티인지 안 전해진다. 낮의 물과 밤의
-            조명은 다른 장면이다 */}
-        {extras.photos.length > 0 ? (
-          <>
-            <Divider />
-            <SectionTitle title="현장" note="이런 분위기예요" />
-            <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 pb-1">
-              {extras.photos.map((p) => (
-                <Link
-                  key={p.id}
-                  href={`/party/${p.slug}`}
-                  className="relative h-[150px] w-[112px] flex-none overflow-hidden rounded-xl bg-soft"
-                >
-                  <Image
-                    src={p.url}
-                    alt={p.caption ?? ""}
-                    fill
-                    sizes="112px"
-                    className="object-cover"
-                  />
-                </Link>
-              ))}
-            </div>
-          </>
-        ) : null}
-
-        {closing.length > 0 ? (
-          <>
-            <Divider />
-            <SectionTitle title="마감 임박" note="자리가 얼마 안 남았어요" />
-            {closing.slice(0, 4).map((d, i) => (
-              <MiniRow key={d.event.id} d={d} rank={i + 1} />
-            ))}
-          </>
-        ) : null}
-
-        {weekend.length > 0 ? (
-          <>
-            <Divider />
-            <SectionTitle title="이번 주말" note="금·토에 열리는 파티" />
-            {weekend.map((d) => (
-              <PartyCard key={d.event.id} d={d} />
-            ))}
           </>
         ) : null}
 
