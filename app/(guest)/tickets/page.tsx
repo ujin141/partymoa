@@ -3,9 +3,11 @@ import Link from "next/link";
 import { Countdown, Deadline } from "@/components/Countdown";
 import { CopyButton } from "@/components/CopyButton";
 import { FindTicket } from "@/components/FindTicket";
+import { StoryShare } from "@/components/StoryShare";
 import { Empty, StatusPill } from "@/components/ui/primitives";
 import { longDate, won } from "@/lib/format";
 import { myBookings } from "@/lib/queries";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "내 티켓" };
@@ -15,10 +17,13 @@ export default async function TicketsPage({
 }: {
   searchParams: Promise<{ new?: string }>;
 }) {
-  const [{ new: fresh }, list] = await Promise.all([
+  const supabase = await createClient();
+  const [{ new: fresh }, list, { data: auth }] = await Promise.all([
     searchParams,
     myBookings(),
+    supabase.auth.getUser(),
   ]);
+  const signedIn = Boolean(auth?.user && !auth.user.is_anonymous);
 
   return (
     <>
@@ -108,6 +113,12 @@ export default async function TicketsPage({
                     이름만 넣으면 같은 이름이 여럿이라 확인이 늦어져요.
                   </p>
                 </div>
+              ) : null}
+
+              {/* 익명 세션은 공유가 안 된다. 이미지 라우트가 로그인한
+                  사람의 예매만 찾기 때문 — 남의 티켓이 나오면 안 된다 */}
+              {signedIn ? (
+                <StoryShare code={b.code} title={b.event.title} />
               ) : null}
 
               {/* 끝난 파티에는 후기 입구를 둔다. 파티 상세를 다시 찾아

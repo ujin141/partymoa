@@ -543,6 +543,12 @@ grant select on platform_stats to authenticated;
 -- 운영 화면 크루 목록에서도 바로 열린다
 update crews set instagram = 'blackoutcrew_official' where slug = 'blackout';
 
+-- AFTER SUNSET 커버. 릴스 원본(P1023231)에서 풀장 장면을 한 프레임 뽑아
+-- 5:3 으로 자르고 색을 올렸다. 원본이 로그에 가까워 평평해서, 그대로
+-- 쓰면 카드가 뿌옇게 보인다. 파일은 우리 서버에 있다
+update events set cover_url = '/covers/after-sunset.jpg'
+where slug = 'after-sunset-20260829';
+
 -- ───────────────────────────────────────── 확인
 
 -- **금액이 어긋난 예매.** 앞으로 들어올 예매는 위에서 고쳤지만, 이미

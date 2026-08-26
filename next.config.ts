@@ -11,6 +11,8 @@ const nextConfig: NextConfig = {
     // 라우트 이름에 해시 접미사가 붙는다 (opengraph-image-1jkstu). 글로브로 잡는다
     "/opengraph-image*": ["./assets/og/**"],
     "/party/[slug]/opengraph-image*": ["./assets/og/**"],
+    // 스토리 티켓 이미지도 같은 폰트를 fs 로 읽는다
+    "/tickets/[code]/story": ["./assets/og/**"],
   },
   images: {
     // 커버는 크루가 주소로 넣는다. 아무 호스트나 열면 우리 서버가

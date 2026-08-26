@@ -71,6 +71,20 @@ export default async function PartyOG({
     : null;
   const long = event.title.length > 16;
 
+  /**
+   * **satori 의 <img> 는 절대 주소만 받는다.** 커버를 우리 서버에 두면서
+   * `/covers/...` 같은 상대 주소가 들어오는데, 그대로 넘기면 OG 카드에서
+   * 사진 칸이 통째로 빈다 — 로컬에서는 안 보이고 배포 후에만 드러난다.
+   */
+  const site =
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : "http://localhost:3000");
+  const cover = event.cover_url?.startsWith("/")
+    ? `${site}${event.cover_url}`
+    : event.cover_url;
+
   return new ImageResponse(
     (
       <div
@@ -85,7 +99,7 @@ export default async function PartyOG({
         }}
       >
         {/* ── 오른쪽 사진 판. 왼쪽 모서리를 깎아 끼워 넣는다 ── */}
-        {event.cover_url ? (
+        {cover ? (
           <div
             style={{
               position: "absolute",
@@ -101,7 +115,7 @@ export default async function PartyOG({
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={event.cover_url}
+              src={cover}
               alt=""
               width={470}
               height={630}
