@@ -35,5 +35,5 @@
   "minSdkVersion": 23,
   "orientation": "portrait",
   "fingerprints": [],
-  "additionalTrustedOrigins": ["https://partymoa.com"]
+  "additionalTrustedOrigins": []
 }

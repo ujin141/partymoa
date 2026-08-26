@@ -16,12 +16,6 @@
 -->
 <resources>
   
-    <string-array name="additional_trusted_origins">
-    
-      <item>https://https://partymoa.com</item>
-    
-    </string-array>
-  
 
   <!--
     The "fullscreen" and "fullscreen-sticky" TWA manifest values correspond to "immersive" and "sticky-immersive"
@@ -43,14 +37,6 @@
             \"site\": \"https://www.partymoa.com\"
         }
     }]
-    
-      ,[{
-          \"relation\": [\"delegate_permission/common.handle_all_urls\"],
-          \"target\": {
-              \"namespace\": \"web\",
-              \"site\": \"https://https://partymoa.com\"
-          }
-      }]        
     
   </string>  
 </resources>

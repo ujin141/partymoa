@@ -25,8 +25,11 @@ const PACKAGE = "com.partymoa.app";
 const FINGERPRINTS = [
   // 디버그 — 이 컴퓨터의 ~/.android/debug.keystore
   "CD:C6:CE:43:D9:B4:A1:40:D0:7D:36:56:B8:80:A1:6B:D6:CE:FD:65:60:27:1F:DA:B1:13:45:90:D5:53:7E:DA",
-  // ⬛ 업로드 키 — android/android.keystore 를 만들면 그 지문을 넣는다
-  // ⬛ Play 앱 서명 키 — 콘솔 → 설정 → 앱 서명 에서 복사
+  // 업로드 키 — android/android.keystore, 별칭 upload
+  "F0:EA:10:14:E7:9D:52:5D:39:BD:1E:02:C9:8E:77:A7:10:96:A0:EC:4A:C0:A5:59:D4:E0:D0:C0:57:30:44:34",
+  // ⬛ Play 앱 서명 키 — 콘솔 → 설정 → 앱 서명 · 앱 서명 키 인증서의
+  //    SHA-256. **스토어에서 받은 앱은 이게 없으면 주소창이 뜬다.**
+  //    첫 AAB 를 올린 뒤에야 값이 나온다
 ];
 
 export const dynamic = "force-static";

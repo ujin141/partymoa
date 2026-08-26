@@ -56,3 +56,7 @@ android/local.properties
 # 업데이트를 올릴 수 있다
 android/*.keystore
 android/*.jks
+
+# 서명 키 비밀번호. 절대 커밋 금지
+android/.keypw
+android/KEY.txt
