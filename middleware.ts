@@ -35,6 +35,27 @@ export async function middleware(req: NextRequest) {
   const canonical = canonicalHost(req);
   if (canonical) return NextResponse.redirect(canonical, 308);
 
+  /**
+   * **로그인 코드가 엉뚱한 자리로 떨어지면 주워서 콜백에 넘긴다.**
+   *
+   * Supabase 의 Redirect URLs 에 우리 콜백 주소가 없으면, 구글에서
+   * 돌아오는 요청을 Site URL(첫 화면)로 보내 버린다. 그러면 `?code=`
+   * 가 아무도 안 읽는 자리에 떨어지고 — 오류도 없이 그냥 로그인이
+   * 안 된 것처럼 보인다. 설정이 어긋나도 로그인은 되게 한다.
+   */
+  const here = new URL(req.url);
+  if (
+    here.searchParams.has("code") &&
+    !here.pathname.startsWith("/auth/callback")
+  ) {
+    const to = new URL("/auth/callback", here.origin);
+    here.searchParams.forEach((v, k) => to.searchParams.set(k, v));
+    if (!to.searchParams.has("next")) {
+      to.searchParams.set("next", here.pathname === "/" ? "/my" : here.pathname);
+    }
+    return NextResponse.redirect(to);
+  }
+
   const res = NextResponse.next({ request: req });
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

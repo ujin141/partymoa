@@ -95,7 +95,27 @@ export function SocialLogin({ next = "/my" }: { next?: string }) {
       data: { user },
     } = await supabase.auth.getUser();
 
+    /**
+     * **잡아 둔 예매가 있을 때만 이어 붙인다.**
+     *
+     * 익명 세션에 신원을 붙이면(linkIdentity) 예매를 안 잃는 대신,
+     * 계정에 "익명" 표시가 그대로 남는다. 그러면 구글 창까지 다 돌고
+     * 와도 앱은 계속 로그아웃으로 본다 — DB 쪽 promote_anonymous 로
+     * 표시를 내려야 비로소 로그인으로 보인다.
+     *
+     * 예매가 없는 사람에게까지 그 길을 태울 이유가 없다. 잃을 게
+     * 없으니 그냥 새 계정으로 로그인시킨다 — 그 편이 확실하게 된다.
+     */
+    let hasBooking = false;
     if (user?.is_anonymous) {
+      const { count } = await supabase
+        .from("bookings")
+        .select("id", { count: "exact", head: true })
+        .neq("status", "cancelled");
+      hasBooking = (count ?? 0) > 0;
+    }
+
+    if (user?.is_anonymous && hasBooking) {
       const { data, error } = await supabase.auth.linkIdentity({
         provider,
         options: { redirectTo },
@@ -105,6 +125,9 @@ export function SocialLogin({ next = "/my" }: { next?: string }) {
         return;
       }
     }
+
+    // 익명 세션을 먼저 끊는다. 안 끊으면 새 로그인이 옛 세션과 섞인다
+    if (user?.is_anonymous) await supabase.auth.signOut();
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
