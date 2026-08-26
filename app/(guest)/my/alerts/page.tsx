@@ -36,18 +36,29 @@ export default async function AlertsPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  // **칸이 아직 없을 수 있다.** PUSH_ADS.sql 을 안 돌린 채 배포가 먼저
-  // 나가면 여기서 오류가 난다. 그때는 스위치를 아예 안 띄운다 —
-  // 눌러도 안 되는 스위치를 보여 주는 게 더 나쁘다
+  /**
+   * **칸이 있는지를 사람과 따로 본다.**
+   *
+   * 처음 들어온 손님은 서버가 그릴 때 아직 익명 세션이 없다. 사람이
+   * 있어야만 스위치를 띄우게 했더니 첫 방문에 스위치가 안 보였다 —
+   * 정작 그때 켜라고 만든 화면인데.
+   *
+   * 칸이 없으면(PUSH_ADS.sql 미실행) 안 띄운다. 눌러도 안 되는 스위치를
+   * 보여 주는 건 더 나쁘다.
+   */
+  const { error: colErr } = await supabase
+    .from("profiles")
+    .select("marketing_push")
+    .limit(1);
+  const marketingReady = !colErr;
+
   let marketing = false;
-  let marketingReady = false;
-  if (user) {
-    const { data, error } = await supabase
+  if (user && marketingReady) {
+    const { data } = await supabase
       .from("profiles")
       .select("marketing_push")
       .eq("user_id", user.id)
       .maybeSingle();
-    marketingReady = !error;
     marketing = Boolean(data?.marketing_push);
   }
 
