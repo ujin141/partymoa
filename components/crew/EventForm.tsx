@@ -7,12 +7,20 @@ import { createEvent } from "@/app/(crew)/crew/events/new/actions";
 import { updateEvent } from "@/app/(crew)/crew/events/[id]/edit/actions";
 import { toLocalInput } from "@/lib/format";
 import { priceFor } from "@/lib/rules";
-import type { EventRow, Lineup, TicketTier } from "@/types/database";
+import type {
+  EventPhoto,
+  EventRow,
+  EventTable,
+  Lineup,
+  TicketTier,
+} from "@/types/database";
 
 export interface EventFormInitial {
   event: EventRow;
   tiers: TicketTier[];
   lineups: Lineup[];
+  tables: EventTable[];
+  photos: EventPhoto[];
 }
 
 const CATEGORIES = ["풀파티", "솔로파티", "루프탑", "클럽", "라운지", "야외"];
@@ -109,6 +117,42 @@ export function EventForm({
           },
         ],
   );
+  /**
+   * 테이블(메뉴판). 차수와 다른 물건이다 — **잡으면 입장비가 없다.**
+   * 비워 두면 파티 화면에 그 칸이 아예 안 뜬다.
+   */
+  const [tables, setTables] = useState<
+    {
+      id?: string;
+      name: string;
+      price: string;
+      cardPrice: string;
+      seats: string;
+      note: string;
+    }[]
+  >(
+    initial?.tables.map((t) => ({
+      id: t.id,
+      name: t.name,
+      price: String(t.price),
+      cardPrice: t.card_price == null ? "" : String(t.card_price),
+      seats: String(t.seats),
+      note: t.note ?? "",
+    })) ?? [],
+  );
+  const [tablesNote, setTablesNote] = useState(ev?.tables_note ?? "");
+
+  /** 상세에서만 보는 여러 장. 커버(대표 한 장)와 다른 것이다 */
+  const [photos, setPhotos] = useState<
+    { id?: string; url: string; caption: string }[]
+  >(
+    initial?.photos.map((x) => ({
+      id: x.id,
+      url: x.url,
+      caption: x.caption ?? "",
+    })) ?? [],
+  );
+
   const [lineups, setLineups] = useState(
     initial?.lineups.length
       ? initial.lineups.map((l) => ({
@@ -152,6 +196,23 @@ export function EventForm({
           capacity: Number(t.capacity) || 0,
         })),
         lineups,
+        tables: tables.map((t, i) => ({
+          id: t.id,
+          name: t.name.trim(),
+          price: Number(t.price) || 0,
+          cardPrice: t.cardPrice.trim() === "" ? null : Number(t.cardPrice) || 0,
+          seats: Number(t.seats) || 0,
+          note: t.note.trim() || null,
+          sortOrder: i,
+        })),
+        tablesNote,
+        photos: photos
+          .filter((x) => x.url.trim())
+          .map((x, i) => ({
+            url: x.url.trim(),
+            caption: x.caption.trim() || null,
+            sortOrder: i,
+          })),
       };
 
       if (ev) {
@@ -506,6 +567,188 @@ export function EventForm({
         className="mb-6 w-full rounded-xl border border-line py-3 text-[14.5px] font-semibold"
       >
         차수 추가
+      </button>
+
+      {/* ── 테이블 (메뉴판) ── */}
+      <h4 className="mb-1 text-base font-extrabold">테이블</h4>
+      <p className="mb-3 text-[12.5px] leading-relaxed text-sub">
+        VIP · VVIP 처럼 자리를 통째로 파는 것. <b className="text-ink">테이블을
+        잡은 인원은 입장비를 안 냅니다.</b> 안 팔면 비워 두세요 — 파티
+        화면에 그 칸이 아예 안 뜹니다.
+      </p>
+      {tables.map((t, i) => (
+        <div key={i} className="mb-2.5 rounded-xl border border-line p-3">
+          <div className="mb-2 flex gap-2">
+            <input
+              className={input}
+              value={t.name}
+              onChange={(e) =>
+                setTables(
+                  tables.map((x, j) =>
+                    j === i ? { ...x, name: e.target.value } : x,
+                  ),
+                )
+              }
+              placeholder="VIP"
+            />
+            <button
+              type="button"
+              onClick={() => setTables(tables.filter((_, j) => j !== i))}
+              className="flex-none rounded-xl border border-line px-3 text-[13px] text-sub"
+            >
+              삭제
+            </button>
+          </div>
+          <div className="mb-2 grid grid-cols-3 gap-2">
+            <div>
+              <span className="mb-1 block text-[12px] text-sub">인원</span>
+              <input
+                className={input}
+                inputMode="numeric"
+                value={t.seats}
+                onChange={(e) =>
+                  setTables(
+                    tables.map((x, j) =>
+                      j === i
+                        ? { ...x, seats: e.target.value.replace(/\D/g, "") }
+                        : x,
+                    ),
+                  )
+                }
+              />
+            </div>
+            <div>
+              <span className="mb-1 block text-[12px] text-sub">계좌이체</span>
+              <input
+                className={input}
+                inputMode="numeric"
+                value={t.price}
+                onChange={(e) =>
+                  setTables(
+                    tables.map((x, j) =>
+                      j === i
+                        ? { ...x, price: e.target.value.replace(/\D/g, "") }
+                        : x,
+                    ),
+                  )
+                }
+              />
+            </div>
+            <div>
+              <span className="mb-1 block text-[12px] text-sub">카드</span>
+              <input
+                className={input}
+                inputMode="numeric"
+                value={t.cardPrice}
+                placeholder="없으면 비움"
+                onChange={(e) =>
+                  setTables(
+                    tables.map((x, j) =>
+                      j === i
+                        ? { ...x, cardPrice: e.target.value.replace(/\D/g, "") }
+                        : x,
+                    ),
+                  )
+                }
+              />
+            </div>
+          </div>
+          <input
+            className={input}
+            value={t.note}
+            onChange={(e) =>
+              setTables(
+                tables.map((x, j) =>
+                  j === i ? { ...x, note: e.target.value } : x,
+                ),
+              )
+            }
+            placeholder="샴페인 1병 · 음료수 3 · 생수 4"
+          />
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() =>
+          setTables([
+            ...tables,
+            { name: "", price: "", cardPrice: "", seats: "4", note: "" },
+          ])
+        }
+        className="mb-3 w-full rounded-xl border border-line py-3 text-[14.5px] font-semibold"
+      >
+        테이블 추가
+      </button>
+
+      {tables.length > 0 ? (
+        <>
+          <span className="mb-1.5 block text-[13.5px] font-bold">
+            공통 안내
+          </span>
+          <textarea
+            className={`${input} mb-6 min-h-[110px] resize-y`}
+            value={tablesNote}
+            onChange={(e) => setTablesNote(e.target.value)}
+            placeholder={
+              [
+                "테이블 인원 전원 입장료 면제 · 방수 손목밴드 · 락커 포함",
+                "샴페인은 DEEP LUMINOUS 750ml",
+                "표시 가격은 계좌이체 기준",
+              ].join("\n")
+            }
+          />
+        </>
+      ) : (
+        <div className="mb-6" />
+      )}
+
+      {/* ── 사진 ── */}
+      <h4 className="mb-1 text-base font-extrabold">사진</h4>
+      <p className="mb-3 text-[12.5px] leading-relaxed text-sub">
+        상세 화면에서 옆으로 넘겨 보는 여러 장. 커버 한 장으로는 어떤
+        파티인지 안 전해집니다. 세로(4:5) 사진이 제일 잘 맞아요.
+      </p>
+      {photos.map((x, i) => (
+        <div key={i} className="mb-2 flex gap-2">
+          <input
+            className={input}
+            value={x.url}
+            onChange={(e) =>
+              setPhotos(
+                photos.map((y, j) =>
+                  j === i ? { ...y, url: e.target.value } : y,
+                ),
+              )
+            }
+            placeholder="사진 주소 https://…"
+          />
+          <input
+            className={`${input} w-32 flex-none`}
+            value={x.caption}
+            onChange={(e) =>
+              setPhotos(
+                photos.map((y, j) =>
+                  j === i ? { ...y, caption: e.target.value } : y,
+                ),
+              )
+            }
+            placeholder="설명"
+          />
+          <button
+            type="button"
+            onClick={() => setPhotos(photos.filter((_, j) => j !== i))}
+            className="flex-none rounded-xl border border-line px-3 text-[13px] text-sub"
+          >
+            삭제
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() => setPhotos([...photos, { url: "", caption: "" }])}
+        className="mb-6 w-full rounded-xl border border-line py-3 text-[14.5px] font-semibold"
+      >
+        사진 추가
       </button>
 
       <h4 className="mb-3 text-base font-extrabold">라인업</h4>

@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
 import { longDate, timeRange } from "@/lib/format";
-import { ACCENT, BRAND, DEEP, Mark, Wordmark, pretendard } from "@/lib/og";
+import { ACCENT, Wordmark, michroma, pretendard } from "@/lib/og";
 import { createClient } from "@/lib/supabase/server";
 import type { Booking, EventRow, TicketTier } from "@/types/database";
 
@@ -10,20 +10,29 @@ import type { Booking, EventRow, TicketTier } from "@/types/database";
  *
  * **예매번호로 아무나 열 수 없다.** PM0001 부터 순서대로라 주소만 바꾸면
  * 남의 티켓이 나온다 — 이름이 박혀 있는 그림이라 그러면 안 된다.
- * 그래서 여기서 코드로 찾지 않고, **로그인한 사람의 예매 중에서** 그
- * 코드를 고른다. RLS 가 한 번 더 막는다.
+ * 코드로 찾지 않고 **로그인한 사람의 예매 중에서** 그 코드를 고른다.
+ * RLS 가 한 번 더 막는다.
  *
- * 세로 9:16 은 스토리에 그대로 올라간다. 위아래로 여백을 크게 둔 이유는
- * 인스타가 위에 프로필, 아래에 답장 칸을 덮기 때문이다 — 거기 글자가
- * 있으면 가려진다.
+ * 디자인은 **입장권 형태**다. 파티 사진을 위에 깔고 아래에 흰 스텁을
+ * 얹는다. 옆구리 노치와 점선이 있어야 한 눈에 티켓으로 읽힌다 — 그냥
+ * 둥근 상자면 카드 뉴스처럼 보인다.
+ *
+ * **입금 대기는 안 적는다.** 스토리는 자랑하는 자리다. 거기에 "아직 돈
+ * 안 냈음" 을 박아 주는 건 아무에게도 도움이 안 된다. 입금 안내는 앱
+ * 안에서 이미 충분히 한다.
+ *
+ * 위 240px, 아래 300px 은 비운다 — 인스타가 프로필 줄과 답장 칸으로 덮어서
+ * 거기 글자가 있으면 가려진다.
  */
 export const runtime = "nodejs";
 
 const W = 1080;
 const H = 1920;
+const BG = "#0B0A12";
+const PHOTO = 900;
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ code: string }> },
 ) {
   const { code } = await params;
@@ -47,27 +56,25 @@ export async function GET(
     | null;
   if (!b) return new Response("티켓을 찾을 수 없어요", { status: 404 });
 
-  const paid = b.status !== "pending";
   const ev = b.event;
 
-  /**
-   * **satori 의 <img> 는 절대 주소만 받는다.** 커버가 우리 서버에 있으면
-   * `/covers/...` 로 들어오는데 그대로 넘기면 사진 칸이 그냥 빈다.
-   */
+  // satori 의 <img> 는 절대 주소만 받는다. 커버가 `/covers/...` 로 들어오면
+  // 그대로 넘길 수 없다
   const site =
     process.env.NEXT_PUBLIC_SITE_URL ??
     (process.env.VERCEL_PROJECT_PRODUCTION_URL
       ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-      : new URL(_req.url).origin);
+      : new URL(req.url).origin);
   const cover = ev.cover_url
     ? ev.cover_url.startsWith("/")
       ? `${site}${ev.cover_url}`
       : ev.cover_url
     : null;
 
-  // 사진이 끝나는 높이. 아래 배경 그라데이션의 첫 구간을 여기까지 같은
-  // 색으로 잡아 두면 사진과 배경이 이어 붙은 자리가 안 보인다
-  const PHOTO = 1100;
+  const [fonts, mich] = await Promise.all([pretendard(), michroma()]);
+
+  const label = { fontSize: 25, color: "#8A8FA0", letterSpacing: 1 };
+  const value = { fontSize: 42, color: "#16181D" };
 
   return new ImageResponse(
     (
@@ -77,17 +84,12 @@ export async function GET(
           height: H,
           display: "flex",
           flexDirection: "column",
-          background: cover
-            ? `linear-gradient(180deg, ${DEEP} 0%, ${DEEP} ${(PHOTO / H) * 100}%, #2A0B86 100%)`
-            : `linear-gradient(160deg, ${BRAND} 0%, ${DEEP} 58%, #2A0B86 100%)`,
+          background: BG,
           fontFamily: "Pretendard",
           color: "#fff",
           position: "relative",
         }}
       >
-        {/* 예매한 파티의 커버. **위를 사진으로 채운다** — 스토리에서
-            제일 먼저 눈에 들어오는 자리이고, 그림 없이 글자만 있으면
-            누가 올려도 똑같아 보인다 */}
         {cover ? (
           <div
             style={{
@@ -107,7 +109,8 @@ export async function GET(
               height={PHOTO}
               style={{ width: "100%", height: "100%", objectFit: "cover" }}
             />
-            {/* 위는 살짝 눌러 워드마크가 읽히게, 아래는 배경색까지 녹인다 */}
+            {/* 아래로 갈수록 배경색까지 녹인다. 사진이 끝나는 선이 보이면
+                오려 붙인 것처럼 된다 */}
             <div
               style={{
                 position: "absolute",
@@ -116,161 +119,156 @@ export async function GET(
                 width: W,
                 height: PHOTO,
                 display: "flex",
-                background: `linear-gradient(180deg, rgba(26,7,80,0.62) 0%, rgba(26,7,80,0.18) 26%, rgba(68,22,200,0.62) 72%, ${DEEP} 100%)`,
+                background: `linear-gradient(180deg, rgba(11,10,18,0.66) 0%, rgba(11,10,18,0.12) 30%, rgba(11,10,18,0.55) 74%, ${BG} 100%)`,
               }}
             />
           </div>
-        ) : (
-          /* 커버가 없으면 큰 심볼로 채운다 */
-          <div
-            style={{
-              position: "absolute",
-              top: 470,
-              left: -260,
-              display: "flex",
-              opacity: 0.09,
-            }}
-          >
-            <Mark size={900} dot="#fff" accent="#fff" />
-          </div>
-        )}
+        ) : null}
 
-        {/* 위 240px 은 비운다 — 인스타가 프로필 줄로 덮는다 */}
-        <div style={{ display: "flex", height: 240 }} />
+        <div style={{ display: "flex", flexGrow: 1 }} />
 
-        <div style={{ display: "flex", paddingLeft: 92 }}>
-          <Wordmark size={44} />
-        </div>
-
+        {/*
+          워드마크를 사진 위에 얹지 않는다. 커버가 이미 포스터라 파티 제목과
+          겹쳐서 둘 다 안 읽힌다. 사진이 끝난 자리에 작게 둔다
+        */}
         <div
           style={{
             display: "flex",
             flexDirection: "column",
-            padding: "64px 92px 0",
+            padding: "0 84px",
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              alignSelf: "flex-start",
-              background: paid ? ACCENT : "rgba(255,255,255,0.22)",
-              color: paid ? "#16181D" : "#fff",
-              borderRadius: 999,
-              padding: "14px 30px",
-              fontSize: 34,
-            }}
-          >
-            {paid ? "예매 확정" : "입금 대기"}
+          <div style={{ display: "flex", marginBottom: 30 }}>
+            <Wordmark size={30} />
           </div>
-
           <div
             style={{
               display: "flex",
-              fontSize: 92,
-              lineHeight: 1.16,
-              marginTop: 40,
-              letterSpacing: -3,
+              fontSize: 78,
+              lineHeight: 1.18,
+              letterSpacing: -2.5,
             }}
           >
             {ev.title}
           </div>
-
           <div
             style={{
               display: "flex",
-              fontSize: 40,
-              marginTop: 30,
-              color: "rgba(255,255,255,0.82)",
+              fontSize: 36,
+              marginTop: 26,
+              color: "rgba(255,255,255,0.78)",
             }}
           >
-            {`${longDate(ev.starts_at)} · ${timeRange(ev.starts_at, ev.ends_at)}`}
+            {`${longDate(ev.starts_at)}  ${timeRange(ev.starts_at, ev.ends_at)}`}
           </div>
           <div
             style={{
               display: "flex",
-              fontSize: 40,
-              marginTop: 12,
-              color: "rgba(255,255,255,0.82)",
+              fontSize: 36,
+              marginTop: 10,
+              color: "rgba(255,255,255,0.78)",
             }}
           >
-            {`${ev.venue_name}${ev.area ? ` · ${ev.area}` : ""}`}
+            {`${ev.venue_name}${ev.area ? `  ·  ${ev.area}` : ""}`}
           </div>
         </div>
 
-        {/* 표. 예매번호가 제일 크다 — 현장에서 이걸 대고 들어간다 */}
+        {/* ── 입장권 스텁 ── */}
         <div
           style={{
             display: "flex",
             flexDirection: "column",
-            margin: "72px 92px 0",
-            background: "rgba(255,255,255,0.12)",
-            border: "2px solid rgba(255,255,255,0.28)",
-            borderRadius: 44,
-            padding: "52px 56px",
+            position: "relative",
+            margin: "56px 84px 0",
+            background: "#fff",
+            borderRadius: 40,
+            padding: "46px 52px 44px",
           }}
         >
           <div
             style={{
               display: "flex",
-              fontSize: 30,
-              color: "rgba(255,255,255,0.7)",
+              fontFamily: "Michroma",
+              fontSize: 22,
+              letterSpacing: 7,
+              color: "#8A8FA0",
             }}
           >
-            예매번호
+            ADMIT ONE
           </div>
           <div
             style={{
               display: "flex",
-              fontSize: 132,
-              letterSpacing: 6,
-              marginTop: 6,
-              color: ACCENT,
+              fontFamily: "Michroma",
+              fontSize: 96,
+              letterSpacing: 2,
+              marginTop: 16,
+              color: "#16181D",
             }}
           >
             {b.code}
           </div>
 
-          <div style={{ display: "flex", gap: 72, marginTop: 46 }}>
+          {/*
+            점선과 양옆 노치. **이 둘이 있어야 티켓으로 읽힌다** — 없으면
+            그냥 둥근 흰 상자라 카드뉴스처럼 보인다.
+            노치는 점선 줄에 붙여 둔다. 스텁 기준으로 좌표를 찍으면 위쪽
+            글자 길이가 바뀔 때마다 어긋난다
+          */}
+          <div
+            style={{
+              display: "flex",
+              position: "relative",
+              height: 3,
+              marginTop: 34,
+              marginBottom: 30,
+              background:
+                "repeating-linear-gradient(90deg, #D8DBE3 0 14px, rgba(0,0,0,0) 14px 28px)",
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                left: -78,
+                top: -25,
+                width: 52,
+                height: 52,
+                borderRadius: 26,
+                background: BG,
+                display: "flex",
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                right: -78,
+                top: -25,
+                width: 52,
+                height: 52,
+                borderRadius: 26,
+                background: BG,
+                display: "flex",
+              }}
+            />
+          </div>
+
+          <div style={{ display: "flex", gap: 64 }}>
             <div style={{ display: "flex", flexDirection: "column" }}>
-              <div
-                style={{
-                  display: "flex",
-                  fontSize: 28,
-                  color: "rgba(255,255,255,0.7)",
-                }}
-              >
-                이름
-              </div>
-              <div style={{ display: "flex", fontSize: 46, marginTop: 8 }}>
+              <div style={{ display: "flex", ...label }}>이름</div>
+              <div style={{ display: "flex", marginTop: 8, ...value }}>
                 {b.name}
               </div>
             </div>
             <div style={{ display: "flex", flexDirection: "column" }}>
-              <div
-                style={{
-                  display: "flex",
-                  fontSize: 28,
-                  color: "rgba(255,255,255,0.7)",
-                }}
-              >
-                인원
-              </div>
-              <div style={{ display: "flex", fontSize: 46, marginTop: 8 }}>
+              <div style={{ display: "flex", ...label }}>인원</div>
+              <div style={{ display: "flex", marginTop: 8, ...value }}>
                 {`${b.quantity}명`}
               </div>
             </div>
             {b.tier ? (
               <div style={{ display: "flex", flexDirection: "column" }}>
-                <div
-                  style={{
-                    display: "flex",
-                    fontSize: 28,
-                    color: "rgba(255,255,255,0.7)",
-                  }}
-                >
-                  차수
-                </div>
-                <div style={{ display: "flex", fontSize: 46, marginTop: 8 }}>
+                <div style={{ display: "flex", ...label }}>차수</div>
+                <div style={{ display: "flex", marginTop: 8, ...value }}>
                   {b.tier.name}
                 </div>
               </div>
@@ -278,37 +276,39 @@ export async function GET(
           </div>
         </div>
 
-        <div style={{ display: "flex", flexGrow: 1 }} />
-
-        {/* 아래 300px 도 비운다 — 답장 칸이 덮는다 */}
         <div
           style={{
             display: "flex",
-            flexDirection: "column",
             alignItems: "center",
-            paddingBottom: 300,
+            gap: 18,
+            margin: "40px 84px 0",
           }}
         >
-          <div style={{ display: "flex", fontSize: 40, opacity: 0.92 }}>
+          <div style={{ display: "flex", fontSize: 32, opacity: 0.72 }}>
             혼자 와도 됩니다
           </div>
+          <div style={{ display: "flex", flexGrow: 1 }} />
           <div
             style={{
               display: "flex",
-              fontSize: 34,
-              marginTop: 14,
+              fontFamily: "Michroma",
+              fontSize: 26,
+              letterSpacing: 2,
               color: ACCENT,
             }}
           >
-            partymoa.com
+            PARTYMOA.COM
           </div>
         </div>
+
+        {/* 아래 300px 은 답장 칸이 덮는다 */}
+        <div style={{ display: "flex", height: 300 }} />
       </div>
     ),
     {
       width: W,
       height: H,
-      fonts: await pretendard(),
+      fonts: [...fonts, mich],
       headers: {
         // 남의 캐시에 걸리면 안 된다. 이름이 박힌 그림이다
         "cache-control": "private, no-store",

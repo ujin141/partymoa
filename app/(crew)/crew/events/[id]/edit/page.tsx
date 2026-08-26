@@ -4,7 +4,13 @@ import { notFound, redirect } from "next/navigation";
 import { EventForm } from "@/components/crew/EventForm";
 import { myCrew } from "@/lib/crew";
 import { createClient } from "@/lib/supabase/server";
-import type { EventRow, Lineup, TicketTier } from "@/types/database";
+import type {
+  EventPhoto,
+  EventRow,
+  EventTable,
+  Lineup,
+  TicketTier,
+} from "@/types/database";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "파티 수정" };
@@ -19,7 +25,7 @@ export default async function EditEventPage({
 
   const { id } = await params;
   const supabase = await createClient();
-  const [{ data: event }, { data: tiers }, { data: lineups }] =
+  const [{ data: event }, { data: tiers }, { data: lineups }, { data: tables }, { data: photos }] =
     await Promise.all([
       supabase.from("events").select("*").eq("id", id).maybeSingle(),
       supabase
@@ -28,6 +34,16 @@ export default async function EditEventPage({
         .eq("event_id", id)
         .order("sort_order"),
       supabase.from("lineups").select("*").eq("event_id", id).order("sort_order"),
+      supabase
+        .from("event_tables")
+        .select("*")
+        .eq("event_id", id)
+        .order("sort_order"),
+      supabase
+        .from("event_photos")
+        .select("*")
+        .eq("event_id", id)
+        .order("sort_order"),
     ]);
 
   // RLS 가 이미 막지만, 남의 행사 주소를 직접 쳤을 때 빈 폼이 뜨는 걸 막는다
@@ -50,6 +66,8 @@ export default async function EditEventPage({
           event: event as EventRow,
           tiers: (tiers ?? []) as TicketTier[],
           lineups: (lineups ?? []) as Lineup[],
+          tables: (tables ?? []) as EventTable[],
+          photos: (photos ?? []) as EventPhoto[],
         }}
       />
     </div>

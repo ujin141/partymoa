@@ -103,6 +103,15 @@ export type EventTable = {
   created_at: string;
 }
 
+export type EventPhoto = {
+  id: string;
+  event_id: string;
+  url: string;
+  caption: string | null;
+  sort_order: number;
+  created_at: string;
+}
+
 export type EventRow = {
   id: string;
   crew_id: string;
@@ -258,6 +267,10 @@ export type Database = {
     Tables: {
       crews: Table<Crew, Insertable<Crew, "name" | "slug">>;
       profiles: Table<Profile, Insertable<Profile, "user_id">>;
+      event_photos: Table<
+        EventPhoto,
+        Insertable<EventPhoto, "event_id" | "url">
+      >;
       event_tables: Table<
         EventTable,
         Insertable<EventTable, "event_id" | "name" | "price" | "seats">

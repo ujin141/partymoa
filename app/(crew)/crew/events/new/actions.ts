@@ -33,6 +33,17 @@ export interface EventDraft {
     malePrice: number | null;
     capacity: number;
   }[];
+  tables: {
+    id?: string;
+    name: string;
+    price: number;
+    cardPrice: number | null;
+    seats: number;
+    note: string | null;
+    sortOrder: number;
+  }[];
+  tablesNote: string;
+  photos: { url: string; caption: string | null; sortOrder: number }[];
   lineups: { artist: string; time: string }[];
 }
 
@@ -133,6 +144,34 @@ export async function createEvent(d: EventDraft) {
       sort_order: i,
     }));
   if (lineRows.length) await supabase.from("lineups").insert(lineRows);
+
+  // 테이블(메뉴판). 차수와 달리 없어도 파티는 돈다 — 빈 줄은 버린다
+  const tableRows = d.tables
+    .filter((t) => t.name.trim() && t.price >= 0 && t.seats > 0)
+    .map((t, i) => ({
+      event_id: event.id,
+      name: t.name.trim(),
+      price: t.price,
+      card_price: t.cardPrice,
+      seats: t.seats,
+      note: t.note,
+      sort_order: i,
+    }));
+  const photoRows = d.photos.map((x, i) => ({
+    event_id: event.id,
+    url: x.url,
+    caption: x.caption,
+    sort_order: i,
+  }));
+  if (photoRows.length) await supabase.from("event_photos").insert(photoRows);
+
+  if (tableRows.length) {
+    await supabase.from("event_tables").insert(tableRows);
+    await supabase
+      .from("events")
+      .update({ tables_note: d.tablesNote.trim() || null })
+      .eq("id", event.id);
+  }
 
   revalidatePath("/crew", "layout");
   return { ok: true as const, eventId: event.id };

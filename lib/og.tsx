@@ -14,6 +14,23 @@ export const OG_TYPE = "image/png";
  * 하나만 싣고, 위계는 크기와 투명도로 만든다.
  */
 let cached: Buffer | null = null;
+let mich: Buffer | null = null;
+
+/**
+ * Michroma — 포스터에 쓰는 브랜드 폰트. 라틴만 있다.
+ * 예매번호(PM0043)와 영문 표기에만 쓰고 한글은 Pretendard 가 받는다.
+ */
+export async function michroma() {
+  mich ??= await readFile(
+    path.join(process.cwd(), "assets", "og", "Michroma-Regular.ttf"),
+  );
+  return {
+    name: "Michroma",
+    data: mich as unknown as ArrayBuffer,
+    style: "normal" as const,
+    weight: 400 as const,
+  };
+}
 
 export async function pretendard() {
   cached ??= await readFile(

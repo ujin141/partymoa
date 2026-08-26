@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { BookingSheet } from "@/components/BookingSheet";
+import { PhotoStrip } from "@/components/PhotoStrip";
 import { Reviews } from "@/components/Reviews";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { ShareButton } from "@/components/ShareButton";
@@ -11,7 +12,7 @@ import { longDate, timeRange, won } from "@/lib/format";
 import { getParty } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
 import { genderCap, priceFor, soldRate } from "@/lib/rules";
-import type { EventTable, Review } from "@/types/database";
+import type { EventPhoto, EventTable, Review } from "@/types/database";
 
 // **캐시를 안 쓴다.** 찜은 사람마다 다르고 잔여는 초 단위로 바뀐다.
 // revalidate 를 걸어 두면 남의 찜과 지난 잔여가 그대로 나간다
@@ -90,6 +91,13 @@ export default async function PartyPage({
     .eq("event_id", event.id)
     .order("sort_order");
   const tables = (tableRows ?? []) as EventTable[];
+
+  const { data: photoRows } = await supabase
+    .from("event_photos")
+    .select("*")
+    .eq("event_id", event.id)
+    .order("sort_order");
+  const photos = (photoRows ?? []) as EventPhoto[];
   const mine = reviews.some((r) => r.user_id === user?.id);
   const me = profile as {
     nickname: string | null;
@@ -293,6 +301,8 @@ export default async function PartyPage({
             );
           })}
         </section>
+
+        <PhotoStrip photos={photos} />
 
         {/* 테이블은 차수와 다른 물건이다 — **잡으면 입장비가 없다.**
             가격 옆에 붙여야 "입장권을 살까 테이블을 잡을까" 를 그 자리에서

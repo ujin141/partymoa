@@ -32,6 +32,17 @@ export interface EventPatch {
     capacity: number;
   }[];
   lineups: { artist: string; time: string }[];
+  tables: {
+    id?: string;
+    name: string;
+    price: number;
+    cardPrice: number | null;
+    seats: number;
+    note: string | null;
+    sortOrder: number;
+  }[];
+  tablesNote: string;
+  photos: { url: string; caption: string | null; sortOrder: number }[];
 }
 
 /**
@@ -151,6 +162,43 @@ export async function updateEvent(eventId: string, d: EventPatch) {
       sort_order: i,
     }));
   if (lines.length) await supabase.from("lineups").insert(lines);
+
+  /**
+   * 테이블(메뉴판). **라인업처럼 지우고 새로 넣어도 된다** — 차수와 달리
+   * 예매가 참조하지 않기 때문이다. 차수를 그렇게 했다가는 bookings.tier_id
+   * 가 끊긴다.
+   */
+  // 사진도 지우고 새로 넣는다. 예매가 참조하지 않는다
+  await supabase.from("event_photos").delete().eq("event_id", eventId);
+  const photoRows = d.photos.map((x, i) => ({
+    event_id: eventId,
+    url: x.url,
+    caption: x.caption,
+    sort_order: i,
+  }));
+  if (photoRows.length) await supabase.from("event_photos").insert(photoRows);
+
+  await supabase.from("event_tables").delete().eq("event_id", eventId);
+  const tableRows = d.tables
+    .filter((t) => t.name.trim() && t.price >= 0 && t.seats > 0)
+    .map((t, i) => ({
+      event_id: eventId,
+      name: t.name.trim(),
+      price: t.price,
+      card_price: t.cardPrice,
+      seats: t.seats,
+      note: t.note,
+      sort_order: i,
+    }));
+  if (tableRows.length) {
+    await supabase.from("event_tables").insert(tableRows);
+  }
+  await supabase
+    .from("events")
+    .update({
+      tables_note: tableRows.length ? d.tablesNote.trim() || null : null,
+    })
+    .eq("id", eventId);
 
   revalidatePath("/crew", "layout");
   revalidatePath("/", "layout");
