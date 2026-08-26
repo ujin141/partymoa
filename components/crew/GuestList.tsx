@@ -263,12 +263,23 @@ export function GuestList({
                 >
                   거절
                 </button>
+                {/* **되돌릴 때는 묻는다.** 초록 배지처럼 보이지만 실은
+                    토글이라, 명단을 훑다 한 번 더 누르면 입금이 풀린다.
+                    실제로 그렇게 유종원이 미입금으로 돌아갔다 */}
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() =>
-                    start(() => void setPaid(b.id, b.status === "pending"))
-                  }
+                  onClick={() => {
+                    const paying = b.status === "pending";
+                    if (
+                      !paying &&
+                      !confirm(
+                        `${b.name} 님을 미입금으로 되돌릴까요?\n입금이 실제로 안 들어온 게 맞을 때만 누르세요.`,
+                      )
+                    )
+                      return;
+                    start(() => void setPaid(b.id, paying));
+                  }}
                   className={`rounded-lg px-3 py-1.5 text-[12.5px] font-bold ${
                     b.status === "pending"
                       ? "bg-soft text-sub"

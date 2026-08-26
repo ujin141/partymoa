@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# 손님 개인정보가 든 SQL. **저장소에 올리지 않는다.**
+# 이름·전화번호 40여 건이 들어 있어서, 저장소를 누구와 공유하든
+# 그 순간 그대로 새어 나간다. 로컬에 두고 SQL Editor 에 붙여 쓴다.
+supabase/GUEST_INFO.sql
+supabase/gender_fill.html
+supabase/IMPORT_GUESTS.sql

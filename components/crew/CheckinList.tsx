@@ -85,6 +85,14 @@ export function CheckinList({
       );
       if (!ok) return;
     }
+    // 이미 들어온 사람을 다시 누르면 입장이 풀린다. 문 앞에서 줄 세워
+    // 누르다 보면 실수로 눌린다
+    if (!goingIn) {
+      const ok = window.confirm(
+        `${b.name}님은 이미 입장했어요.\n입장을 취소할까요?`,
+      );
+      if (!ok) return;
+    }
     start(async () => {
       await setCheckedIn(b.id, goingIn);
       if (goingIn) {
