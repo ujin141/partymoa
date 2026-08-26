@@ -71,3 +71,8 @@ ios/App/*.xcodeproj/xcuserdata/
 ios/App/*.xcworkspace/xcuserdata/
 ios/DerivedData/
 *.xcuserstate
+
+# 빌드 산출물. 커밋할 이유가 없고 저장소만 무거워진다
+store/ios/build/
+*.ipa
+*.xcarchive
