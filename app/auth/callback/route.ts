@@ -52,6 +52,20 @@ export async function GET(req: Request) {
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) return fail(error.message);
 
+  /**
+   * **익명 표시를 내린다.**
+   *
+   * 첫 방문에 익명 세션을 만들어 두기 때문에, 구글 로그인은 새 계정을
+   * 만드는 게 아니라 익명 계정에 신원을 붙인다(linkIdentity). 그래야
+   * 익명으로 잡아 둔 예매를 안 잃는다.
+   *
+   * 그런데 신원만 붙고 is_anonymous 는 그대로 남아서, 앱이 계속
+   * 로그아웃으로 본다 — 구글 창까지 다 돌고 와도 아무 일도 안 일어난
+   * 것처럼 보인다. 표시를 내리고 세션을 새로 받아 토큰까지 갱신한다.
+   */
+  await supabase.rpc("promote_anonymous");
+  await supabase.auth.refreshSession().catch(() => null);
+
   // 로그인 전에 시작 화면에서 고른 취향을 계정으로 옮긴다. 실패해도
   // 로그인은 그대로 진행한다 — 취향 때문에 로그인이 막히면 안 된다
   await adoptCookiePreferences().catch(() => null);
