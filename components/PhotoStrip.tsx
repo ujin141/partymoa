@@ -51,7 +51,8 @@ export function PhotoStrip({ photos }: { photos: EventPhoto[] }) {
       {open !== null ? (
         <div
           onClick={() => setOpen(null)}
-          className="absolute inset-0 z-30 flex flex-col bg-[#080a0e]"
+          /* 셸의 안전영역까지 덮는 자리다. 안 넣으면 닫기 버튼이 상태바에 물린다 */
+          className="absolute inset-0 z-30 flex flex-col bg-[#080a0e] pt-[env(safe-area-inset-top)]"
         >
           <div className="flex flex-none justify-end p-3">
             <span className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-[20px] leading-none text-white">

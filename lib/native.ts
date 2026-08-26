@@ -39,26 +39,35 @@ function plugin(name: string) {
  * 아직 없다 — register() 를 부르고 registration 이벤트를 기다려야 한다.
  * 안 오면 계속 매달려 있지 않고 포기한다.
  */
-export function nativePushToken(timeoutMs = 15000): Promise<string | null> {
+export type PushResult =
+  | { token: string }
+  /** 손님이 거부했다. 앱을 지웠다 깔지 않는 한 다시 못 묻는다 */
+  | { error: "denied" }
+  /** 애플에 등록이 안 됐다. 서명이 없거나 시뮬레이터거나 망이 끊겼다 */
+  | { error: "register" }
+  /** 플러그인이 앱에 안 들어갔다. 빌드 문제다 */
+  | { error: "plugin" };
+
+export function nativePushToken(timeoutMs = 15000): Promise<PushResult> {
   const p = plugin("PushNotifications");
-  if (!p) return Promise.resolve(null);
+  if (!p) return Promise.resolve({ error: "plugin" });
 
   return new Promise((resolve) => {
     let done = false;
-    const finish = (v: string | null) => {
+    const finish = (v: PushResult) => {
       if (done) return;
       done = true;
       resolve(v);
     };
 
-    const timer = setTimeout(() => finish(null), timeoutMs);
+    const timer = setTimeout(() => finish({ error: "register" }), timeoutMs);
 
     (async () => {
       try {
         const perm = (await p.requestPermissions()) as { receive?: string };
         if (perm?.receive !== "granted") {
           clearTimeout(timer);
-          return finish(null);
+          return finish({ error: "denied" });
         }
         await (p as unknown as {
           addListener: (
@@ -67,18 +76,19 @@ export function nativePushToken(timeoutMs = 15000): Promise<string | null> {
           ) => Promise<unknown>;
         }).addListener("registration", (d) => {
           clearTimeout(timer);
-          finish(d?.value ?? null);
+          finish(d?.value ? { token: d.value } : { error: "register" });
         });
         await (p as unknown as {
           addListener: (e: string, cb: () => void) => Promise<unknown>;
         }).addListener("registrationError", () => {
           clearTimeout(timer);
-          finish(null);
+          finish({ error: "register" });
         });
         await p.register();
       } catch {
         clearTimeout(timer);
-        finish(null);
+        // requestPermissions 조차 못 불렀다 — 플러그인이 안 붙은 것이다
+        finish({ error: "plugin" });
       }
     })();
   });

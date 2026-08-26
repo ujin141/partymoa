@@ -70,15 +70,24 @@ export function PushToggle({ vapid }: { vapid: string }) {
     setErr(null);
     try {
       if (native) {
-        const token = await nativePushToken();
-        if (!token) {
-          setErr("알림을 켜지 못했어요. 설정 > 파티모아 > 알림에서 허용해 주세요.");
+        const r = await nativePushToken();
+        if (!("token" in r)) {
+          // 원인마다 손님이 할 일이 다르다. 하나로 뭉쳐 두면
+          // 아무것도 못 하는 안내가 된다
+          setErr(
+            r.error === "denied"
+              ? "설정 > 파티모아 > 알림에서 허용해 주세요."
+              : r.error === "register"
+                ? "알림 서버에 연결하지 못했어요. 잠시 뒤 다시 눌러 주세요."
+                : "이 버전에서는 알림을 켤 수 없어요. 앱을 업데이트해 주세요.",
+          );
+          setState(r.error === "denied" ? "거부됨" : "꺼짐");
           return;
         }
         const res = await fetch("/api/push/subscribe", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ endpoint: token, platform: "ios" }),
+          body: JSON.stringify({ endpoint: r.token, platform: "ios" }),
         });
         if (!res.ok) throw new Error((await res.json()).message);
         setState("켜짐");

@@ -100,7 +100,9 @@ export function Onboarding({
 
   return (
     <div
-      className={`absolute inset-0 z-50 flex flex-col bg-white transition-opacity duration-300 ${
+      /* absolute inset-0 은 셸의 **패딩 박스** 기준이라 셸이 잡아 둔
+         안전영역까지 덮는다. 앱에서는 건너뛰기가 상태바에 물린다 */
+      className={`absolute inset-0 z-50 flex flex-col bg-white pt-[env(safe-area-inset-top)] transition-opacity duration-300 ${
         leaving ? "pointer-events-none opacity-0" : "opacity-100"
       }`}
     >
