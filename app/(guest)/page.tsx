@@ -2,14 +2,15 @@ import { cookies } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
 
-import { HeroCard, PartyCard } from "@/components/PartyCard";
+import { HomeBanner, type BannerItem } from "@/components/HomeBanner";
+import { PartyTile } from "@/components/PartyCard";
 import { Wordmark } from "@/components/Symbol";
 import { Divider, Empty, SectionTitle } from "@/components/ui/primitives";
 import { listPosts } from "@/lib/community";
 import { homeExtras, listAreas, listCrews, listOpenParties } from "@/lib/queries";
-import { ago } from "@/lib/format";
+import { ago, shortDate } from "@/lib/format";
+import { isClosingSoon, soldRate } from "@/lib/rules";
 import { createClient } from "@/lib/supabase/server";
-import { GENRES, inGenre } from "@/lib/genres";
 
 // **캐시를 안 쓴다.** 찜은 사람마다 다르고 잔여는 초 단위로 바뀐다.
 // revalidate 를 걸어 두면 남의 찜과 지난 잔여가 그대로 나간다
@@ -123,6 +124,35 @@ export default async function HomePage() {
    */
   const showLiked = liked.length > 0 && liked.length < parties.length;
 
+  /**
+   * 배너에 올릴 것.
+   *
+   * **취향에 맞는 것을 앞에 세운다.** 없으면 예매가 빠르게 차는
+   * 순서다 — 남들이 몰리는 판이 대개 제일 볼 만한 판이다.
+   *
+   * 다섯 장까지. 그 이상은 아무도 안 넘긴다.
+   */
+  const banner: BannerItem[] = (showLiked ? liked : parties)
+    .slice()
+    .sort(
+      (a, b) =>
+        soldRate(b.stats.booked, b.stats.capacity) -
+        soldRate(a.stats.booked, a.stats.capacity),
+    )
+    .slice(0, 5)
+    .map((d) => ({
+      slug: d.event.slug,
+      title: d.event.title,
+      cover: d.event.cover_url || "",
+      line: `${shortDate(d.event.starts_at)} · ${d.event.venue_name} · ${d.event.area}`,
+      badge: isClosingSoon(d.stats.booked, d.stats.capacity)
+        ? `${Math.max(0, d.stats.capacity - d.stats.booked)}자리 남음`
+        : d.event.solo_friendly
+          ? "1인 환영"
+          : null,
+    }))
+    .filter((b) => b.cover);
+
   return (
     <>
       <header className="flex flex-none items-center gap-2.5 border-b border-line px-4 py-3">
@@ -192,42 +222,9 @@ export default async function HomePage() {
           어떤 파티를 찾으세요?
         </Link>
 
-        {/**
-          * **여섯 갈래가 이 앱의 첫 갈림길이다.**
-          *
-          * 태그를 한 줄로 늘어놓으면 이미 뭘 찾는지 아는 사람만 쓴다.
-          * 처음 온 사람은 하우스와 루프탑 중에 뭘 눌러야 자기가 갈
-          * 만한 파티가 나오는지 모른다. 가는 이유로 나눈다.
-          *
-          * **한 칸에 두 줄 이상 넣지 않는다.** 설명과 개수까지 붙이면
-          * 여섯 칸이 화면 절반을 먹고, 그러면 한눈에 보이지 않는다.
-          * 그림 하나와 이름 하나면 고를 수 있다.
-          *
-          * 파티가 없는 갈래도 그대로 둔다. 칸이 사라졌다 나타났다 하면
-          * 매번 다른 앱처럼 보인다 — 대신 흐리게 둔다.
-          */}
-        <div className="mt-3.5 grid grid-cols-3 gap-2 px-4">
-          {GENRES.map((g) => {
-            const n = parties.filter((p) => inGenre(g, p.event)).length;
-            return (
-              <Link
-                key={g.key}
-                href={`/explore?g=${g.key}`}
-                aria-label={`${g.label} — ${g.note}`}
-                className={`grid place-items-center gap-1 rounded-2xl bg-soft py-3.5 transition active:scale-95 ${
-                  n > 0 ? "" : "opacity-45"
-                }`}
-              >
-                <span className="text-[21px] leading-none" aria-hidden="true">
-                  {g.icon}
-                </span>
-                <b className="text-[12.5px] font-bold leading-none">
-                  {g.label}
-                </b>
-              </Link>
-            );
-          })}
-        </div>
+        {/* 맨 위는 배너다. 갈래 칸은 둘러보기로 옮겼다 — 홈은
+            "뭐가 있나" 를 보는 곳이고, 좁히는 건 거기서 한다 */}
+        {banner.length > 0 ? <HomeBanner items={banner} /> : null}
 
         {areas.length > 1 ? (
           <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto px-4">
@@ -257,20 +254,25 @@ export default async function HomePage() {
               title={me?.nickname ? `${me.nickname} 님 취향` : "취향에 맞는 파티"}
               note="시작할 때 고른 지역·분위기로 골랐어요"
             />
-            <div className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1">
-              {liked.slice(0, 5).map((d) => (
-                <HeroCard key={d.event.id} d={d} />
+            <div className="grid grid-cols-2 gap-x-3 gap-y-5 px-4 pb-1">
+              {liked.slice(0, 4).map((d) => (
+                <PartyTile key={d.event.id} d={d} />
               ))}
             </div>
           </>
         ) : null}
 
+        {/* **두 줄로 촘촘히 깐다.** 세로로 한 장씩 쌓으면 네 개를
+            보려고 네 번 넘겨야 한다. 훑는 사람이 원하는 건 뭐가
+            있나를 한눈에 보는 것이다 */}
         {upcoming.length > 0 ? (
           <>
             <SectionTitle title="다가오는 파티" note="빠른 날짜 순서" />
-            {upcoming.map((d) => (
-              <PartyCard key={d.event.id} d={d} />
-            ))}
+            <div className="grid grid-cols-2 gap-x-3 gap-y-5 px-4 pb-1">
+              {upcoming.map((d) => (
+                <PartyTile key={d.event.id} d={d} />
+              ))}
+            </div>
           </>
         ) : null}
 

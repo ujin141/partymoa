@@ -156,3 +156,57 @@ export function MiniRow({ d, rank }: { d: PartyCardData; rank: number }) {
     </Link>
   );
 }
+
+/**
+ * 격자 한 칸. **두 줄로 촘촘히 깔 때 쓴다.**
+ *
+ * 세로로 한 장씩 쌓으면 파티 네 개를 보려고 네 번 넘겨야 한다. 목록을
+ * 훑는 사람이 원하는 건 "뭐가 있나" 를 한눈에 보는 것이지 한 장을
+ * 크게 보는 게 아니다.
+ *
+ * 칸이 작으니 넣을 것도 줄인다 — 사진, 이름, 날짜·지역, 값. 태그와
+ * 예매율은 뺐다. 작은 칸에 다섯 줄을 넣으면 아무것도 안 읽힌다.
+ */
+export function PartyTile({ d }: { d: PartyCardData }) {
+  const p = priceLine(d);
+  const left = Math.max(0, d.stats.capacity - d.stats.booked);
+  const hot = isClosingSoon(d.stats.booked, d.stats.capacity);
+
+  return (
+    <Link
+      href={`/party/${d.event.slug}`}
+      className="block transition active:opacity-70"
+    >
+      <div className="relative aspect-4/5 overflow-hidden rounded-xl bg-soft">
+        <Image
+          src={d.event.cover_url || FALLBACK}
+          alt=""
+          fill
+          sizes="(max-width: 430px) 50vw, 210px"
+          className="object-cover"
+        />
+        {left === 0 ? (
+          <span className="absolute inset-0 grid place-items-center bg-[#0a0c10]/55 text-[13px] font-extrabold text-white">
+            매진
+          </span>
+        ) : hot ? (
+          <span className="absolute left-2 top-2 rounded bg-hot px-1.5 py-0.5 text-[10.5px] font-bold text-white">
+            {`${left}자리`}
+          </span>
+        ) : null}
+      </div>
+
+      <h3 className="clamp-2 mt-2 text-[14px] font-bold leading-snug">
+        {d.event.title}
+      </h3>
+      <p className="mt-1 truncate text-[12px] text-sub">
+        {shortDate(d.event.starts_at)} · {d.event.area}
+      </p>
+      {p ? (
+        <p className="mt-0.5 text-[14px] font-extrabold">
+          {p.price.toLocaleString("ko-KR")}원
+        </p>
+      ) : null}
+    </Link>
+  );
+}
