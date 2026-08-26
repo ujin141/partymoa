@@ -433,6 +433,8 @@ export default async function PartyPage({
           tier ? priceFor(tier.price, "F", Number(event.male_price_multiplier)) : null
         }
         invite={(await searchParams).i ?? null}
+        signedIn={signedIn}
+        loginNext={`/party/${event.slug}`}
         defaultName={me?.real_name ?? null}
         defaultPhone={me?.phone ?? null}
         bankAccount={event.bank_account}

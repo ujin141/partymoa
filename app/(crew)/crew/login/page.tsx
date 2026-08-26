@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { InAppBrowserNotice } from "@/components/InAppBrowserNotice";
 import { LoginForm } from "@/components/crew/LoginForm";
 import { myCrew } from "@/lib/crew";
 
@@ -35,6 +36,7 @@ export default async function CrewLoginPage({
           로그인이 안 됐어요 — {error}
         </p>
       ) : null}
+      <InAppBrowserNotice />
       <div className="mt-6">
         <LoginForm next={next ?? "/crew"} />
       </div>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { InAppBrowserNotice } from "@/components/InAppBrowserNotice";
 import { AdminLoginForm } from "@/components/admin/AdminLoginForm";
 import { LogoutButton } from "@/components/LogoutButton";
 import { Symbol } from "@/components/Symbol";
@@ -73,6 +74,7 @@ export default async function AdminLoginPage({
                 로그인이 안 됐어요 — {error}
               </p>
             ) : null}
+            <InAppBrowserNotice />
             <div className="mt-6">
               <AdminLoginForm />
             </div>

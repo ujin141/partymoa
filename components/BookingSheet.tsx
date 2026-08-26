@@ -28,6 +28,10 @@ interface Props {
   /** 프로필에 적어 둔 이름·연락처 */
   defaultName?: string | null;
   defaultPhone?: string | null;
+  /** 진짜 로그인한 사람인가 (익명 세션은 아니다) */
+  signedIn?: boolean;
+  /** 로그인하고 돌아올 자리 */
+  loginNext?: string;
   bankAccount: string | null;
 }
 
@@ -41,6 +45,15 @@ interface Props {
 export function BookingSheet(p: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  /**
+   * 로그인 권유. **예매를 막지는 않는다** — 로그인 없이 예매하는 게
+   * 이 앱의 첫 목표다. 다만 로그인해 두면 기기를 바꿔도 티켓이 따라오고,
+   * 입금 확인 알림도 받을 수 있어서 그걸 한 번 말해 준다.
+   *
+   * 한 번 보고 나면 그 세션에서는 다시 안 띄운다. 예매하려고 누를 때마다
+   * 같은 창이 뜨면 그게 예매를 막는 셈이다.
+   */
+  const [askLogin, setAskLogin] = useState(false);
   const [tierId, setTierId] = useState<string | null>(null);
   const [gender, setGender] = useState<Gender | null>(null);
   // 프로필에 적어 둔 값을 미리 채운다. 매번 다시 적는 게 제일 귀찮고,
@@ -171,12 +184,77 @@ export function BookingSheet(p: Props) {
         <button
           type="button"
           disabled={disabled}
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            if (!p.signedIn) {
+              let asked = false;
+              try {
+                asked = sessionStorage.getItem("pm_login_asked") === "1";
+              } catch {
+                asked = true;
+              }
+              if (!asked) {
+                try {
+                  sessionStorage.setItem("pm_login_asked", "1");
+                } catch {
+                  // 무시
+                }
+                setAskLogin(true);
+                return;
+              }
+            }
+            setOpen(true);
+          }}
           className="rounded-xl bg-brand px-6 py-3.5 text-base font-bold text-white disabled:bg-[#C8CBD2]"
         >
           {disabled ? "마감" : "예매하기"}
         </button>
       </div>
+
+      {askLogin ? (
+        <div
+          onClick={() => setAskLogin(false)}
+          role="presentation"
+          className="absolute inset-0 z-20 flex items-end bg-[#0a0c10]/45 sm:items-center sm:justify-center"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-label="로그인 안내"
+            className="w-full rounded-t-3xl bg-white p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:max-w-[360px] sm:rounded-3xl"
+          >
+            <b className="block text-[19px] font-extrabold leading-snug">
+              로그인하면
+              <br />
+              티켓을 잃어버리지 않아요
+            </b>
+            <ul className="mt-3.5 text-[13.5px] leading-7 text-sub">
+              <li>· 기기를 바꿔도 티켓이 따라와요</li>
+              <li>· 입금이 확인되면 알림으로 알려 드려요</li>
+              <li>· 이름·연락처를 다시 안 적어도 돼요</li>
+            </ul>
+
+            <a
+              href={`/login?next=${encodeURIComponent(p.loginNext ?? "/")}`}
+              className="mt-5 block rounded-xl bg-brand py-3.5 text-center text-base font-bold text-white"
+            >
+              로그인하고 예매
+            </a>
+            <button
+              type="button"
+              onClick={() => {
+                setAskLogin(false);
+                setOpen(true);
+              }}
+              className="mt-2.5 w-full rounded-xl border border-line py-3.5 text-[15px] font-semibold text-sub"
+            >
+              비로그인으로 예매하기
+            </button>
+            <p className="mt-3 text-center text-[12px] leading-relaxed text-sub">
+              로그인 안 해도 예매됩니다. 나중에 이름과 연락처로 찾을 수 있어요.
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       <div
         onClick={() => setOpen(false)}
