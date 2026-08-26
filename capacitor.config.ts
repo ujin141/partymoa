@@ -24,7 +24,15 @@ const config: CapacitorConfig = {
   ios: {
     // 흰 배경으로 두면 로딩 순간에 흰 판이 번쩍인다
     backgroundColor: "#FFFFFF",
-    contentInset: "always",
+    /**
+     * **웹뷰를 밀어 넣지 않는다.**
+     *
+     * 화면은 이미 안전영역을 직접 처리한다 — layout 이 pt-[env(safe-area-inset-top)],
+     * 탭바가 pb-[env(safe-area-inset-bottom)] 를 쓰고 viewport 는 fit=cover 다.
+     * 여기서 always 로 두면 웹뷰가 한 번 밀리고 화면이 또 밀어서 위아래가
+     * 두 번씩 들어간다. never 로 둬야 env() 가 진짜 값을 받는다.
+     */
+    contentInset: "never",
   },
 };
 
