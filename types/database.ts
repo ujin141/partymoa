@@ -34,6 +34,29 @@ export type CrewMember = {
   created_at: string;
 }
 
+export type CrewApplicationStatus = "pending" | "approved" | "rejected";
+
+export type CrewApplication = {
+  id: string;
+  crew_name: string;
+  slug: string;
+  instagram: string | null;
+  bio: string | null;
+  contact_name: string;
+  contact_phone: string;
+  email: string;
+  venue: string | null;
+  scale: string | null;
+  history: string | null;
+  note: string | null;
+  user_id: string | null;
+  status: CrewApplicationStatus;
+  reject_reason: string | null;
+  reviewed_at: string | null;
+  crew_id: string | null;
+  created_at: string;
+}
+
 export type EventRow = {
   id: string;
   crew_id: string;
@@ -186,6 +209,13 @@ export type Database = {
   public: {
     Tables: {
       crews: Table<Crew, Insertable<Crew, "name" | "slug">>;
+      crew_applications: Table<
+        CrewApplication,
+        Insertable<
+          CrewApplication,
+          "crew_name" | "slug" | "contact_name" | "contact_phone" | "email"
+        >
+      >;
       crew_members: Table<
         CrewMember,
         Insertable<CrewMember, "crew_id" | "display_name" | "invite_code">

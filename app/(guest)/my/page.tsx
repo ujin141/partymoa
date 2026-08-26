@@ -2,6 +2,8 @@ import Link from "next/link";
 
 import { LogoutButton } from "@/components/LogoutButton";
 import { Symbol } from "@/components/Symbol";
+import { isAdmin } from "@/lib/admin";
+import { myCrews } from "@/lib/crew";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -25,24 +27,13 @@ export default async function MyPage() {
   // 익명 세션은 "로그인" 으로 치지 않는다. 기기에 묶여 있을 뿐이다
   const signedIn = Boolean(user && !user.is_anonymous);
 
-  // 크루 소유자·멤버면 관리자로, 운영자면 운영 화면으로 넘어가는 줄을 띄운다
-  let staff = false;
-  let admin = false;
-  if (user) {
-    const [{ count }, { data: adminRow }] = await Promise.all([
-      supabase
-        .from("crew_members")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id),
-      supabase
-        .from("app_admins")
-        .select("user_id")
-        .eq("user_id", user.id)
-        .maybeSingle(),
-    ]);
-    staff = (count ?? 0) > 0;
-    admin = Boolean(adminRow);
-  }
+  // **여기서 다시 판정하지 않는다.** 예전에는 app_admins 와 crew_members 를
+  // uuid 로만 조회했는데, 구글로 로그인하면 새 uuid 가 생겨서 권한이 이메일
+  // 쪽에만 있다. 그래서 운영자인데 운영 화면 줄이 안 떴다.
+  // 판정은 lib/admin · lib/crew 한 군데서만 한다
+  const [crews, adminUser] = await Promise.all([myCrews(), isAdmin()]);
+  const staff = crews.length > 0;
+  const admin = Boolean(adminUser);
 
   return (
     <>
@@ -87,12 +78,14 @@ export default async function MyPage() {
           </Link>
         ))}
 
+        {/* 크루면 바로 관리 화면, 아니면 신청부터. 예전에는 크루 로그인으로
+            보냈는데 등록된 사람만 들어가는 문이라 그냥 막혔다 */}
         <Link
-          href={staff ? "/crew" : "/crew/login"}
+          href={staff ? "/crew" : "/my/crew-apply"}
           className="flex w-full items-center gap-3 border-b border-line px-4 py-4"
         >
           <b className="text-[15px] font-semibold text-brand">
-            크루로 전환하기
+            {staff ? "크루로 전환하기" : "파티를 여시나요 — 크루 신청"}
           </b>
           <span className="ml-auto text-[19px] text-[#C0C4CC]">›</span>
         </Link>

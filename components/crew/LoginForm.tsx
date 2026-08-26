@@ -148,7 +148,11 @@ export function LoginForm({ next = "/crew" }: { next?: string }) {
       )}
 
       <p className="mt-5 text-[12.5px] leading-relaxed text-sub">
-        크루로 등록된 계정만 들어갑니다. 등록 문의는 인스타 DM 으로 주세요.
+        크루로 등록된 계정만 들어갑니다.{" "}
+        <a href="/my/crew-apply" className="underline">
+          크루 신청
+        </a>{" "}
+        은 여기서 받습니다.
       </p>
     </>
   );

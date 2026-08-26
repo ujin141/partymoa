@@ -44,16 +44,6 @@ export async function createClient() {
   );
 }
 
-/**
- * 서비스 롤 클라이언트. **RLS 를 우회한다** — 크루 관리자 조회처럼
- * 서버에서만 도는 코드에서만 쓰고, 클라이언트 번들에 새어 나가면 안 된다.
- */
-export function createAdminClient() {
-  const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!service) throw new Error("SUPABASE_SERVICE_ROLE_KEY 가 없습니다");
-  return createServerClient<Database>(
-    env().url,
-    service,
-    { cookies: { getAll: () => [], setAll: () => {} } },
-  );
-}
+// 서비스 롤 클라이언트는 두지 않는다. RLS 를 통째로 우회하는 통로라,
+// 쓰는 곳이 하나도 없는데 놀려 두면 언젠가 아무 생각 없이 import 된다.
+// 정말 필요해지면 그때 만들고 쓰는 자리를 함께 적는다.

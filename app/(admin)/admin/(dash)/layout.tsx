@@ -4,6 +4,7 @@ import { LogoutButton } from "@/components/LogoutButton";
 import { Symbol } from "@/components/Symbol";
 import { requireAdmin } from "@/lib/admin";
 import { myCrews } from "@/lib/crew";
+import { createClient } from "@/lib/supabase/server";
 
 /**
  * 운영자 화면 셸. **크루 화면과 다른 자격이다.**
@@ -25,6 +26,14 @@ export default async function AdminLayout({
   // 갈라 두되, 오갈 문은 만들어 둔다
   const crews = await myCrews();
 
+  // 대기 중인 신청 수. **숫자가 안 보이면 아무도 안 본다** — 신청이
+  // 들어와도 알림이 따로 안 가므로 여기 배지가 유일한 신호다
+  const supabase = await createClient();
+  const { count: waiting } = await supabase
+    .from("crew_applications")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "pending");
+
   return (
     <div className="mx-auto flex h-dvh max-w-[900px] flex-col overflow-hidden bg-white pt-[env(safe-area-inset-top)] sm:border-x sm:border-line">
       <header className="flex flex-none items-center gap-2 border-b border-line px-4 py-3">
@@ -41,6 +50,17 @@ export default async function AdminLayout({
           </Link>
           <Link href="/admin/crews" className="text-sub">
             크루
+          </Link>
+          <Link
+            href="/admin/applications"
+            className="flex items-center gap-1 text-sub"
+          >
+            신청
+            {waiting ? (
+              <span className="rounded-full bg-hot px-1.5 py-0.5 text-[10.5px] font-bold text-white">
+                {waiting}
+              </span>
+            ) : null}
           </Link>
           <Link href="/admin/community" className="text-sub">
             커뮤니티
