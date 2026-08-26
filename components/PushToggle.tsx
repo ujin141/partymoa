@@ -2,6 +2,13 @@
 
 import { useEffect, useState } from "react";
 
+import {
+  isNativeIOS,
+  nativePushGranted,
+  nativePushOff,
+  nativePushToken,
+} from "@/lib/native";
+
 /** VAPID 공개키는 base64url. 브라우저는 Uint8Array 를 받는다 */
 function toBytes(base64: string) {
   const pad = "=".repeat((4 - (base64.length % 4)) % 4);
@@ -26,8 +33,15 @@ export function PushToggle({ vapid }: { vapid: string }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [iosNeedsInstall, setIosNeedsInstall] = useState(false);
+  const [native, setNative] = useState(false);
 
   useEffect(() => {
+    // 아이폰 앱은 서비스워커가 아니라 APNs 로 받는다. VAPID 도 필요 없다
+    if (isNativeIOS()) {
+      setNative(true);
+      nativePushGranted().then((on) => setState(on ? "켜짐" : "꺼짐"));
+      return;
+    }
     if (!vapid) {
       setState("불가");
       return;
@@ -55,6 +69,22 @@ export function PushToggle({ vapid }: { vapid: string }) {
     setBusy(true);
     setErr(null);
     try {
+      if (native) {
+        const token = await nativePushToken();
+        if (!token) {
+          setErr("알림을 켜지 못했어요. 설정 > 파티모아 > 알림에서 허용해 주세요.");
+          return;
+        }
+        const res = await fetch("/api/push/subscribe", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ endpoint: token, platform: "ios" }),
+        });
+        if (!res.ok) throw new Error((await res.json()).message);
+        setState("켜짐");
+        return;
+      }
+
       const perm = await Notification.requestPermission();
       if (perm !== "granted") {
         setState(perm === "denied" ? "거부됨" : "꺼짐");
@@ -84,6 +114,19 @@ export function PushToggle({ vapid }: { vapid: string }) {
     setBusy(true);
     setErr(null);
     try {
+      if (native) {
+        // 앱에서만 끄면 서버는 계속 보낸다. 두 곳을 다 지운다.
+        // 토큰을 들고 있지 않으므로 내 iOS 기기 행을 서버가 지우게 한다
+        await fetch("/api/push/subscribe", {
+          method: "DELETE",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ platform: "ios" }),
+        });
+        await nativePushOff();
+        setState("꺼짐");
+        return;
+      }
+
       const reg = await navigator.serviceWorker.getRegistration();
       const sub = await reg?.pushManager.getSubscription();
       if (sub) {

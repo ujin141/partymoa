@@ -19,8 +19,9 @@ type Target = {
   booking_id: string;
   kind: "expiring" | "today" | "paid";
   endpoint: string;
-  p256dh: string;
-  auth: string;
+  p256dh: string | null;
+  auth: string | null;
+  platform: string | null;
   title: string;
   body: string;
   url: string;
@@ -59,7 +60,7 @@ export async function GET(req: Request) {
 
   for (const t of rows) {
     const alive = await sendPush(
-      { endpoint: t.endpoint, p256dh: t.p256dh, auth: t.auth },
+      { endpoint: t.endpoint, p256dh: t.p256dh, auth: t.auth, platform: t.platform },
       { title: t.title, body: t.body, url: t.url, tag: `${t.booking_id}-${t.kind}` },
     );
     if (!alive) {

@@ -54,7 +54,7 @@ async function notifyPaid(bookingId: string) {
 
   const { data: subs } = await supabase
     .from("push_subscriptions")
-    .select("endpoint, p256dh, auth")
+    .select("endpoint, p256dh, auth, platform")
     .eq("user_id", b.user_id)
     .is("failed_at", null);
 

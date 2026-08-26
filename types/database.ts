@@ -117,10 +117,13 @@ export type EventPhoto = {
 }
 
 export type PushSubscription = {
+  // 웹은 브라우저가 준 주소, 아이폰 앱은 APNs 디바이스 토큰이 들어온다
   endpoint: string;
   user_id: string | null;
-  p256dh: string;
-  auth: string;
+  // 아이폰 앱 행에는 없다 — 암호화 키를 쓰지 않는다
+  p256dh: string | null;
+  auth: string | null;
+  platform: "web" | "ios";
   failed_at: string | null;
   created_at: string;
 }
@@ -337,7 +340,7 @@ export type Database = {
       profiles: Table<Profile, Insertable<Profile, "user_id">>;
       push_subscriptions: Table<
         PushSubscription,
-        Insertable<PushSubscription, "endpoint" | "p256dh" | "auth">
+        Insertable<PushSubscription, "endpoint">
       >;
       push_log: Table<PushLog, Insertable<PushLog, "booking_id" | "kind">>;
       event_photos: Table<
@@ -538,8 +541,9 @@ export type Database = {
         Returns: {
           user_id: string;
           endpoint: string;
-          p256dh: string;
-          auth: string;
+          p256dh: string | null;
+          auth: string | null;
+          platform: string;
         }[];
       };
       push_targets: {
@@ -548,8 +552,9 @@ export type Database = {
           booking_id: string;
           kind: string;
           endpoint: string;
-          p256dh: string;
-          auth: string;
+          p256dh: string | null;
+          auth: string | null;
+          platform: string;
           title: string;
           body: string;
           url: string;

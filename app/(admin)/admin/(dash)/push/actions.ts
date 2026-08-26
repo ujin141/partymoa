@@ -50,8 +50,9 @@ export async function sendMarketing(input: {
 
   const rows = (data ?? []) as {
     endpoint: string;
-    p256dh: string;
-    auth: string;
+    p256dh: string | null;
+    auth: string | null;
+    platform: string | null;
   }[];
 
   const url = input.url?.trim() || "/";

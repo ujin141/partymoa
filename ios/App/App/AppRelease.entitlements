@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  앱스토어·테스트플라이트로 나가는 빌드용.
+
+  **운영 APNs 서버를 쓴다.** 서버 쪽도 APNS_PRODUCTION=true 여야 짝이 맞는다.
+  한쪽만 바꾸면 알림이 조용히 안 간다 — 로그에 BadDeviceToken 이 찍힌다.
+-->
+<plist version="1.0">
+<dict>
+	<key>aps-environment</key>
+	<string>production</string>
+</dict>
+</plist>

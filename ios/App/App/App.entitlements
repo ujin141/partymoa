@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  개발용. Xcode 에서 실행하는 빌드가 이걸 쓴다.
+  앱스토어·테스트플라이트로 나가는 빌드는 AppRelease.entitlements 를 쓴다 —
+  APNs 서버가 다르다. 개발 토큰을 운영 서버에 넣으면 BadDeviceToken 이 온다.
+-->
+<plist version="1.0">
+<dict>
+	<key>aps-environment</key>
+	<string>development</string>
+</dict>
+</plist>
