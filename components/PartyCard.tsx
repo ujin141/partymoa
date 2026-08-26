@@ -210,3 +210,35 @@ export function PartyTile({ d }: { d: PartyCardData }) {
     </Link>
   );
 }
+
+/**
+ * 정사각 작은 타일. **가로로 훑는 줄에 쓴다.**
+ *
+ * 격자와 큰 카드 사이를 메운다. 칸마다 같은 모양이 이어지면 스크롤을
+ * 내리는 동안 화면이 안 바뀐 것처럼 느껴진다 — 칸마다 결을 달리해서
+ * "여기부터 다른 얘기" 를 몸으로 알게 한다.
+ */
+export function SquareTile({ d }: { d: PartyCardData }) {
+  return (
+    <Link
+      href={`/party/${d.event.slug}`}
+      className="w-[132px] flex-none transition active:opacity-70"
+    >
+      <div className="relative aspect-square overflow-hidden rounded-xl bg-soft">
+        <Image
+          src={d.event.cover_url || FALLBACK}
+          alt=""
+          fill
+          sizes="132px"
+          className="object-cover"
+        />
+      </div>
+      <h3 className="clamp-2 mt-1.5 text-[13px] font-bold leading-snug">
+        {d.event.title}
+      </h3>
+      <p className="mt-0.5 truncate text-[11.5px] text-sub">
+        {shortDate(d.event.starts_at)} · {d.event.area}
+      </p>
+    </Link>
+  );
+}

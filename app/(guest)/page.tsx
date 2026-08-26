@@ -3,12 +3,17 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { HomeBanner, type BannerItem } from "@/components/HomeBanner";
-import { PartyTile } from "@/components/PartyCard";
+import {
+  HeroCard,
+  MiniRow,
+  PartyCard,
+  PartyTile,
+  SquareTile,
+} from "@/components/PartyCard";
 import { Wordmark } from "@/components/Symbol";
 import { Divider, Empty, SectionTitle } from "@/components/ui/primitives";
-import { listPosts } from "@/lib/community";
 import { homeExtras, listAreas, listCrews, listOpenParties } from "@/lib/queries";
-import { ago, shortDate } from "@/lib/format";
+import { seoulWeekday, shortDate } from "@/lib/format";
 import { isClosingSoon, soldRate } from "@/lib/rules";
 import { createClient } from "@/lib/supabase/server";
 
@@ -27,7 +32,6 @@ export default async function HomePage() {
     crews,
     areas,
     extras,
-    posts,
     { data: profile },
     { count: unpaidCount },
   ] = await Promise.all([
@@ -35,7 +39,6 @@ export default async function HomePage() {
     listCrews(),
     listAreas(),
     homeExtras(),
-    listPosts(),
     // 시작 화면에서 고른 취향. 안 고른 사람은 예전과 똑같이 보인다
     user && !user.is_anonymous
       ? supabase
@@ -118,10 +121,27 @@ export default async function HomePage() {
   );
 
   /**
-   * 취향 칸은 **실제로 좁혀 줄 때만** 띄운다. 파티가 셋인데 셋 다
-   * 취향에 맞으면 그 칸은 아래 목록과 똑같고, 같은 걸 두 번 보여 주는
-   * 셈이 된다.
+   * 칸마다 다른 파티를 보여 주려는 게 아니라 **다른 각도로** 보여
+   * 준다. 같은 파티가 여러 칸에 나오는 건 괜찮다 — 어느 각도에서
+   * 걸릴지는 사람마다 다르다.
    */
+  const byRate = [...parties].sort(
+    (a, b) =>
+      soldRate(b.stats.booked, b.stats.capacity) -
+      soldRate(a.stats.booked, a.stats.capacity),
+  );
+  // **정말 임박한 것만.** 예매율 순으로 자르면 0% 팔린 파티가 1위가 된다
+  const closing = byRate.filter((p) =>
+    isClosingSoon(p.stats.booked, p.stats.capacity),
+  );
+  const solo = parties.filter((p) => p.event.solo_friendly);
+  const weekend = parties.filter((p) => {
+    const d = (+new Date(p.event.starts_at) - Date.now()) / 86400000;
+    // 요일도 서울 기준이다. UTC 서버에서 재면 토요일 새벽이 금요일로 밀린다
+    const w = seoulWeekday(p.event.starts_at);
+    return d >= 0 && d <= 7 && (w === 5 || w === 6);
+  });
+
   const showLiked = liked.length > 0 && liked.length < parties.length;
 
   /**
@@ -262,37 +282,63 @@ export default async function HomePage() {
           </>
         ) : null}
 
-        {/* **두 줄로 촘촘히 깐다.** 세로로 한 장씩 쌓으면 네 개를
-            보려고 네 번 넘겨야 한다. 훑는 사람이 원하는 건 뭐가
-            있나를 한눈에 보는 것이다 */}
+        {/* **제일 촘촘한 칸을 맨 앞에 둔다.** 한 화면에 네 개가 들어와서
+            "뭐가 있나" 가 바로 잡힌다 */}
         {upcoming.length > 0 ? (
           <>
             <SectionTitle title="다가오는 파티" note="빠른 날짜 순서" />
             <div className="grid grid-cols-2 gap-x-3 gap-y-5 px-4 pb-1">
-              {upcoming.map((d) => (
+              {upcoming.slice(0, 8).map((d) => (
                 <PartyTile key={d.event.id} d={d} />
               ))}
             </div>
           </>
         ) : null}
 
-        {/* **DJ 가 표를 판다.** 클럽 씬에서 "언제 어디" 보다 "누가 트는지"
-            가 먼저다 */}
-        {extras.djs.length > 0 ? (
+        {byRate.length > 0 ? (
           <>
             <Divider />
-            <SectionTitle title="라인업" note="이 사람들이 틉니다" />
-            <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 pb-1">
-              {extras.djs.map((d) => (
-                <Link
-                  key={d.id}
-                  href={`/party/${d.slug}`}
-                  className="flex-none rounded-full border border-line px-3.5 py-2 text-[13.5px] font-bold tracking-wide transition active:scale-95"
-                >
-                  {d.name}
-                </Link>
+            <SectionTitle title="지금 뜨는 파티" note="예매가 빠르게 차는 순서" />
+            <div className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1">
+              {byRate.slice(0, 6).map((d) => (
+                <HeroCard key={d.event.id} d={d} />
               ))}
             </div>
+          </>
+        ) : null}
+
+        {solo.length > 0 ? (
+          <>
+            <Divider />
+            <SectionTitle
+              title="혼자 가도 좋아요"
+              note="1인 참여를 환영하는 파티만"
+            />
+            <div className="no-scrollbar flex gap-3 overflow-x-auto px-4 pb-1">
+              {solo.slice(0, 8).map((d) => (
+                <SquareTile key={d.event.id} d={d} />
+              ))}
+            </div>
+          </>
+        ) : null}
+
+        {closing.length > 0 ? (
+          <>
+            <Divider />
+            <SectionTitle title="마감 임박" note="자리가 얼마 안 남았어요" />
+            {closing.slice(0, 5).map((d, i) => (
+              <MiniRow key={d.event.id} d={d} rank={i + 1} />
+            ))}
+          </>
+        ) : null}
+
+        {weekend.length > 0 ? (
+          <>
+            <Divider />
+            <SectionTitle title="이번 주말" note="금·토에 열리는 파티" />
+            {weekend.slice(0, 3).map((d) => (
+              <PartyCard key={d.event.id} d={d} />
+            ))}
           </>
         ) : null}
 
@@ -353,38 +399,6 @@ export default async function HomePage() {
                 </Link>
               ))}
             </div>
-          </>
-        ) : null}
-
-        {/* 파티가 없는 날에도 돌아올 이유. 목록 화면을 한 번 더 만들지
-            않고 최근 세 개만 얹는다 */}
-        {posts.length > 0 ? (
-          <>
-            <Divider />
-            <SectionTitle title="커뮤니티" note="같이 갈 사람 구하거나, 후기 남기거나" />
-            {posts.slice(0, 3).map((p) => (
-              <Link
-                key={p.id}
-                href={`/community/${p.id}`}
-                className="block border-b border-line px-4 py-3.5"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-[13.5px] font-bold">{p.nickname}</span>
-                  <span className="ml-auto text-[12.5px] text-sub">
-                    {ago(p.created_at)}
-                  </span>
-                </div>
-                <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-[14px] leading-relaxed text-sub">
-                  {p.body}
-                </p>
-              </Link>
-            ))}
-            <Link
-              href="/community"
-              className="block px-4 py-4 text-[13.5px] font-semibold text-brand"
-            >
-              커뮤니티 전체 보기 ›
-            </Link>
           </>
         ) : null}
 
