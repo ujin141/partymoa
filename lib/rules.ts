@@ -22,17 +22,27 @@ export function genderCap(capacity: number): number {
 }
 
 /**
- * 성별 티켓 가격. 차수 가격이 여성 기준가이고 남성은 계수를 곱한다.
- * **천 원 단위로 올림 반올림** — 프로토타입이 그렇게 보여 줬고 현장에서
- * 계좌이체를 받으므로 끝자리가 깔끔해야 한다.
+ * 성별 티켓 가격.
+ *
+ * **차수에 남성가가 적혀 있으면 그게 이긴다.** 크루는 계수가 아니라 두
+ * 가격을 따로 정한다 — 1차 39/49, 3차 59/69 처럼. 계수만 쓰면 3차가
+ * 59,000 × 1.25 = 74,000 으로 나와서 실제 69,000 과 어긋난다.
+ *
+ * 안 적혀 있으면 예전대로 계수를 곱하고 **천 원 단위로 반올림한다** —
+ * 현장에서 계좌이체를 받으므로 끝자리가 깔끔해야 한다.
+ *
+ * 이건 화면에 보여주기 위한 사본이다. 실제 금액은 서버의 tier_price() 가
+ * 정한다 — 둘이 어긋나면 서버가 맞다.
  */
 export function priceFor(
   tierPrice: number,
   gender: Gender,
   maleMultiplier: number,
+  malePrice?: number | null,
 ): number {
-  const raw = gender === "M" ? tierPrice * maleMultiplier : tierPrice;
-  return Math.round(raw / 1000) * 1000;
+  if (gender !== "M") return tierPrice;
+  if (malePrice != null) return malePrice;
+  return Math.round((tierPrice * maleMultiplier) / 1000) * 1000;
 }
 
 /** 정가 대비 할인율(%). 0 이하면 배지를 안 띄운다 */

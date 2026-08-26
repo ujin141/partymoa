@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { LoginForm } from "@/components/crew/LoginForm";
@@ -9,10 +10,9 @@ export const metadata = { title: "크루 로그인" };
 export default async function CrewLoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; error?: string }>;
 }) {
-  const [{ next }, crew] = await Promise.all([searchParams, myCrew()]);
-  // 운영자만이고 크루는 아닌 사람도 있다. 그때는 next 를 따라간다
+  const [{ next, error }, crew] = await Promise.all([searchParams, myCrew()]);
   if (crew) redirect(next ?? "/crew");
 
   return (
@@ -23,6 +23,18 @@ export default async function CrewLoginPage({
         봅니다. 스태프는 각자 구글 계정으로 들어오세요 — 비밀번호를 돌리면
         그게 그대로 손님 명단 접근 권한이 됩니다.
       </p>
+      <p className="mt-2 text-[13px] text-sub">
+        파티모아를 운영하는 사람은{" "}
+        <Link href="/admin/login" className="underline">
+          운영자 로그인
+        </Link>{" "}
+        으로 가세요. 크루 화면과 권한이 다릅니다.
+      </p>
+      {error ? (
+        <p className="mt-4 rounded-xl bg-[#FDECEF] px-4 py-3.5 text-[13.5px] leading-relaxed text-hot">
+          로그인이 안 됐어요 — {error}
+        </p>
+      ) : null}
       <div className="mt-6">
         <LoginForm next={next ?? "/crew"} />
       </div>

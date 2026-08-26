@@ -11,9 +11,9 @@ export const metadata = { title: "로그인" };
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; error?: string }>;
 }) {
-  const { next } = await searchParams;
+  const { next, error } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -43,6 +43,12 @@ export default async function LoginPage({
             찜과 커뮤니티 글이 계정에 남아요.
           </p>
         </div>
+
+        {error ? (
+          <p className="mb-4 rounded-xl bg-[#FDECEF] px-4 py-3.5 text-[13.5px] leading-relaxed text-hot">
+            로그인이 안 됐어요 — {error}
+          </p>
+        ) : null}
 
         <SocialLogin next={next ?? "/my"} />
 

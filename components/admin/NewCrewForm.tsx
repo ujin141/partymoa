@@ -14,7 +14,9 @@ export function NewCrewForm() {
   const [ownerEmail, setOwnerEmail] = useState("");
   const [bio, setBio] = useState("");
   const [instagram, setInstagram] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
   const [busy, start] = useTransition();
 
   if (!open) {
@@ -53,7 +55,13 @@ export function NewCrewForm() {
         value={ownerEmail}
         type="email"
         onChange={(e) => setOwnerEmail(e.target.value)}
-        placeholder="대표 이메일 — 이미 가입한 계정이어야 해요"
+        placeholder="대표 이메일 — 이 주소로 로그인하면 크루 화면이 열려요"
+      />
+      <input
+        className={`${box} mt-2`}
+        value={avatarUrl}
+        onChange={(e) => setAvatarUrl(e.target.value)}
+        placeholder="로고 주소 (/crews/blackout.png 또는 https://…)"
       />
       <div className="mt-2 grid gap-2 sm:grid-cols-2">
         <input
@@ -71,10 +79,15 @@ export function NewCrewForm() {
       </div>
 
       <p className="mt-2.5 text-[12.5px] leading-relaxed text-sub">
-        계정은 여기서 만들지 않습니다. 대표가 먼저{" "}
-        <b className="text-ink">/crew/login</b> 에서 로그인해 계정을 만든 뒤,
-        그 이메일을 넣으세요.
+        대표가 아직 가입 전이어도 등록됩니다. 그 이메일로 구글 로그인하는
+        순간 크루 화면이 열려요.
       </p>
+
+      {done ? (
+        <p className="mt-2 rounded-lg bg-[#E7F7EF] px-3 py-2.5 text-[13px] leading-relaxed text-ok">
+          {done}
+        </p>
+      ) : null}
 
       {err ? (
         <p className="mt-2 text-[13px] font-semibold text-hot">{err}</p>
@@ -97,23 +110,28 @@ export function NewCrewForm() {
           onClick={() =>
             start(async () => {
               setErr(null);
+              setDone(null);
               const r = await createCrew({
                 name,
                 slug,
                 ownerEmail,
                 bio,
                 instagram,
+                avatarUrl,
               });
               if (!r.ok) {
                 setErr(r.message);
                 return;
               }
-              setOpen(false);
+              // 닫지 않는다. 대표가 아직 가입 전이면 뭘 안내해야 하는지
+              // 바로 읽고 나가야 한다
+              setDone(r.message);
               setName("");
               setSlug("");
               setOwnerEmail("");
               setBio("");
               setInstagram("");
+              setAvatarUrl("");
             })
           }
           className="flex-1 rounded-xl bg-brand py-2.5 text-[14px] font-bold text-white disabled:bg-[#C8CBD2]"

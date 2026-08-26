@@ -118,7 +118,7 @@ export default async function AdminHome() {
             {rows.map((r) => (
               <tr key={r.event_id} className="border-b border-line">
                 <td className="max-w-[180px] truncate py-2.5 font-bold">
-                  {r.title}
+                  <Link href={`/admin/events/${r.event_id}`}>{r.title}</Link>
                 </td>
                 <td className="py-2.5 text-sub">{r.crew_name}</td>
                 <td className="py-2.5 text-sub">{shortDate(r.starts_at)}</td>

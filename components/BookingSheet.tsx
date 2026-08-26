@@ -53,7 +53,7 @@ export function BookingSheet(p: Props) {
   const tier = p.tiers.find((t) => t.id === tierId) ?? null;
   const unit = useMemo(() => {
     if (!tier || !gender) return null;
-    return priceFor(tier.price, gender, p.maleMultiplier);
+    return priceFor(tier.price, gender, p.maleMultiplier, tier.male_price);
   }, [tier, gender, p.maleMultiplier]);
   const total = unit ? unit * qty : null;
 
@@ -183,7 +183,7 @@ export function BookingSheet(p: Props) {
           {p.tiers.map((t) => {
             const sold = p.tierSold[t.id] ?? 0;
             const out = sold >= t.capacity;
-            const price = priceFor(t.price, gender ?? "F", p.maleMultiplier);
+            const price = priceFor(t.price, gender ?? "F", p.maleMultiplier, t.male_price);
             return (
               <button
                 key={t.id}

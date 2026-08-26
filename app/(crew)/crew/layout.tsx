@@ -1,8 +1,10 @@
+import Link from "next/link";
 import { Suspense } from "react";
 
 import { CrewTabs } from "@/components/CrewTabs";
 import { LogoutButton } from "@/components/LogoutButton";
 import { Symbol } from "@/components/Symbol";
+import { isAdmin } from "@/lib/admin";
 import { myCrew } from "@/lib/crew";
 
 export default async function CrewLayout({
@@ -10,7 +12,7 @@ export default async function CrewLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const crew = await myCrew();
+  const [crew, admin] = await Promise.all([myCrew(), isAdmin()]);
 
   return (
     <div className="mx-auto flex h-dvh max-w-[430px] flex-col overflow-hidden bg-white pt-[env(safe-area-inset-top)] sm:border-x sm:border-line">
@@ -27,6 +29,14 @@ export default async function CrewLayout({
             <span id="crew-name" className="text-[13px] text-sub">
               {crew.name}
             </span>
+            {admin ? (
+              <Link
+                href="/admin"
+                className="rounded-lg border border-line px-2.5 py-1.5 text-[12.5px] font-semibold text-brand"
+              >
+                운영
+              </Link>
+            ) : null}
             <LogoutButton
               to="/crew/login"
               className="rounded-lg border border-line px-2.5 py-1.5 text-[12.5px] font-semibold text-sub"

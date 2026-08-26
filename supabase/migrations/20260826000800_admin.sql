@@ -47,6 +47,13 @@ create policy comments_admin_all on post_comments
 create policy crews_admin_write on crews
   for all using (is_app_admin()) with check (is_app_admin());
 
+-- 크루를 등록할 때 대표 멤버 한 줄을 같이 넣는다. crew_members_write 는
+-- "그 크루의 owner" 만 통과시키는데, 갓 만든 크루는 owner 가 비어 있거나
+-- 운영자 본인이 아니라 막힌다
+drop policy if exists crew_members_admin_write on crew_members;
+create policy crew_members_admin_write on crew_members
+  for all using (is_app_admin()) with check (is_app_admin());
+
 -- ─────────────────────────────────────────── 플랫폼 집계
 --
 -- 수수료는 **입금 완료된 건에만** 매긴다(사양서 3-5). 예정 매출에 수수료를

@@ -17,7 +17,9 @@ create table crews (
   bio text,
   avatar_url text,
   instagram text,
-  owner_id uuid references auth.users not null,
+  -- 대표 계정. 아직 가입 전이면 비어 있고, 그때는 crew_members.email 로
+  -- 권한이 간다 — 크루를 먼저 등록하고 초대하는 순서가 되게
+  owner_id uuid references auth.users,
   created_at timestamptz default now()
 );
 
@@ -82,6 +84,9 @@ create table ticket_tiers (
   name text not null,
   note text,
   price int not null check (price >= 0),
+  -- 남성가. 비우면 events.male_price_multiplier 로 계산한다.
+  -- 실제 크루는 계수가 아니라 두 가격을 따로 정한다 (1차 39/49 · 3차 59/69)
+  male_price int check (male_price is null or male_price >= 0),
   capacity int not null check (capacity > 0),
   sort_order int not null
 );
@@ -186,6 +191,26 @@ group by t.id;
 --
 -- 에러는 'CODE:잔여' 형태로 던진다. 앱이 잔여 수를 그대로 보여 준다.
 
+-- 이미 깔린 DB 에도 남성가 컬럼을 넣는다. create table if not exists 는
+-- 표가 있으면 통째로 건너뛰어서 컬럼이 안 생긴다
+alter table ticket_tiers add column if not exists male_price int;
+do $$ begin
+  alter table ticket_tiers add constraint ticket_tiers_male_price_check
+    check (male_price is null or male_price >= 0);
+exception when duplicate_object then null;
+end $$;
+
+-- **가격의 단일 진실.** lib/rules.ts 의 priceFor 는 이걸 화면용으로 옮겨
+-- 적은 사본이고, 실제로 돈을 정하는 건 여기다
+create or replace function tier_price(p_tier ticket_tiers, p_event events, p_gender text)
+returns int language sql immutable as $$
+  select case
+    when p_gender <> 'M' then p_tier.price
+    when p_tier.male_price is not null then p_tier.male_price
+    else (round(p_tier.price * p_event.male_price_multiplier / 1000.0) * 1000)::int
+  end;
+$$;
+
 create or replace function create_booking(
   p_event_id uuid,
   p_tier_id uuid,
@@ -256,13 +281,9 @@ begin
       using errcode = 'P0001';
   end if;
 
-  -- 금액도 서버가 정한다. 클라이언트가 보낸 금액은 쓰지 않는다
-  v_price := round(
-    case when p_gender = 'M'
-      then v_tier.price * v_event.male_price_multiplier
-      else v_tier.price::numeric
-    end / 1000.0
-  )::int * 1000;
+  -- 금액도 서버가 정한다. 클라이언트가 보낸 금액은 쓰지 않는다.
+  -- 차수에 남성가가 적혀 있으면 그걸 쓰고, 없으면 계수로 계산한다
+  v_price := tier_price(v_tier, v_event, p_gender);
   v_amount := v_price * p_quantity;
 
   v_invite := nullif(upper(trim(coalesce(p_invite_code, ''))), '');

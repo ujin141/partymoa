@@ -25,7 +25,13 @@ export interface EventDraft {
   categories: string[];
   listPrice: number;
   bankAccount: string;
-  tiers: { name: string; note: string; price: number; capacity: number }[];
+  tiers: {
+    name: string;
+    note: string;
+    price: number;
+    malePrice: number | null;
+    capacity: number;
+  }[];
   lineups: { artist: string; time: string }[];
 }
 
@@ -99,6 +105,7 @@ export async function createEvent(d: EventDraft) {
     name: t.name.trim() || `${i + 1}차`,
     note: t.note.trim() || null,
     price: t.price,
+    male_price: t.malePrice,
     capacity: t.capacity,
     sort_order: i,
   }));

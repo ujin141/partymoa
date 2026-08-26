@@ -10,7 +10,31 @@ import { NextResponse, type NextRequest } from "next/server";
  * 환경변수 하나 빠진 걸로 사이트 전체가 안 열리는 건 과하다 —
  * 세션 갱신을 건너뛰고 페이지는 그대로 내보낸다.
  */
+/**
+ * www 로 모은다.
+ *
+ * **소셜 로그인이 도메인마다 갈린다.** PKCE 검증값은 로그인을 시작한
+ * 도메인의 쿠키에 저장된다. partymoa.com 에서 눌렀는데 Supabase 가
+ * Site URL(www.partymoa.com)로 돌려보내면 검증값이 없는 쪽에 도착해서
+ * 코드 교환이 깨진다 — 화면에는 그냥 "로그인이 안 된다" 로만 보인다.
+ *
+ * Supabase 의 Site URL·Redirect URLs 가 www 로 잡혀 있으니 앱도 www 로
+ * 맞춘다. 로컬(localhost)과 프리뷰 배포는 건드리지 않는다.
+ */
+function canonicalHost(req: NextRequest) {
+  const host = req.headers.get("host") ?? "";
+  if (host !== "partymoa.com") return null;
+  const to = new URL(req.url);
+  to.host = "www.partymoa.com";
+  to.protocol = "https:";
+  to.port = "";
+  return to;
+}
+
 export async function middleware(req: NextRequest) {
+  const canonical = canonicalHost(req);
+  if (canonical) return NextResponse.redirect(canonical, 308);
+
   const res = NextResponse.next({ request: req });
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

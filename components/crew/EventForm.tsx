@@ -87,7 +87,14 @@ export function EventForm({
   const [bankAccount, setBankAccount] = useState(ev?.bank_account ?? "");
 
   const [tiers, setTiers] = useState<
-    { id?: string; name: string; note: string; price: string; capacity: string }[]
+    {
+      id?: string;
+      name: string;
+      note: string;
+      price: string;
+      malePrice: string;
+      capacity: string;
+    }[]
   >(
     initial?.tiers.length
       ? initial.tiers.map((t) => ({
@@ -95,9 +102,18 @@ export function EventForm({
           name: t.name,
           note: t.note ?? "",
           price: String(t.price),
+          malePrice: t.male_price == null ? "" : String(t.male_price),
           capacity: String(t.capacity),
         }))
-      : [{ name: "1차 얼리버드", note: "선착순", price: "39000", capacity: "40" }],
+      : [
+          {
+            name: "1차 얼리버드",
+            note: "선착순",
+            price: "39000",
+            malePrice: "",
+            capacity: "40",
+          },
+        ],
   );
   const [lineups, setLineups] = useState(
     initial?.lineups.length
@@ -138,6 +154,7 @@ export function EventForm({
           name: t.name,
           note: t.note,
           price: Number(t.price) || 0,
+          malePrice: t.malePrice.trim() === "" ? null : Number(t.malePrice) || 0,
           capacity: Number(t.capacity) || 0,
         })),
         lineups,
@@ -416,17 +433,9 @@ export function EventForm({
             }
             placeholder="선착순 40명"
           />
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <div>
-              <span className="mb-1 block text-[12px] text-sub">
-                여성가 / 남성{" "}
-                {priceFor(
-                  Number(t.price) || 0,
-                  "M",
-                  Number(maleMultiplier) || 1,
-                ).toLocaleString("ko-KR")}
-                원
-              </span>
+              <span className="mb-1 block text-[12px] text-sub">여성가</span>
               <input
                 className={input}
                 inputMode="numeric"
@@ -436,6 +445,30 @@ export function EventForm({
                     tiers.map((x, j) =>
                       j === i
                         ? { ...x, price: e.target.value.replace(/\D/g, "") }
+                        : x,
+                    ),
+                  )
+                }
+              />
+            </div>
+            <div>
+              <span className="mb-1 block text-[12px] text-sub">남성가</span>
+              <input
+                className={input}
+                inputMode="numeric"
+                value={t.malePrice}
+                placeholder={String(
+                  priceFor(
+                    Number(t.price) || 0,
+                    "M",
+                    Number(maleMultiplier) || 1,
+                  ),
+                )}
+                onChange={(e) =>
+                  setTiers(
+                    tiers.map((x, j) =>
+                      j === i
+                        ? { ...x, malePrice: e.target.value.replace(/\D/g, "") }
                         : x,
                     ),
                   )
@@ -471,6 +504,7 @@ export function EventForm({
               name: `${tiers.length + 1}차 사전예매`,
               note: "",
               price: "",
+              malePrice: "",
               capacity: "",
             },
           ])

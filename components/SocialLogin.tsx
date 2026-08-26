@@ -72,6 +72,15 @@ function Icon({ p }: { p: Provider }) {
  * 프로젝트에서 Manual linking 을 안 켰으면 linkIdentity 가 실패한다.
  * 그때는 일반 로그인으로 넘어가되, 티켓은 예매번호로 다시 찾을 수 있다.
  */
+/**
+ * **켜 둔 제공자만 보여 준다.**
+ *
+ * 카카오·애플은 Supabase 프로젝트에서 아직 안 켰다. 버튼만 있고 누르면
+ * "provider is not enabled" 가 뜨는 게 제일 나쁘다 — 손님은 앱이 고장 난
+ * 줄 안다. 대시보드에서 켠 다음 여기에 넣으면 그대로 붙는다.
+ */
+const ENABLED: Provider[] = ["google"];
+
 export function SocialLogin({ next = "/my" }: { next?: string }) {
   const [busy, setBusy] = useState<Provider | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -113,7 +122,7 @@ export function SocialLogin({ next = "/my" }: { next?: string }) {
 
   return (
     <div className="grid gap-2.5">
-      {(["kakao", "apple", "google"] as Provider[]).map((p) => (
+      {ENABLED.map((p) => (
         <button
           key={p}
           type="button"

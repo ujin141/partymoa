@@ -6,7 +6,7 @@ import { BookingSheet } from "@/components/BookingSheet";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { ShareButton } from "@/components/ShareButton";
 import { Gauge, Tag } from "@/components/ui/primitives";
-import { longDate, timeRange } from "@/lib/format";
+import { longDate, timeRange, won } from "@/lib/format";
 import { getParty } from "@/lib/queries";
 import { genderCap, priceFor, soldRate } from "@/lib/rules";
 
@@ -184,6 +184,52 @@ export default async function PartyPage({
               </p>
             </>
           ) : null}
+        </section>
+
+        {/* 남녀 가격이 다르다. 여성가만 보여 주면 남자는 결제 직전에야
+            다른 값을 본다 — 차수마다 두 값을 다 편다 */}
+        <section className="border-b-8 border-soft px-4 py-4.5">
+          <h4 className="mb-3 text-base font-extrabold">가격</h4>
+          {tiers.map((t) => {
+            const sold = tierSold[t.id] ?? 0;
+            const out = sold >= t.capacity;
+            return (
+              <div
+                key={t.id}
+                className={`flex items-center gap-3 border-b border-line py-2.5 last:border-b-0 ${
+                  out ? "text-[#B4B8C2]" : ""
+                }`}
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="text-[15px] font-bold">{t.name}</div>
+                  <div className="mt-0.5 text-[12.5px] text-sub">
+                    {out
+                      ? "매진"
+                      : `${Math.max(0, t.capacity - sold)}장 남음${t.note ? ` · ${t.note}` : ""}`}
+                  </div>
+                </div>
+                <div className="flex-none text-right text-[13.5px] leading-6">
+                  <div>
+                    <span className="text-sub">여 </span>
+                    <b>{won(t.price)}</b>
+                  </div>
+                  <div>
+                    <span className="text-sub">남 </span>
+                    <b>
+                      {won(
+                        priceFor(
+                          t.price,
+                          "M",
+                          Number(event.male_price_multiplier),
+                          t.male_price,
+                        ),
+                      )}
+                    </b>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </section>
 
         {lineups.length > 0 ? (

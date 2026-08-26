@@ -17,7 +17,8 @@ export type Crew = {
   bio: string | null;
   avatar_url: string | null;
   instagram: string | null;
-  owner_id: string;
+  /** 대표 계정. 아직 가입 전이면 null 이고 crew_members.email 로 권한이 간다 */
+  owner_id: string | null;
   created_at: string;
 }
 
@@ -64,6 +65,8 @@ export type TicketTier = {
   name: string;
   note: string | null;
   price: number;
+  /** 남성가. null 이면 events.male_price_multiplier 로 계산한다 */
+  male_price: number | null;
   capacity: number;
   sort_order: number;
 }
@@ -182,7 +185,7 @@ type Insertable<T, Req extends keyof T> = Pick<T, Req> & Partial<T>;
 export type Database = {
   public: {
     Tables: {
-      crews: Table<Crew, Insertable<Crew, "name" | "slug" | "owner_id">>;
+      crews: Table<Crew, Insertable<Crew, "name" | "slug">>;
       crew_members: Table<
         CrewMember,
         Insertable<CrewMember, "crew_id" | "display_name" | "invite_code">
