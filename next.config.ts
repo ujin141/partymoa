@@ -1,10 +1,12 @@
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // 홈 디렉터리에 다른 lockfile 이 있어 Next 가 루트를 잘못 잡는다
-  turbopack: { root: path.dirname(new URL(import.meta.url).pathname).slice(1) },
+  // 홈 디렉터리에 다른 lockfile 이 있어 Next 가 루트를 잘못 잡는다.
+  // pathname 을 직접 자르면 맥에서 앞 슬래시가 날아가 상대경로가 된다 — fileURLToPath 를 쓴다
+  turbopack: { root: path.dirname(fileURLToPath(import.meta.url)) },
   // OG 카드가 fs 로 읽는 폰트다. 이걸 안 적으면 Vercel 번들에서 빠져
   // 배포 후에만 "파일 없음" 으로 터진다 — 로컬에서는 멀쩡하다
   outputFileTracingIncludes: {
