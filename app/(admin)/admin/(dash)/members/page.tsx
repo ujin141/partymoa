@@ -82,11 +82,16 @@ export default async function AdminMembersPage({
         </p>
       </div>
 
+      {/* **이유를 그대로 보여 준다.** "못 읽었어요" 만 띄워 두면 함수가
+          없는 건지, 권한이 없는 건지, SQL 이 터진 건지 알 수가 없다 */}
       {error ? (
-        <p className="mx-4 rounded-xl bg-[#FDECEF] px-4 py-3.5 text-[13.5px] leading-relaxed text-hot">
-          목록을 읽지 못했어요. APPLY.sql 을 아직 안 돌렸다면 그것부터
-          돌려 주세요.
-        </p>
+        <div className="mx-4 rounded-xl bg-[#FDECEF] px-4 py-3.5 text-[13.5px] leading-relaxed text-hot">
+          <b className="block">목록을 읽지 못했어요.</b>
+          {error.message}
+          <span className="mt-1.5 block text-[12.5px]">
+            함수가 없다고 나오면 APPLY.sql 을 돌리세요.
+          </span>
+        </div>
       ) : null}
 
       {sum ? (

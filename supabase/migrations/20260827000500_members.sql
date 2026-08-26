@@ -29,6 +29,7 @@ stable
 security definer
 set search_path = public
 as $fn$
+#variable_conflict use_column
 declare
   v_q text := nullif(trim(coalesce(p_q, '')), '');
 begin
@@ -36,6 +37,9 @@ begin
     raise exception 'FORBIDDEN' using errcode = 'P0001';
   end if;
 
+  -- **모든 컬럼에 별칭을 붙인다.** 반환 컬럼 이름(user_id, email, paid …)이
+  -- 표의 컬럼 이름과 같아서, 안 붙이면 PL/pgSQL 이 어느 쪽인지 모른다고
+  -- 터진다 — "column reference user_id is ambiguous".
   return query
   select
     u.id,
@@ -47,20 +51,20 @@ begin
     p.nickname,
     p.real_name,
     p.phone,
-    coalesce(p.areas, '{}'),
-    coalesce(p.categories, '{}'),
-    coalesce(b.cnt, 0)::int,
-    coalesce(b.paid, 0)::bigint
+    coalesce(p.areas, '{}'::text[]),
+    coalesce(p.categories, '{}'::text[]),
+    coalesce(b.n_bookings, 0)::int,
+    coalesce(b.sum_paid, 0)::bigint
   from auth.users u
   left join profiles p on p.user_id = u.id
   left join (
-    select user_id,
-           count(*) filter (where status <> 'cancelled') as cnt,
-           sum(amount) filter (where status in ('paid', 'checked_in')) as paid
-    from bookings
-    where user_id is not null
-    group by user_id
-  ) b on b.user_id = u.id
+    select bk.user_id as uid,
+           count(*) filter (where bk.status <> 'cancelled') as n_bookings,
+           sum(bk.amount) filter (where bk.status in ('paid', 'checked_in')) as sum_paid
+    from bookings bk
+    where bk.user_id is not null
+    group by bk.user_id
+  ) b on b.uid = u.id
   where v_q is null
      or u.email ilike '%' || v_q || '%'
      or p.nickname ilike '%' || v_q || '%'
@@ -87,6 +91,7 @@ stable
 security definer
 set search_path = public
 as $fn$
+#variable_conflict use_column
 begin
   if not is_app_admin() then
     raise exception 'FORBIDDEN' using errcode = 'P0001';
@@ -97,9 +102,9 @@ begin
     count(*) filter (where not coalesce(u.is_anonymous, false))::int,
     count(*) filter (where coalesce(u.is_anonymous, false))::int,
     count(*) filter (where u.raw_app_meta_data ->> 'provider' = 'google')::int,
-    (select count(*) from profiles)::int,
-    (select count(distinct user_id) from bookings
-     where user_id is not null and status <> 'cancelled')::int
+    (select count(*) from profiles pr)::int,
+    (select count(distinct bk.user_id) from bookings bk
+     where bk.user_id is not null and bk.status <> 'cancelled')::int
   from auth.users u;
 end $fn$;
 
