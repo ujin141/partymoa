@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { fromSeoulInput } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
 export interface EventPatch {
@@ -46,7 +47,14 @@ export async function updateEvent(eventId: string, d: EventPatch) {
   if (!d.title.trim() || !d.venueName.trim() || !d.startsAt || !d.endsAt) {
     return { ok: false as const, message: "제목·장소·일시는 비울 수 없어요." };
   }
-  if (new Date(d.endsAt) <= new Date(d.startsAt)) {
+  // **입력값은 서울 시각이다.** 시대 없이 new Date 로 읽으면 서버(UTC)
+  // 기준으로 해석돼 저장이 아홉 시간 밀린다
+  const startsIso = fromSeoulInput(d.startsAt);
+  const endsIso = fromSeoulInput(d.endsAt);
+  if (!startsIso || !endsIso) {
+    return { ok: false as const, message: "날짜·시간을 확인해 주세요." };
+  }
+  if (new Date(endsIso) <= new Date(startsIso)) {
     return { ok: false as const, message: "종료 시각이 시작보다 빨라요." };
   }
   if (!d.tiers.length) {
@@ -79,8 +87,8 @@ export async function updateEvent(eventId: string, d: EventPatch) {
       venue_name: d.venueName.trim(),
       area: d.area.trim() || "서울",
       address: d.address.trim() || null,
-      starts_at: new Date(d.startsAt).toISOString(),
-      ends_at: new Date(d.endsAt).toISOString(),
+      starts_at: startsIso,
+      ends_at: endsIso,
       capacity: d.capacity,
       gender_balanced: d.genderBalanced,
       male_price_multiplier: d.maleMultiplier,

@@ -5,6 +5,7 @@ import { HeroCard, MiniRow, PartyCard } from "@/components/PartyCard";
 import { Wordmark } from "@/components/Symbol";
 import { Divider, Empty, SectionTitle } from "@/components/ui/primitives";
 import { listAreas, listCrews, listOpenParties } from "@/lib/queries";
+import { seoulWeekday } from "@/lib/format";
 import { isClosingSoon, soldRate } from "@/lib/rules";
 
 // **캐시를 안 쓴다.** 찜은 사람마다 다르고 잔여는 초 단위로 바뀐다.
@@ -15,7 +16,10 @@ function isThisWeekend(iso: string) {
   const d = new Date(iso);
   const now = new Date();
   const days = (d.getTime() - now.getTime()) / 86400000;
-  return days >= 0 && days <= 7 && (d.getDay() === 5 || d.getDay() === 6);
+  // 요일도 서울 기준이다. UTC 서버에서 재면 토요일 새벽 행사가
+  // 금요일로 밀린다
+  const w = seoulWeekday(iso);
+  return days >= 0 && days <= 7 && (w === 5 || w === 6);
 }
 
 export default async function HomePage() {

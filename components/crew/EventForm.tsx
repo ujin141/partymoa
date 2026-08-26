@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 
 import { createEvent } from "@/app/(crew)/crew/events/new/actions";
 import { updateEvent } from "@/app/(crew)/crew/events/[id]/edit/actions";
+import { toLocalInput } from "@/lib/format";
 import { priceFor } from "@/lib/rules";
 import type { EventRow, Lineup, TicketTier } from "@/types/database";
 
@@ -12,13 +13,6 @@ export interface EventFormInitial {
   event: EventRow;
   tiers: TicketTier[];
   lineups: Lineup[];
-}
-
-/** datetime-local 은 로컬 시각 문자열을 받는다. ISO 를 그대로 주면 빈다 */
-function toLocalInput(iso: string) {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 const CATEGORIES = ["풀파티", "루프탑", "클럽", "라운지", "야외"];

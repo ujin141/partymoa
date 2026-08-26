@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { adminEvent, heads, live, money } from "@/lib/crew";
-import { longDate, won } from "@/lib/format";
+import { longDate, stamp, won } from "@/lib/format";
 import { FEE_RATE, genderCap, priceFor } from "@/lib/rules";
 import { createClient } from "@/lib/supabase/server";
 import type { Crew } from "@/types/database";
@@ -16,15 +16,6 @@ const LABEL = {
   checked_in: "입장완료",
   cancelled: "취소",
 } as const;
-
-function when(iso: string) {
-  return new Date(iso).toLocaleString("ko-KR", {
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 function Kpi({
   label,
@@ -237,14 +228,14 @@ export default async function AdminEventPage({
                       {LABEL[b.status]}
                     </span>
                   </td>
-                  <td className="py-2.5 text-sub">{when(b.created_at)}</td>
+                  <td className="py-2.5 text-sub">{stamp(b.created_at)}</td>
                   <td className="py-2.5 text-sub">
                     {b.status === "pending"
-                      ? `만료 ${when(b.expires_at)}`
+                      ? `만료 ${stamp(b.expires_at)}`
                       : [
-                          b.paid_at ? `입금 ${when(b.paid_at)}` : null,
+                          b.paid_at ? `입금 ${stamp(b.paid_at)}` : null,
                           b.checked_in_at
-                            ? `입장 ${when(b.checked_in_at)}`
+                            ? `입장 ${stamp(b.checked_in_at)}`
                             : null,
                         ]
                           .filter(Boolean)

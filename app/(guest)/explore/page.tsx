@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { PartyCard } from "@/components/PartyCard";
 import { SearchBar } from "@/components/SearchBar";
 import { Empty } from "@/components/ui/primitives";
+import { seoulWeekday } from "@/lib/format";
 import { listAreas, listOpenParties, type PartyCardData } from "@/lib/queries";
 import { soldRate } from "@/lib/rules";
 
@@ -30,7 +31,10 @@ type Sort = keyof typeof SORTS;
 function isWeekend(iso: string) {
   const d = new Date(iso);
   const days = (d.getTime() - Date.now()) / 86400000;
-  return days >= 0 && days <= 7 && (d.getDay() === 5 || d.getDay() === 6);
+  // 요일도 서울 기준이다. UTC 서버에서 재면 토요일 새벽 행사가
+  // 금요일로 밀린다
+  const w = seoulWeekday(iso);
+  return days >= 0 && days <= 7 && (w === 5 || w === 6);
 }
 
 function matchesCategory(cat: string, e: PartyCardData["event"]) {

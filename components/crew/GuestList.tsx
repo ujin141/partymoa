@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 
 import { setPaid } from "@/app/(crew)/crew/actions";
-import { won } from "@/lib/format";
+import { stampFull, won } from "@/lib/format";
 import type { Booking, TicketTier } from "@/types/database";
 
 const FILTERS = ["전체", "미입금", "입금완료", "입장완료", "1인"] as const;
@@ -38,7 +38,7 @@ function csvDownload(
     b.invite_code ?? "",
     b.status === "pending" ? "대기" : "완료",
     b.status === "checked_in" ? "완료" : "",
-    new Date(b.created_at).toLocaleString("ko-KR"),
+    stampFull(b.created_at),
   ]);
   // **BOM 을 반드시 붙인다.** 없으면 엑셀에서 한글이 깨진다
   const text =
