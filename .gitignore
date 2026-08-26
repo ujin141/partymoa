@@ -46,3 +46,13 @@ next-env.d.ts
 supabase/GUEST_INFO.sql
 supabase/gender_fill.html
 supabase/IMPORT_GUESTS.sql
+
+# 안드로이드 (TWA)
+android/build/
+android/app/build/
+android/.gradle/
+android/local.properties
+# **서명 키는 절대 커밋하지 않는다.** 이게 새면 남이 우리 앱 이름으로
+# 업데이트를 올릴 수 있다
+android/*.keystore
+android/*.jks

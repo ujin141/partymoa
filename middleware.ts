@@ -129,7 +129,11 @@ export const config = {
     /**
      * 정적 파일은 건너뛴다. **여기 빠뜨리면 이미지 한 장마다 미들웨어가
      * 한 번씩 돈다** — 사진 다섯 장짜리 파티 화면이면 요청이 그만큼 는다.
+     *
+     * `.well-known` 도 뺀다. 안드로이드 앱을 확인하는 크롬은 **리다이렉트를
+     * 안 따라간다.** partymoa.com 으로 온 요청을 www 로 넘기면 그 도메인은
+     * 확인에 실패하고, 앱 안에 주소창이 뜬다.
      */
-    "/((?!_next/static|_next/image|favicon.ico|fonts|covers|photos|sw\\.js|manifest\\.webmanifest|robots\\.txt|sitemap\\.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2|ttf)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|fonts|covers|photos|sw\\.js|manifest\\.webmanifest|robots\\.txt|sitemap\\.xml|\\.well-known|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2|ttf)$).*)",
   ],
 };
