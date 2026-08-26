@@ -898,6 +898,36 @@ where slug = 'after-sunset-20260829';
 update events set guest_price = 30000
 where slug = 'after-sunset-20260829';
 
+-- ── DJ 마다 초대 코드가 하나씩 있어야 한다.
+--
+-- **라인업에 올린 DJ 가 멤버로 안 들어가 있으면 코드가 없다.** 코드가
+-- 없으면 그 DJ 가 데려온 손님이 (직접) 으로 잡히고, 정산할 때 누구
+-- 몫인지 알 수 없다.
+--
+-- 라인업에서 이름을 가져와 없는 것만 만든다. 백투백(HEIDY × CHIPS)은
+-- 한 사람이 아니라 두 사람이므로 건너뛴다 — 각자 코드를 이미 갖는다.
+do $inv$
+declare v_event uuid; v_crew uuid; r record; n int := 0;
+begin
+  select id, crew_id into v_event, v_crew
+  from events where slug = 'after-sunset-20260829';
+  if v_event is null then return; end if;
+
+  for r in
+    select distinct upper(trim(l.artist_name)) as nm
+    from lineups l
+    where l.event_id = v_event
+      and l.artist_name !~ '[×x]'          -- 백투백 줄은 건너뛴다
+  loop
+    -- 코드는 이름 그대로. DJ 가 외워서 불러 줄 수 있어야 한다
+    insert into crew_members (crew_id, user_id, display_name, invite_code, role)
+    values (v_crew, null, r.nm, regexp_replace(r.nm, '[^A-Z0-9]', '', 'g'), 'member')
+    on conflict (crew_id, invite_code) do nothing;
+    n := n + 1;
+  end loop;
+  raise notice '라인업 %명 확인', n;
+end $inv$;
+
 -- AFTER SUNSET TABLE. 메뉴판(2026.08.13)에 적힌 값 그대로다.
 -- 가격은 계좌이체 기준이고 카드는 따로 적는다
 do $tb$
@@ -969,6 +999,17 @@ select '표가 생겼나' as 구분,
   to_regclass('public.crew_applications') is not null as 크루신청,
   to_regclass('public.profiles') is not null as 프로필,
   to_regclass('public.reviews') is not null as 후기;
+
+select 'DJ 별 초대 코드' as 구분;
+select m.display_name as 이름, m.invite_code as 코드,
+       count(b.id) filter (where b.status <> 'cancelled') as 초대인원,
+       coalesce(sum(b.amount) filter (where b.status in ('paid','checked_in')), 0) as 금액
+from crew_members m
+left join bookings b on b.invite_code = m.invite_code
+  and b.event_id = (select id from events where slug = 'after-sunset-20260829')
+where m.crew_id = (select crew_id from events where slug = 'after-sunset-20260829')
+group by m.display_name, m.invite_code
+order by 3 desc, 1;
 
 select '수수료' as 구분, title as 파티, revenue_paid as 확정매출, fee as 수수료
 from platform_stats order by starts_at desc;
