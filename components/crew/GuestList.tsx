@@ -2,9 +2,14 @@
 
 import { Fragment, useMemo, useState, useTransition } from "react";
 
-import { cancelBooking, setPaid } from "@/app/(crew)/crew/actions";
+import {
+  cancelBooking,
+  setBookingInvite,
+  setPaid,
+} from "@/app/(crew)/crew/actions";
 import { stampFull, won } from "@/lib/format";
-import type { Booking, TicketTier } from "@/types/database";
+import { priceFor } from "@/lib/rules";
+import type { Booking, CrewMember, TicketTier } from "@/types/database";
 
 const FILTERS = [
   "전체",
@@ -35,11 +40,13 @@ const kindOf = (b: Booking): Kind =>
 function csvDownload(
   rows: Booking[],
   tierName: (id: string) => string,
+  memberName: (code: string | null) => string,
   fileName: string,
 ) {
   const head = [
     "구분",
-    "초대DJ",
+    "추천인",
+    "초대코드",
     "이름",
     "연락처",
     "성별",
@@ -62,6 +69,7 @@ function csvDownload(
   );
   const body = sorted.map((b) => [
     kindOf(b),
+    memberName(b.invite_code),
     b.invite_code ?? "",
     b.name,
     b.phone,
@@ -93,13 +101,19 @@ function csvDownload(
 export function GuestList({
   bookings,
   tiers,
+  members,
   eventTitle,
   bankAccount,
+  guestPrice,
+  maleMultiplier,
 }: {
   bookings: Booking[];
   tiers: TicketTier[];
+  members: CrewMember[];
   eventTitle: string;
   bankAccount: string | null;
+  guestPrice: number | null;
+  maleMultiplier: number;
 }) {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("전체");
@@ -108,6 +122,31 @@ export function GuestList({
 
   const tierName = (id: string) =>
     tiers.find((t) => t.id === id)?.name ?? "";
+
+  /**
+   * 코드 → 그 크루원 이름.
+   *
+   * 명단에 코드만 뜨면 크루 안에서도 "TS 가 누구였지" 를 묻게 된다.
+   * 멤버에서 지운 코드는 이름을 못 찾지만 집계는 남아야 하므로,
+   * 못 찾으면 코드를 그대로 쓴다.
+   */
+  const memberName = (code: string | null) =>
+    (code && members.find((m) => m.invite_code === code)?.display_name) ||
+    code ||
+    "";
+
+  /**
+   * 추천인이 없었다면 얼마였을지. 게스트가가 얼마를 깎았는지 보여주려면
+   * 원래 값이 있어야 한다.
+   *
+   * **화면용 사본이다.** 실제 금액은 서버의 tier_price() 가 정했고,
+   * 둘이 어긋나면 서버가 맞다 — 그래서 깎인 게 아니면 아무것도 안 띄운다.
+   */
+  const listPriceOf = (b: Booking) => {
+    const t = tiers.find((x) => x.id === b.tier_id);
+    if (!t) return null;
+    return priceFor(t.price, b.gender, maleMultiplier, t.male_price) * b.quantity;
+  };
 
   const rows = useMemo(
     () => bookings.filter((b) => b.status !== "cancelled"),
@@ -272,6 +311,13 @@ export function GuestList({
               <span className="text-[12px] text-sub">
                 {`${g.rows.reduce((a, b) => a + b.quantity, 0)}명`}
               </span>
+              {/* 규칙을 한 줄로 붙여 둔다. 크루가 "게스트는 얼마였지" 를
+                  다시 묻지 않게 */}
+              {g.kind === "게스트" && guestPrice != null ? (
+                <span className="rounded bg-brand-soft px-1.5 py-0.5 text-[11px] font-bold text-brand">
+                  {`추천인가 ${won(guestPrice)}`}
+                </span>
+              ) : null}
             </div>
             {g.rows.map((b, i) => (
             <Fragment key={b.id}>
@@ -281,12 +327,23 @@ export function GuestList({
             b.invite_code !== g.rows[i - 1]?.invite_code ? (
               <div className="flex items-center gap-2 bg-white px-4 pb-1 pt-3">
                 <b className="text-[13px] font-extrabold text-brand">
-                  {b.invite_code}
+                  {memberName(b.invite_code)}
                 </b>
+                <span className="rounded bg-brand-soft px-1.5 py-0.5 text-[11px] font-bold text-brand">
+                  {b.invite_code}
+                </span>
                 <span className="text-[12px] text-sub">
                   {`${g.rows
                     .filter((x) => x.invite_code === b.invite_code)
                     .reduce((a, x) => a + x.quantity, 0)}명`}
+                </span>
+                {/* 이 DJ 가 데려온 사람들의 합계. 정산에서 바로 쓴다 */}
+                <span className="ml-auto text-[12px] font-bold text-sub">
+                  {won(
+                    g.rows
+                      .filter((x) => x.invite_code === b.invite_code)
+                      .reduce((a, x) => a + x.amount, 0),
+                  )}
                 </span>
               </div>
             ) : null}
@@ -307,7 +364,7 @@ export function GuestList({
                   </span>
                   {b.invite_code && g.kind !== "게스트" ? (
                     <span className="rounded bg-brand-soft px-1.5 py-0.5 text-[11px] font-bold text-brand">
-                      {b.invite_code}
+                      {memberName(b.invite_code)}
                     </span>
                   ) : null}
                 </div>
@@ -336,9 +393,29 @@ export function GuestList({
                 </div>
               </div>
               <div className="flex flex-none flex-col items-end gap-1.5">
-                <span className="text-[14px] font-extrabold">
-                  {won(b.amount)}
-                </span>
+                {/* **깎인 게 보여야 한다.** 금액만 있으면 크루가 "왜 3만원
+                    이지" 를 매번 다시 물어본다. 원래 값과 나란히 둔다 */}
+                {(() => {
+                  const list = listPriceOf(b);
+                  const cut = b.invite_code && list != null && list > b.amount;
+                  return (
+                    <div className="text-right">
+                      <span className="text-[14px] font-extrabold">
+                        {won(b.amount)}
+                      </span>
+                      {cut ? (
+                        <div className="mt-0.5 flex items-center justify-end gap-1">
+                          <s className="text-[11.5px] text-[#B0B4BC]">
+                            {won(list)}
+                          </s>
+                          <span className="rounded bg-brand-soft px-1 py-0.5 text-[10.5px] font-bold text-brand">
+                            게스트가
+                          </span>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })()}
                 <div className="flex gap-1.5">
                   {/* **거절은 되돌릴 수 없다.** 자리가 바로 다음 사람에게
                       넘어가므로 누구를 자르는지 이름을 대고 묻는다 */}
@@ -356,6 +433,27 @@ export function GuestList({
                     className="rounded-lg border border-line px-2.5 py-1.5 text-[12.5px] font-bold text-sub"
                   >
                     거절
+                  </button>
+                  {/* **게스트인 걸 뒤늦게 아는 사람이 반드시 있다.**
+                      입구에서 "저 아무개 게스트인데요" 를 들었을 때
+                      코드만 넣으면 금액은 서버가 다시 계산한다 */}
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => {
+                      const next = window.prompt(
+                        `${b.name} 님의 추천인 코드\n비우면 추천인을 뗍니다. 금액은 자동으로 다시 계산돼요.`,
+                        b.invite_code ?? "",
+                      );
+                      if (next === null) return;
+                      start(async () => {
+                        const r = await setBookingInvite(b.id, next);
+                        if (!r.ok) window.alert(r.message);
+                      });
+                    }}
+                    className="rounded-lg border border-line px-2.5 py-1.5 text-[12.5px] font-bold text-sub"
+                  >
+                    추천인
                   </button>
                   {/* **되돌릴 때는 묻는다.** 초록 배지처럼 보이지만 실은
                       토글이라, 명단을 훑다 한 번 더 누르면 입금이 풀린다.
@@ -395,7 +493,7 @@ export function GuestList({
         <button
           type="button"
           onClick={() =>
-            csvDownload(rows, tierName, `${eventTitle}_명단.csv`)
+            csvDownload(rows, tierName, memberName, `${eventTitle}_명단.csv`)
           }
           className="w-full rounded-xl border border-line py-3.5 text-[15px] font-semibold"
         >

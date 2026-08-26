@@ -101,6 +101,41 @@ export async function cancelBooking(bookingId: string) {
   return { ok: true };
 }
 
+/**
+ * 예매 한 건의 추천인을 고친다. 빈 값이면 뗀다.
+ *
+ * **금액을 인자로 받지 않는다.** 코드만 넘기고 금액은 DB 의 tier_price 가
+ * 다시 계산한다 — 크루가 손으로 적게 두면 정산이 어긋나고, 어긋난 걸
+ * 나중에 아무도 못 찾는다.
+ */
+export async function setBookingInvite(bookingId: string, code: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("set_booking_invite", {
+    p_booking: bookingId,
+    p_code: code.trim() || null,
+  });
+  if (error) {
+    const kind = (error.message ?? "").trim();
+    return {
+      ok: false as const,
+      message:
+        kind === "UNKNOWN_CODE"
+          ? "그 코드를 가진 멤버가 없어요. 크루 관리에서 먼저 추가해 주세요."
+          : kind === "FORBIDDEN"
+            ? "이 행사의 스태프만 고칠 수 있어요."
+            : kind === "NOT_FOUND"
+              ? "그 예매를 찾을 수 없어요."
+              : // DB 쪽 함수가 아직 안 올라간 경우. 배포는 나갔는데
+                // INVITE_FIX.sql 을 안 돌리면 여기로 온다
+                /Could not find the function|does not exist/i.test(kind)
+                ? "아직 준비가 안 된 기능이에요. INVITE_FIX.sql 을 먼저 실행해 주세요."
+                : error.message,
+    };
+  }
+  revalidatePath("/crew", "layout");
+  return { ok: true as const, amount: (data as { amount: number }).amount };
+}
+
 export async function setEventStatus(
   eventId: string,
   status: "draft" | "open" | "closed" | "done",

@@ -57,6 +57,17 @@ export default async function CrewDashboard({
   const inside = rows.filter((b) => b.status === "checked_in");
   const solo = rows.filter((b) => b.quantity === 1);
   const gcap = genderCap(event.capacity);
+
+  // 멤버에 없는 코드로 들어온 예매를 코드별로 모은다
+  const known = new Set(members.map((m) => m.invite_code));
+  const orphans = Object.entries(
+    rows.reduce<Record<string, number>>((acc, b) => {
+      if (b.invite_code && !known.has(b.invite_code)) {
+        acc[b.invite_code] = (acc[b.invite_code] ?? 0) + b.quantity;
+      }
+      return acc;
+    }, {}),
+  ).map(([code, heads]) => ({ code, heads }));
   const pct = soldRate(stats.booked, stats.capacity);
 
   return (
@@ -206,6 +217,28 @@ export default async function CrewDashboard({
             );
           })
         )}
+        {/* **멤버에 없는 코드.** 손님이 추천인을 적었는데 그 코드를 가진
+            크루원이 없으면 아무 집계에도 안 잡힌다. 예전에는 그런 예매가
+            조용히 사라졌다 — 이제는 여기 뜨게 해서 멤버를 추가하거나
+            명단에서 코드를 고치게 한다 */}
+        {orphans.length > 0 ? (
+          <div className="mt-3 rounded-xl bg-[#FFF4E5] p-3.5">
+            <b className="text-[13.5px] font-bold text-[#B76E00]">
+              멤버에 없는 코드 {orphans.length}건
+            </b>
+            <div className="mt-1.5 text-[12.5px] leading-relaxed text-[#B76E00]">
+              {orphans
+                .map((o) => `${o.code} ${o.heads}명`)
+                .join(" · ")}
+            </div>
+            <p className="mt-2 text-[12px] leading-relaxed text-sub">
+              손님이 적은 추천인 코드인데 이 크루에 그 코드를 가진 멤버가
+              없어요. 아래에서 멤버를 추가하거나, 명단에서 [추천인] 을 눌러
+              코드를 고쳐 주세요. 게스트가는 확인된 코드에만 적용됩니다.
+            </p>
+          </div>
+        ) : null}
+
         <MemberQuickAdd crewId={crew.id} />
 
         <p className="mt-3 text-[12.5px] leading-relaxed text-sub">

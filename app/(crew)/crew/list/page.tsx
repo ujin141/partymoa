@@ -29,8 +29,11 @@ export default async function CrewListPage({
       <GuestList
         bookings={current.bookings}
         tiers={current.tiers}
+        members={current.members}
         eventTitle={current.event.title}
         bankAccount={current.event.bank_account}
+        guestPrice={current.event.guest_price}
+        maleMultiplier={Number(current.event.male_price_multiplier)}
       />
     </div>
   );

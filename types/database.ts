@@ -499,6 +499,10 @@ export type Database = {
         Args: { p_event: string; p_code: string };
         Returns: { valid: boolean; price: number | null }[];
       };
+      set_booking_invite: {
+        Args: { p_booking: string; p_code: string | null };
+        Returns: Booking;
+      };
       push_targets: {
         Args: Record<string, never>;
         Returns: {
