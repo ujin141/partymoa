@@ -156,6 +156,87 @@ const publicParties = unstable_cache(
   { revalidate: 20, tags: [PARTY_TAG] },
 );
 
+/**
+ * 홈에 얹을 것들. **한 번에 가져와서 캐시에 둔다.**
+ *
+ * 파티 카드만 늘어놓으면 파티가 하나일 때 화면이 카드 한 장으로 끝난다.
+ * 그런데 이 앱에는 카드 말고도 보여 줄 게 있다 — 누가 트는지(라인업),
+ * 어떤 분위기인지(현장 사진). 클럽 씬에서 그 둘이 실제 구매 이유다.
+ *
+ * 공개 정보만 담는다. 그래서 쿠키 없는 클라이언트로 읽고 캐시에 둔다 —
+ * 사람마다 다른 게 없으니 방문자마다 왕복할 이유가 없다.
+ */
+export const homeExtras = unstable_cache(
+  async () => {
+    const supabase = publicClient();
+    const { data: open } = await supabase
+      .from("events")
+      .select("id, slug, title")
+      .eq("status", "open")
+      .gte("ends_at", new Date().toISOString())
+      .order("starts_at", { ascending: true })
+      .limit(10);
+
+    const events = (open ?? []) as Pick<EventRow, "id" | "slug" | "title">[];
+    if (!events.length) return { djs: [], photos: [] };
+
+    const ids = events.map((e) => e.id);
+    const bySlug = new Map(events.map((e) => [e.id, e]));
+
+    const [{ data: lines }, { data: pics }] = await Promise.all([
+      supabase
+        .from("lineups")
+        .select("id, event_id, artist_name, starts_at, sort_order")
+        .in("event_id", ids)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("event_photos")
+        .select("id, event_id, url, caption, sort_order")
+        .in("event_id", ids)
+        .order("sort_order", { ascending: true })
+        .limit(12),
+    ]);
+
+    /**
+     * **같은 이름은 한 번만.** 백투백(HEIDY x CHIPS)이 있으면 같은
+     * 사람이 두세 번 나온다. 라인업 표에서는 그게 맞지만 홈에서는
+     * 그냥 같은 이름이 반복되는 것으로 보인다.
+     */
+    const seen = new Set<string>();
+    const djs: { id: string; name: string; slug: string }[] = [];
+    for (const l of (lines ?? []) as Lineup[]) {
+      // **양옆에 공백이 있을 때만 자른다.** `[x]` 만 보면 XANTHIC 이
+      // 'ANTHIC' 이 된다. 백투백은 늘 'HEIDY x CHIPS' 처럼 띄어 쓴다
+      for (const name of l.artist_name.split(/\s+[x×]\s+/i)) {
+        const key = name.trim().toUpperCase();
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        djs.push({
+          id: l.id + key,
+          name: name.trim(),
+          slug: bySlug.get(l.event_id)?.slug ?? "",
+        });
+      }
+    }
+
+    const photos = ((pics ?? []) as {
+      id: string;
+      event_id: string;
+      url: string;
+      caption: string | null;
+    }[]).map((x) => ({
+      id: x.id,
+      url: x.url,
+      caption: x.caption,
+      slug: bySlug.get(x.event_id)?.slug ?? "",
+    }));
+
+    return { djs: djs.slice(0, 20), photos };
+  },
+  ["home-extras"],
+  { revalidate: 120, tags: [PARTY_TAG] },
+);
+
 /** 열려 있는 파티에 실제로 있는 지역만. 없는 지역을 칩으로 두면 빈 화면이 된다 */
 export async function listAreas(): Promise<string[]> {
   const { rows } = await publicParties();

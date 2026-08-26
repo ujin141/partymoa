@@ -5,7 +5,9 @@ import Link from "next/link";
 import { HeroCard, MiniRow, PartyCard } from "@/components/PartyCard";
 import { Wordmark } from "@/components/Symbol";
 import { Divider, Empty, SectionTitle } from "@/components/ui/primitives";
-import { listAreas, listCrews, listOpenParties } from "@/lib/queries";
+import { listPosts } from "@/lib/community";
+import { homeExtras, listAreas, listCrews, listOpenParties } from "@/lib/queries";
+import { ago } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { seoulWeekday } from "@/lib/format";
 import { isClosingSoon, soldRate } from "@/lib/rules";
@@ -30,11 +32,20 @@ export default async function HomePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [parties, crews, areas, { data: profile }, { count: unpaidCount }] =
-    await Promise.all([
+  const [
+    parties,
+    crews,
+    areas,
+    extras,
+    posts,
+    { data: profile },
+    { count: unpaidCount },
+  ] = await Promise.all([
     listOpenParties(),
     listCrews(),
     listAreas(),
+    homeExtras(),
+    listPosts(),
     // 시작 화면에서 고른 취향. 안 고른 사람은 예전과 똑같이 보인다
     user && !user.is_anonymous
       ? supabase
@@ -229,6 +240,26 @@ export default async function HomePage() {
           </>
         ) : null}
 
+        {/* **DJ 가 표를 판다.** 클럽 씬에서 "언제 어디" 보다 "누가 트는지"
+            가 먼저다. 라인업이 카드 안에 묻혀 있으면 그걸 보려고 상세까지
+            들어가야 한다 */}
+        {extras.djs.length > 0 ? (
+          <>
+            <SectionTitle title="라인업" note="이 사람들이 틉니다" />
+            <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 pb-1">
+              {extras.djs.map((d) => (
+                <Link
+                  key={d.id}
+                  href={`/party/${d.slug}`}
+                  className="flex-none rounded-full border border-line px-3.5 py-2 text-[13.5px] font-bold tracking-wide transition active:scale-95"
+                >
+                  {d.name}
+                </Link>
+              ))}
+            </div>
+          </>
+        ) : null}
+
         {crews.length > 0 ? (
           <>
             <SectionTitle title="크루" note="파티를 여는 사람들" />
@@ -276,6 +307,32 @@ export default async function HomePage() {
           </>
         ) : null}
 
+        {/* 커버 한 장으로는 어떤 파티인지 안 전해진다. 낮의 물과 밤의
+            조명은 다른 장면이다 */}
+        {extras.photos.length > 0 ? (
+          <>
+            <Divider />
+            <SectionTitle title="현장" note="이런 분위기예요" />
+            <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 pb-1">
+              {extras.photos.map((p) => (
+                <Link
+                  key={p.id}
+                  href={`/party/${p.slug}`}
+                  className="relative h-[150px] w-[112px] flex-none overflow-hidden rounded-xl bg-soft"
+                >
+                  <Image
+                    src={p.url}
+                    alt={p.caption ?? ""}
+                    fill
+                    sizes="112px"
+                    className="object-cover"
+                  />
+                </Link>
+              ))}
+            </div>
+          </>
+        ) : null}
+
         {closing.length > 0 ? (
           <>
             <Divider />
@@ -293,6 +350,38 @@ export default async function HomePage() {
             {weekend.map((d) => (
               <PartyCard key={d.event.id} d={d} />
             ))}
+          </>
+        ) : null}
+
+        {/* 파티가 없는 날에도 돌아올 이유. 목록 화면을 한 번 더 만들지
+            않고 최근 세 개만 얹는다 */}
+        {posts.length > 0 ? (
+          <>
+            <Divider />
+            <SectionTitle title="커뮤니티" note="같이 갈 사람 구하거나, 후기 남기거나" />
+            {posts.slice(0, 3).map((p) => (
+              <Link
+                key={p.id}
+                href={`/community/${p.id}`}
+                className="block border-b border-line px-4 py-3.5"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-[13.5px] font-bold">{p.nickname}</span>
+                  <span className="ml-auto text-[12.5px] text-sub">
+                    {ago(p.created_at)}
+                  </span>
+                </div>
+                <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-[14px] leading-relaxed text-sub">
+                  {p.body}
+                </p>
+              </Link>
+            ))}
+            <Link
+              href="/community"
+              className="block px-4 py-4 text-[13.5px] font-semibold text-brand"
+            >
+              커뮤니티 전체 보기 ›
+            </Link>
           </>
         ) : null}
 
