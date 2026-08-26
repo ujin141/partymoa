@@ -62,6 +62,9 @@ export default async function AdminLayout({
               </span>
             ) : null}
           </Link>
+          <Link href="/admin/insights" className="text-sub">
+            취향
+          </Link>
           <Link href="/admin/community" className="text-sub">
             커뮤니티
           </Link>

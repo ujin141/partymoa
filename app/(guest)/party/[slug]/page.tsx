@@ -174,7 +174,20 @@ export default async function PartyPage({
               ) : null}
             </dd>
             <dt className="text-[13.5px] text-sub">주최</dt>
-            <dd className="m-0">{d.crew.name}</dd>
+            <dd className="m-0">
+              {d.crew.name}
+              {/* 환불·문의는 크루가 받는다. 연락할 길을 여기 둔다 */}
+              {d.crew.instagram ? (
+                <a
+                  href={`https://instagram.com/${d.crew.instagram}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="ml-1.5 text-[13px] text-brand underline"
+                >
+                  {`@${d.crew.instagram}`}
+                </a>
+              ) : null}
+            </dd>
             <dt className="text-[13.5px] text-sub">정원</dt>
             <dd className="m-0">{event.capacity}명</dd>
           </dl>

@@ -356,6 +356,14 @@ export type Database = {
       delete_post: { Args: { p_id: string }; Returns: undefined };
       delete_comment: { Args: { p_id: string }; Returns: undefined };
       can_review: { Args: { p_event: string }; Returns: boolean };
+      preference_stats: {
+        Args: Record<string, never>;
+        Returns: { kind: string; value: string; people: number }[];
+      };
+      preference_summary: {
+        Args: Record<string, never>;
+        Returns: { people: number; onboarded: number; picked: number }[];
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

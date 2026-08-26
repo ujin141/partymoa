@@ -113,3 +113,61 @@ alter table profiles add column if not exists areas      text[] not null default
 alter table profiles add column if not exists categories text[] not null default '{}';
 -- 시작 화면을 봤는지. 취향을 안 골라도 다시 안 띄운다
 alter table profiles add column if not exists onboarded_at timestamptz;
+
+-- ─────────────────────────────────────────── 취향 집계
+--
+-- 운영자가 "사람들이 뭘 좋아하는가" 를 봐야 다음에 뭘 밀지 정한다.
+--
+-- **그런데 프로필은 본인만 볼 수 있다**(profiles_own). 운영자에게 표를
+-- 통째로 열면 이름·연락처까지 같이 열린다. 필요한 건 합계뿐이므로
+-- 합계만 내주는 함수를 둔다 — 누가 뭘 골랐는지는 여기서도 안 나온다.
+create or replace function preference_stats()
+returns table (kind text, value text, people int)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $fn$
+begin
+  if not is_app_admin() then
+    raise exception 'FORBIDDEN' using errcode = 'P0001';
+  end if;
+
+  return query
+    select '지역'::text, a::text, count(*)::int
+    from profiles p, unnest(p.areas) a
+    group by a
+    union all
+    select '분위기'::text, c::text, count(*)::int
+    from profiles p, unnest(p.categories) c
+    group by c
+    order by 1, 3 desc;
+end $fn$;
+
+revoke all on function preference_stats from public, anon;
+grant execute on function preference_stats to authenticated;
+
+-- 몇 명이 시작 화면을 봤고 몇 명이 실제로 골랐나
+create or replace function preference_summary()
+returns table (people int, onboarded int, picked int)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $fn$
+begin
+  if not is_app_admin() then
+    raise exception 'FORBIDDEN' using errcode = 'P0001';
+  end if;
+
+  return query
+    select count(*)::int,
+           count(*) filter (where onboarded_at is not null)::int,
+           count(*) filter (
+             where cardinality(areas) > 0 or cardinality(categories) > 0
+           )::int
+    from profiles;
+end $fn$;
+
+revoke all on function preference_summary from public, anon;
+grant execute on function preference_summary to authenticated;

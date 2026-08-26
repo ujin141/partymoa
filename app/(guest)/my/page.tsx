@@ -48,6 +48,20 @@ export default async function MyPage() {
   const staff = crews.length > 0;
   const admin = Boolean(adminUser);
 
+  // 신청해 놓고 기다리는 사람에게 "크루 신청하기" 를 다시 띄우면 또
+  // 낸다. 심사 중인지 아닌지를 줄에 그대로 적는다
+  const { data: appRow } = signedIn && !staff
+    ? await supabase
+        .from("crew_applications")
+        .select("status")
+        .eq("user_id", user!.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    : { data: null };
+  const waiting =
+    (appRow as { status: string } | null)?.status === "pending";
+
   return (
     <>
       <header className="flex flex-none items-center gap-2.5 border-b border-line px-4 py-3.5">
@@ -103,8 +117,12 @@ export default async function MyPage() {
           href={staff ? "/crew" : "/my/crew-apply"}
           className="flex w-full items-center gap-3 border-b border-line px-4 py-4"
         >
-          <b className="text-[15px] font-semibold text-brand">
-            {staff ? "크루로 전환하기" : "파티를 여시나요 — 크루 신청"}
+          <b
+            className={`text-[15px] font-semibold ${
+              waiting ? "text-sub" : "text-brand"
+            }`}
+          >
+            {staff ? "크루로 전환하기" : waiting ? "크루 신청 심사 중" : "크루 신청하기"}
           </b>
           <span className="ml-auto text-[19px] text-[#C0C4CC]">›</span>
         </Link>

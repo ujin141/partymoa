@@ -14,7 +14,7 @@ import type {
 /** 목록·상세에서 같이 쓰는 묶음. 화면마다 다른 모양을 만들지 않는다 */
 export interface PartyCardData {
   event: EventRow;
-  crew: Pick<Crew, "id" | "name" | "slug" | "avatar_url">;
+  crew: Pick<Crew, "id" | "name" | "slug" | "avatar_url" | "instagram">;
   stats: EventStats;
   /** 지금 팔리는 차수. 전부 소진이면 null */
   tier: TicketTier | null;
@@ -24,7 +24,7 @@ export interface PartyCardData {
 
 const EVENT_SELECT = `
   *,
-  crew:crews!inner (id, name, slug, avatar_url),
+  crew:crews!inner (id, name, slug, avatar_url, instagram),
   tiers:ticket_tiers (*)
 `;
 
