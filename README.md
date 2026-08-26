@@ -112,7 +112,7 @@ CRON_SECRET                    비우면 누구나 손님에게 알림을 울릴
 - [ ] **소셜 로그인 제공자 등록.** 화면과 코드는 다 있고 키만 없다.
       Supabase 대시보드 > Authentication > Sign In / Providers 에서 켠다.
       리디렉션 주소는 셋 다 아래 하나다.
-      `https://rmdutafzihmizwdmixzv.supabase.co/auth/v1/callback`
+      `https://efvcciopdgrqbjlhkfwq.supabase.co/auth/v1/callback`
 
       카카오  developers.kakao.com 에서 앱 생성 → 카카오 로그인 활성화
               → REST API 키 + Client Secret. 동의항목에 계정 이메일 추가

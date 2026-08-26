@@ -69,7 +69,7 @@ Supabase → SQL Editor 에 `supabase/PUSH_APNS.sql` 을 붙여 넣고 실행.
 
 1. <https://developer.apple.com/account/resources/identifiers/list/serviceId>
    에서 Service ID 를 만든다. Return URL 은
-   `https://rmdutafzihmizwdmixzv.supabase.co/auth/v1/callback`
+   `https://efvcciopdgrqbjlhkfwq.supabase.co/auth/v1/callback`
 2. Keys 에서 **Sign in with Apple** 키(`.p8`)를 만든다
 3. Supabase → Authentication → Sign In / Providers → Apple 을 켜고
    Service ID · Team ID · Key ID · `.p8` 를 넣는다
