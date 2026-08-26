@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { MarketingToggle } from "@/components/MarketingToggle";
 import { PushToggle } from "@/components/PushToggle";
+import { apnsReady } from "@/lib/apns";
 import { HOLD_HOURS } from "@/lib/rules";
 import { createClient } from "@/lib/supabase/server";
 
@@ -31,6 +32,12 @@ const WHAT = [
  */
 export default async function AlertsPage() {
   const vapid = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
+  /**
+   * 아이폰 앱은 웹푸시가 아니라 APNs 로 받는다. 서버에 .p8 키가 없으면
+   * **보낼 수가 없다** — 그런데도 켜기 버튼을 두면 손님이 눌렀다가
+   * 실패만 본다. 보낼 수 있을 때만 버튼을 준다.
+   */
+  const apns = apnsReady();
 
   const supabase = await createClient();
   const {
@@ -91,7 +98,7 @@ export default async function AlertsPage() {
           ))}
         </div>
 
-        <PushToggle vapid={vapid} />
+        <PushToggle vapid={vapid} apnsReady={apns} />
 
         {vapid && marketingReady ? (
           <MarketingToggle initial={marketing} />

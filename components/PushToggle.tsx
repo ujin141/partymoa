@@ -28,7 +28,14 @@ type State = "확인중" | "불가" | "꺼짐" | "켜짐" | "거부됨";
  * 아이폰은 홈 화면에 추가한 뒤에만 푸시가 된다. 그 경우 안내를 다르게
  * 띄운다 — 안 되는 버튼을 눌러 보게 하지 않는다.
  */
-export function PushToggle({ vapid }: { vapid: string }) {
+export function PushToggle({
+  vapid,
+  apnsReady = false,
+}: {
+  vapid: string;
+  /** 서버에 APNs 키가 있나. 없으면 아이폰 앱에서는 켤 수가 없다 */
+  apnsReady?: boolean;
+}) {
   const [state, setState] = useState<State>("확인중");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -38,6 +45,12 @@ export function PushToggle({ vapid }: { vapid: string }) {
   useEffect(() => {
     // 아이폰 앱은 서비스워커가 아니라 APNs 로 받는다. VAPID 도 필요 없다
     if (isNativeIOS()) {
+      // **보낼 수 없으면 켜기 버튼을 주지 않는다.** 눌러서 실패하는
+      // 버튼은 없는 것보다 나쁘다 — 손님은 앱이 고장 났다고 본다
+      if (!apnsReady) {
+        setState("불가");
+        return;
+      }
       setNative(true);
       nativePushGranted().then((on) => setState(on ? "켜짐" : "꺼짐"));
       return;
@@ -63,7 +76,7 @@ export function PushToggle({ vapid }: { vapid: string }) {
       .then((r) => r?.pushManager.getSubscription())
       .then((sub) => setState(sub ? "켜짐" : "꺼짐"))
       .catch(() => setState("꺼짐"));
-  }, [vapid]);
+  }, [vapid, apnsReady]);
 
   async function turnOn() {
     setBusy(true);
@@ -163,7 +176,9 @@ export function PushToggle({ vapid }: { vapid: string }) {
       <p className="rounded-xl bg-soft p-4 text-[13px] leading-7 text-sub">
         {iosNeedsInstall
           ? "아이폰은 홈 화면에 추가한 뒤에 알림을 켤 수 있어요. 사파리에서 공유 → 홈 화면에 추가를 누르고 다시 들어와 주세요."
-          : "이 브라우저는 알림을 지원하지 않아요."}
+          : isNativeIOS()
+            ? "알림은 준비 중이에요. 예매·입금·입장은 그대로 됩니다."
+            : "이 브라우저는 알림을 지원하지 않아요."}
       </p>
     );
   }
