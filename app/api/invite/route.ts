@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { limit, who } from "@/lib/ratelimit";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -15,6 +16,12 @@ export async function POST(req: Request) {
   };
   if (!eventId || !code?.trim()) {
     return NextResponse.json({ valid: false, price: null });
+  }
+
+  // 코드를 돌려 가며 크루 멤버를 캐낼 수 있다. 손님이 한 번 치는 데
+  // 필요한 건 몇 번이면 충분하다
+  if (!(await limit(`invite:${who(req)}`, 20, 60))) {
+    return NextResponse.json({ valid: false, price: null }, { status: 429 });
   }
 
   const supabase = await createClient();

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { limit, who } from "@/lib/ratelimit";
 import { createClient } from "@/lib/supabase/server";
 import type { Booking } from "@/types/database";
 
@@ -26,6 +27,18 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { message: "연락처를 적어 주세요." },
       { status: 400 },
+    );
+  }
+
+  /**
+   * **대입으로 남의 티켓을 열 수 있는 자리다.** 예매번호가 PM0001 부터
+   * 순서라 번호를 돌려 가며 전화번호를 맞춰 보면 열린다. 분당 다섯 번이면
+   * 본인이 오타를 내는 것은 통과하고 기계는 막힌다.
+   */
+  if (!(await limit(`find:${who(req)}`, 5, 60))) {
+    return NextResponse.json(
+      { message: "너무 여러 번 시도했어요. 잠시 뒤에 다시 해 주세요." },
+      { status: 429 },
     );
   }
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { limit, who } from "@/lib/ratelimit";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -59,6 +60,27 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { message: "인원은 1명에서 4명까지예요." },
       { status: 400 },
+    );
+  }
+
+  /**
+   * **여기가 제일 큰 구멍이었다.** 예매는 로그인 없이 받고 신청하면
+   * 24시간 자리를 잡는다. 막지 않으면 누구든 스크립트로 정원을 통째로
+   * 잠글 수 있다 — 돈 한 푼 안 들이고 파티 하나를 죽이는 방법이다.
+   *
+   * 같은 IP 로 분당 5건, 같은 번호로 시간당 6건. 사람이 실수로 두세 번
+   * 누르는 건 통과하고, 기계로 쏟아붓는 건 막힌다.
+   */
+  const ip = who(req);
+  const digits = phone.replace(/[^0-9]/g, "");
+  const [ipOk, phoneOk] = await Promise.all([
+    limit(`book:ip:${ip}`, 5, 60),
+    limit(`book:phone:${digits}`, 6, 3600),
+  ]);
+  if (!ipOk || !phoneOk) {
+    return NextResponse.json(
+      { message: "잠시 뒤에 다시 시도해 주세요." },
+      { status: 429 },
     );
   }
 

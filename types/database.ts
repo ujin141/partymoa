@@ -446,6 +446,10 @@ export type Database = {
           paid: number;
         }[];
       };
+      rate_ok: {
+        Args: { p_bucket: string; p_limit: number; p_seconds: number };
+        Returns: boolean;
+      };
       promote_anonymous: { Args: Record<string, never>; Returns: boolean };
       cancel_my_booking: { Args: { p_booking: string }; Returns: Booking };
       check_invite: {
