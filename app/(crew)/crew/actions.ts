@@ -174,6 +174,83 @@ export async function setBookingGender(
   return { ok: true as const, amount: (data as { amount: number }).amount };
 }
 
+export interface ManualGuest {
+  eventId: string;
+  name: string;
+  phone: string;
+  gender: "F" | "M";
+  quantity: number;
+  tierId: string | null;
+  inviteCode: string | null;
+  tableId: string | null;
+  /** 비우면 차수 가격으로 계산한다 */
+  amount: number | null;
+  paid: boolean;
+  /** 정원·성비를 넘어도 넣는다. 화면이 한 번 물은 뒤에만 true */
+  force: boolean;
+}
+
+/**
+ * 명단에 손님을 직접 넣는다. DM·전화·현장으로 받은 건.
+ *
+ * **정원과 성비를 넘으면 그냥 안 넣는다.** 크루가 사정을 알고 넣는 거라
+ * 막지는 않지만, 모르고 넘기는 일도 많다 — 한 번 묻고 force 로 다시 온다.
+ */
+export async function addGuest(g: ManualGuest) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("add_booking_manual", {
+    p_event_id: g.eventId,
+    p_name: g.name.trim(),
+    p_phone: g.phone.trim(),
+    p_gender: g.gender,
+    p_quantity: g.quantity,
+    p_tier_id: g.tierId,
+    p_invite_code: g.inviteCode?.trim() || null,
+    p_table_id: g.tableId,
+    p_amount: g.amount,
+    p_paid: g.paid,
+    p_force: g.force,
+  });
+
+  if (error) {
+    const raw = (error.message ?? "").trim();
+    const [code, leftStr] = raw.split(":");
+    const left = Number(leftStr ?? 0);
+    const MSG: Record<string, string> = {
+      FORBIDDEN: "이 행사의 스태프만 넣을 수 있어요.",
+      NEED_NAME_PHONE: "이름과 연락처를 모두 적어 주세요.",
+      BAD_GENDER: "성별을 골라 주세요.",
+      BAD_QUANTITY: "인원은 1명에서 10명까지예요.",
+      TIER_NOT_FOUND: "열려 있는 차수가 없어요. 파티 수정에서 차수를 여세요.",
+      EVENT_NOT_FOUND: "그 파티를 찾을 수 없어요.",
+      DUPLICATE: "같은 이름과 번호가 이미 명단에 있어요.",
+    };
+    if (code === "OVER_CAPACITY" || code === "OVER_GENDER") {
+      return {
+        ok: false as const,
+        over: true,
+        message:
+          code === "OVER_CAPACITY"
+            ? `정원을 넘습니다. 남은 자리 ${Math.max(0, left)}자리.`
+            : `그 성별 정원을 넘습니다. 남은 자리 ${Math.max(0, left)}자리.`,
+      };
+    }
+    return {
+      ok: false as const,
+      over: false,
+      message:
+        MSG[code] ??
+        (/Could not find the function|does not exist/i.test(raw)
+          ? "아직 준비가 안 된 기능이에요. ADD_GUEST.sql 을 먼저 실행해 주세요."
+          : raw),
+    };
+  }
+
+  revalidatePath("/crew", "layout");
+  revalidateTag(PARTY_TAG);
+  return { ok: true as const, code: (data as { code: string }).code };
+}
+
 export async function setEventStatus(
   eventId: string,
   status: "draft" | "open" | "closed" | "done",

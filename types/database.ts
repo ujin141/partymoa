@@ -532,6 +532,22 @@ export type Database = {
         Args: { p_booking: string; p_code: string | null };
         Returns: Booking;
       };
+      add_booking_manual: {
+        Args: {
+          p_event_id: string;
+          p_name: string;
+          p_phone: string;
+          p_gender: string;
+          p_quantity: number;
+          p_tier_id: string | null;
+          p_invite_code: string | null;
+          p_table_id: string | null;
+          p_amount: number | null;
+          p_paid: boolean;
+          p_force: boolean;
+        };
+        Returns: Booking;
+      };
       set_booking_gender: {
         Args: { p_booking: string; p_gender: string; p_reprice: boolean };
         Returns: Booking;

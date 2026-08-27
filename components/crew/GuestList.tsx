@@ -2,6 +2,7 @@
 
 import { Fragment, useMemo, useState, useTransition } from "react";
 
+import { AddGuest } from "@/components/crew/AddGuest";
 import {
   cancelBooking,
   setBookingGender,
@@ -147,6 +148,7 @@ export function GuestList({
   bankAccount,
   guestPrice,
   maleMultiplier,
+  eventId,
 }: {
   bookings: Booking[];
   tiers: TicketTier[];
@@ -156,6 +158,7 @@ export function GuestList({
   bankAccount: string | null;
   guestPrice: number | null;
   maleMultiplier: number;
+  eventId: string;
 }) {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("전체");
@@ -280,6 +283,14 @@ export function GuestList({
       <p className="px-4 pb-3 text-[12.5px] text-sub">
         {`일반 ${tally("일반")} · 게스트 ${tally("게스트")} · 테이블 ${tally("테이블")} · 무료 ${tally("무료")}`}
       </p>
+
+      <AddGuest
+        eventId={eventId}
+        tiers={tiers}
+        tables={tables}
+        guestPrice={guestPrice}
+        maleMultiplier={maleMultiplier}
+      />
 
       <div className="px-4">
         <input
