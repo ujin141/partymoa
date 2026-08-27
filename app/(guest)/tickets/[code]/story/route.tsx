@@ -3,7 +3,12 @@ import { ImageResponse } from "next/og";
 import { longDate, timeRange } from "@/lib/format";
 import { ACCENT, Wordmark, michroma, pretendard } from "@/lib/og";
 import { createClient } from "@/lib/supabase/server";
-import type { Booking, EventRow, TicketTier } from "@/types/database";
+import type {
+  Booking,
+  EventRow,
+  EventTable,
+  TicketTier,
+} from "@/types/database";
 
 /**
  * 인스타 스토리용 티켓 이미지 (1080×1920).
@@ -23,6 +28,22 @@ import type { Booking, EventRow, TicketTier } from "@/types/database";
  *
  * 위 240px, 아래 300px 은 비운다 — 인스타가 프로필 줄과 답장 칸으로 덮어서
  * 거기 글자가 있으면 가려진다.
+ *
+ * ## 테이블은 티켓이 달라야 한다
+ *
+ * 30만원짜리 테이블을 잡은 사람과 입장권 한 장을 산 사람의 스토리가
+ * 똑같으면 **테이블을 잡을 이유 하나가 사라진다.** 자랑할 자리를 주는 게
+ * 테이블 값의 일부다.
+ *
+ * 다만 판을 통째로 바꾸지는 않는다. 같은 서비스의 티켓으로 보여야 하므로
+ * 바뀌는 건 셋뿐이다 — 스텁 색, 라벨, 테두리.
+ *
+ *     일반    흰 스텁 · ADMIT ONE
+ *     VIP     흰 스텁 · 금색 테두리 · VIP TABLE
+ *     VVIP    **검은 스텁 · 금색 글자** · VVIP TABLE
+ *
+ * VVIP 만 반전시킨다. 색을 조금씩 다르게 하면 나란히 놓고 봐야 차이를
+ * 아는데, 반전은 한 장만 봐도 다르다.
  */
 export const runtime = "nodejs";
 
@@ -45,18 +66,41 @@ export async function GET(
 
   const { data } = await supabase
     .from("bookings")
-    .select("*, event:events (*), tier:ticket_tiers (*)")
+    .select("*, event:events (*), tier:ticket_tiers (*), table:event_tables (*)")
     .eq("user_id", user.id)
     .eq("code", code.toUpperCase())
     .neq("status", "cancelled")
     .maybeSingle();
 
   const b = data as unknown as
-    | (Booking & { event: EventRow; tier: TicketTier | null })
+    | (Booking & {
+        event: EventRow;
+        tier: TicketTier | null;
+        table: EventTable | null;
+      })
     | null;
   if (!b) return new Response("티켓을 찾을 수 없어요", { status: 404 });
 
   const ev = b.event;
+
+  /**
+   * 테이블 등급. **이름으로 가른다** — 크루가 테이블 이름을 자유롭게
+   * 짓기 때문에 등급 칼럼이 따로 없다. VVIP 를 먼저 본다. VIP 를 먼저
+   * 보면 'VVIP' 도 VIP 로 잡힌다.
+   */
+  const tname = (b.table?.name ?? "").toUpperCase();
+  const rank = !b.table ? "none" : tname.includes("VVIP") ? "vvip" : "vip";
+
+  const GOLD = "#D8B45A";
+  const skin =
+    rank === "vvip"
+      ? { stub: "#14131C", ink: "#F3EEE2", dim: "#9A937F",
+          line: GOLD, edge: GOLD, label: b.table!.name.toUpperCase() }
+      : rank === "vip"
+        ? { stub: "#fff", ink: "#16181D", dim: "#8A8FA0",
+            line: "#D8DBE3", edge: GOLD, label: b.table!.name.toUpperCase() }
+        : { stub: "#fff", ink: "#16181D", dim: "#8A8FA0",
+            line: "#D8DBE3", edge: "transparent", label: "ADMIT ONE" };
 
   // satori 의 <img> 는 절대 주소만 받는다. 커버가 `/covers/...` 로 들어오면
   // 그대로 넘길 수 없다
@@ -73,8 +117,8 @@ export async function GET(
 
   const [fonts, mich] = await Promise.all([pretendard(), michroma()]);
 
-  const label = { fontSize: 25, color: "#8A8FA0", letterSpacing: 1 };
-  const value = { fontSize: 42, color: "#16181D" };
+  const label = { fontSize: 25, color: skin.dim, letterSpacing: 1 };
+  const value = { fontSize: 42, color: skin.ink };
 
   return new ImageResponse(
     (
@@ -180,9 +224,10 @@ export async function GET(
             flexDirection: "column",
             position: "relative",
             margin: "56px 84px 0",
-            background: "#fff",
+            background: skin.stub,
             borderRadius: 40,
-            padding: "46px 52px 44px",
+            border: `3px solid ${skin.edge}`,
+            padding: "43px 49px 41px",
           }}
         >
           <div
@@ -191,10 +236,10 @@ export async function GET(
               fontFamily: "Michroma",
               fontSize: 22,
               letterSpacing: 7,
-              color: "#8A8FA0",
+              color: rank === "none" ? skin.dim : GOLD,
             }}
           >
-            ADMIT ONE
+            {skin.label}
           </div>
           <div
             style={{
@@ -203,7 +248,7 @@ export async function GET(
               fontSize: 96,
               letterSpacing: 2,
               marginTop: 16,
-              color: "#16181D",
+              color: skin.ink,
             }}
           >
             {b.code}
@@ -223,7 +268,7 @@ export async function GET(
               marginTop: 34,
               marginBottom: 30,
               background:
-                "repeating-linear-gradient(90deg, #D8DBE3 0 14px, rgba(0,0,0,0) 14px 28px)",
+                `repeating-linear-gradient(90deg, ${skin.line} 0 14px, rgba(0,0,0,0) 14px 28px)`,
             }}
           >
             <div
@@ -265,7 +310,16 @@ export async function GET(
                 {`${b.quantity}명`}
               </div>
             </div>
-            {b.tier ? (
+            {b.table ? (
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <div style={{ display: "flex", ...label }}>테이블</div>
+                <div
+                  style={{ display: "flex", marginTop: 8, ...value, color: GOLD }}
+                >
+                  {b.table.name}
+                </div>
+              </div>
+            ) : b.tier ? (
               <div style={{ display: "flex", flexDirection: "column" }}>
                 <div style={{ display: "flex", ...label }}>차수</div>
                 <div style={{ display: "flex", marginTop: 8, ...value }}>
@@ -284,8 +338,12 @@ export async function GET(
             margin: "40px 84px 0",
           }}
         >
+          {/* 테이블 잡은 사람에게 "혼자 와도 됩니다" 는 안 맞는다.
+              그쪽은 자리를 통째로 산 사람이다 */}
           <div style={{ display: "flex", fontSize: 32, opacity: 0.72 }}>
-            혼자 와도 됩니다
+            {b.table
+              ? `${b.table.name} · ${b.table.seats}인 입장`
+              : "혼자 와도 됩니다"}
           </div>
           <div style={{ display: "flex", flexGrow: 1 }} />
           <div
