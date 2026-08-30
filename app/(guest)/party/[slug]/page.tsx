@@ -111,6 +111,12 @@ export default async function PartyPage({
     .eq("event_id", event.id)
     .order("sort_order");
   const photos = (photoRows ?? []) as EventPhoto[];
+  // 홍보 컷은 그날 찍은 게 아니다. 기록에 섞으면 기록이 아니게 된다
+  const shots = photos.filter((p) => p.kind !== "recap");
+  // kind 를 아직 안 붙였으면(SQL 전) 갈라진 게 없다. 빈 격자를 보이느니
+  // 섞인 채로라도 보여 준다
+  const marked = photos.filter((p) => p.kind === "recap");
+  const recapShots = marked.length > 0 ? marked : photos;
 
   // 끝난 파티만 집계를 가져온다. 이름·연락처·금액은 안 들어 있다
   const done = event.status === "done";
@@ -196,6 +202,10 @@ export default async function PartyPage({
           </section>
         ) : null}
 
+        {/* **기록은 맨 위다.** 끝난 파티에 들어온 사람은 살 게 없다 —
+            그날 어땠는지 보러 온다. 그걸 가격표 밑에 두면 안 본다 */}
+        {done ? <Recap recap={recap} photos={recapShots} /> : null}
+
         <section className="border-b-8 border-soft px-4 py-4.5">
           <dl className="grid grid-cols-[58px_1fr] gap-x-3 gap-y-2.5 text-[14.5px]">
             <dt className="text-[13.5px] text-sub">일시</dt>
@@ -233,6 +243,9 @@ export default async function PartyPage({
           </dl>
         </section>
 
+        {/* 끝난 파티는 팔지 않는다. 잔여 자리·가격은 살 수 있을 때만 뜻이 있다 */}
+        {done ? null : (
+        <>
         <section className="border-b-8 border-soft px-4 py-4.5">
           <h4 className="mb-3 text-base font-extrabold">예매 현황</h4>
           <Gauge pct={pct} tone={pct >= 70 ? "hot" : "brand"} />
@@ -326,16 +339,14 @@ export default async function PartyPage({
           })}
         </section>
 
-        {done ? (
-          <Recap recap={recap} photos={photos} />
-        ) : (
-          <PhotoStrip photos={photos} />
+        <PhotoStrip photos={shots} />
+        </>
         )}
 
         {/* 테이블은 차수와 다른 물건이다 — **잡으면 입장비가 없다.**
             가격 옆에 붙여야 "입장권을 살까 테이블을 잡을까" 를 그 자리에서
             비교한다. 아래로 내리면 이미 예매를 누른 뒤에 보게 된다 */}
-        {tables.length > 0 ? (
+        {tables.length > 0 && !done ? (
           <section className="border-b-8 border-soft px-4 py-4.5">
             <h4 className="mb-1 text-base font-extrabold">테이블</h4>
             <p className="mb-3 text-[12.5px] leading-relaxed text-sub">
@@ -429,6 +440,7 @@ export default async function PartyPage({
           started={new Date(event.starts_at) <= new Date()}
         />
 
+        {done ? null : (
         <section className="px-4 py-4.5">
           <div className="rounded-xl bg-soft p-3.5 text-[13.5px] leading-7 text-sub">
             신청 후 24시간 안에 입금하지 않으면 자동 취소되고 자리가 다음
@@ -443,9 +455,11 @@ export default async function PartyPage({
             그 전 취소는 호스트에 문의해 주세요.
           </div>
         </section>
+        )}
         <div className="h-4" />
       </div>
 
+      {done ? null : (
       <BookingSheet
         eventId={event.id}
         eventTitle={event.title}
@@ -470,6 +484,7 @@ export default async function PartyPage({
         defaultPhone={me?.phone ?? null}
         bankAccount={event.bank_account}
       />
+      )}
     </>
   );
 }

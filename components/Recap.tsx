@@ -29,7 +29,11 @@ export function Recap({
 
   const stats = recap
     ? [
-        { k: "다녀갔어요", v: `${recap.came || recap.booked}명` },
+        // 입장 체크를 안 한 파티는 온 사람 수를 모른다. 예매 수를
+        // 다녀간 수인 척 적지 않는다 — 이름을 바꿔 단다
+        recap.came
+          ? { k: "다녀갔어요", v: `${recap.came}명` }
+          : { k: "예매", v: `${recap.booked}명` },
         { k: "여 · 남", v: `${recap.booked_f} · ${recap.booked_m}` },
         { k: "혼자 온 사람", v: `${recap.solo}명` },
         ...(recap.tables ? [{ k: "테이블", v: `${recap.tables}팀` }] : []),

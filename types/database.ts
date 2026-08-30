@@ -128,6 +128,8 @@ export type EventPhoto = {
   url: string;
   caption: string | null;
   sort_order: number;
+  /** promo = 팔 때 쓰는 컷, recap = 그날 찍은 컷. 섞으면 기록이 아니다 */
+  kind: "promo" | "recap";
   created_at: string;
 }
 
