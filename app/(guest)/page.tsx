@@ -11,13 +11,14 @@ import {
   SquareTile,
 } from "@/components/PartyCard";
 import { Wordmark } from "@/components/Symbol";
-import { Divider, Empty, SectionTitle } from "@/components/ui/primitives";
+import { Divider, SectionTitle } from "@/components/ui/primitives";
 import {
   homeExtras,
   listAreas,
   listCrews,
   listOpenParties,
   listPastParties,
+  pastTotals,
 } from "@/lib/queries";
 import { seoulWeekday, shortDate } from "@/lib/format";
 import { isClosingSoon, soldRate } from "@/lib/rules";
@@ -36,6 +37,7 @@ export default async function HomePage() {
   const [
     parties,
     past,
+    totals,
     crews,
     areas,
     extras,
@@ -44,6 +46,7 @@ export default async function HomePage() {
   ] = await Promise.all([
     listOpenParties(),
     listPastParties(6),
+    pastTotals(),
     listCrews(),
     listAreas(),
     homeExtras(),
@@ -151,6 +154,18 @@ export default async function HomePage() {
   });
 
   const showLiked = liked.length > 0 && liked.length < parties.length;
+
+  /**
+   * **파는 게 하나도 없는 날.**
+   *
+   * 파티는 매주 열리지 않는다. 그 사이 기간에 홈의 모든 칸이 열린
+   * 파티에 묶여 있어서, 지금까지는 검색창과 "호스트가 파티를 올리면
+   * 여기에 보입니다" 만 남았다. 그건 손님이 아니라 운영자에게 하는
+   * 말이고, 처음 온 사람은 그걸 보고 그냥 나간다.
+   *
+   * 팔 게 없으면 **다음 파티를 기다리게 만드는 것**이 홈이 할 일이다.
+   */
+  const quiet = parties.length === 0;
 
   /**
    * 배너에 올릴 것.
@@ -268,12 +283,61 @@ export default async function HomePage() {
           </div>
         ) : null}
 
-        {parties.length === 0 ? (
-          <Empty>
-            아직 열린 파티가 없어요.
-            <br />
-            호스트가 파티를 올리면 여기에 보입니다.
-          </Empty>
+        {quiet ? (
+          <>
+            <section className="px-4 pt-5">
+              <p className="text-[13px] font-bold text-brand">다음 파티</p>
+              <h2 className="mt-1.5 text-[23px] font-extrabold leading-snug">
+                지금은 준비하는 중이에요
+              </h2>
+              <p className="mt-2 text-[14px] leading-relaxed text-sub">
+                열리면 제일 먼저 알려 드릴게요. 자리가 빨리 차는 편이라
+                미리 받아 두는 게 안전해요.
+              </p>
+              <div className="mt-3.5 grid grid-cols-2 gap-2.5">
+                <Link
+                  href="/my/alerts"
+                  className="rounded-xl bg-brand py-3.5 text-center text-[15px] font-bold text-white transition active:opacity-80"
+                >
+                  알림 받기
+                </Link>
+                <Link
+                  href="/explore"
+                  className="rounded-xl border border-line py-3.5 text-center text-[15px] font-semibold transition active:bg-soft"
+                >
+                  둘러보기
+                </Link>
+              </div>
+            </section>
+
+            {/* **숫자가 유일한 증거다.** 팔 게 없을 때 처음 온 사람에게
+                할 수 있는 가장 정직한 이야기이기도 하다 */}
+            {totals ? (
+              <section className="mt-5 px-4">
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { k: "연 파티 수", v: `${totals.parties}번` },
+                    { k: "다녀간 사람", v: `${totals.people}명` },
+                    { k: "혼자 온 사람", v: `${totals.solo}명` },
+                  ].map((x) => (
+                    <div key={x.k} className="rounded-xl bg-soft px-3 py-3">
+                      <small className="text-[12px] text-sub">{x.k}</small>
+                      <b className="mt-0.5 block text-[19px] font-extrabold">
+                        {x.v}
+                      </b>
+                    </div>
+                  ))}
+                </div>
+                {totals.people > 0 ? (
+                  <p className="mt-2 text-[12.5px] leading-relaxed text-sub">
+                    {`지금까지 ${totals.people}명 중 `}
+                    <b className="text-ink">{`${totals.solo}명이 혼자`}</b>
+                    {` 왔어요. 혼자 와도 어색하지 않은 자리를 만듭니다.`}
+                  </p>
+                ) : null}
+              </section>
+            ) : null}
+          </>
         ) : null}
 
         {showLiked ? (
@@ -357,7 +421,45 @@ export default async function HomePage() {
           파티를 지우면 그 답이 없어진다. 다만 예매하는 판과 섞이면
           안 되므로 작게, 아래에 둔다.
         */}
-        {past.length > 0 ? (
+        {past.length > 0 && quiet ? (
+          <>
+            <Divider />
+            <SectionTitle
+              title="지난 파티"
+              note="그날 어땠는지 사진과 숫자로 남겨 뒀어요"
+            />
+            {/* 팔 게 없는 날에는 이게 홈의 본문이다. 작은 줄로 흘려
+                보내면 아무도 안 누른다 */}
+            <div className="grid gap-4 px-4 pb-1">
+              {past.slice(0, 3).map((e) => (
+                <Link key={e.id} href={`/party/${e.slug}`} className="block">
+                  <div className="relative aspect-[5/3] overflow-hidden rounded-card bg-soft">
+                    {e.cover_url ? (
+                      <Image
+                        src={e.cover_url}
+                        alt=""
+                        fill
+                        sizes="(max-width: 430px) 100vw, 398px"
+                        className="object-cover grayscale-[0.3]"
+                      />
+                    ) : null}
+                    <span className="absolute left-2.5 top-2.5 rounded bg-ink/85 px-1.5 py-0.5 text-[11px] font-bold text-white">
+                      기록
+                    </span>
+                  </div>
+                  <div className="mt-2 text-[16px] font-extrabold">
+                    {e.title}
+                  </div>
+                  <div className="mt-0.5 text-[13px] text-sub">
+                    {shortDate(e.starts_at)} · {e.venue_name} · {e.area}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </>
+        ) : null}
+
+        {past.length > 0 && !quiet ? (
           <>
             <Divider />
             <SectionTitle title="지난 파티" note="어떻게 놀았는지 남겨 뒀어요" />
@@ -398,7 +500,10 @@ export default async function HomePage() {
         {extras.photos.length > 0 ? (
           <>
             <Divider />
-            <SectionTitle title="현장" note="이런 분위기예요" />
+            <SectionTitle
+              title="현장"
+              note={quiet ? "지난 파티에서 찍은 것들" : "이런 분위기예요"}
+            />
             <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 pb-1">
               {extras.photos.map((p) => (
                 <Link
@@ -451,6 +556,32 @@ export default async function HomePage() {
                 </Link>
               ))}
             </div>
+          </>
+        ) : null}
+
+        {/*
+          **팔 게 없는 날 홈이 모집해야 하는 건 손님이 아니라 파티다.**
+
+          손님은 파티가 있어야 오고, 파티는 여는 사람이 있어야 생긴다.
+          아래가 비어 있느니 여기서 그걸 묻는다 — 이 화면까지 내려온
+          사람은 이미 이 씬에 관심이 있는 사람이다.
+        */}
+        {quiet ? (
+          <>
+            <Divider />
+            <section className="px-4 py-5">
+              <h4 className="text-base font-extrabold">파티를 여시나요?</h4>
+              <p className="mt-1.5 text-[13.5px] leading-relaxed text-sub">
+                예매·정원·성비·정산을 파티모아가 맡습니다. 여는 쪽은
+                파티만 만들면 돼요.
+              </p>
+              <Link
+                href="/my/crew-apply"
+                className="mt-3 block rounded-xl border border-line py-3.5 text-center text-[15px] font-semibold transition active:bg-soft"
+              >
+                호스트 신청하기
+              </Link>
+            </section>
           </>
         ) : null}
 

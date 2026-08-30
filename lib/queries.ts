@@ -180,23 +180,42 @@ export const homeExtras = unstable_cache(
       .limit(10);
 
     const events = (open ?? []) as Pick<EventRow, "id" | "slug" | "title">[];
-    if (!events.length) return { djs: [], photos: [] };
 
-    const ids = events.map((e) => e.id);
-    const bySlug = new Map(events.map((e) => [e.id, e]));
+    /**
+     * **끝난 파티 사진으로 채운다.**
+     *
+     * 예전에는 열린 파티가 없으면 여기서 빈손으로 돌아갔다. 그런데
+     * 파티가 매주 열리는 게 아니라서, 파티 사이 기간에는 홈에 사진이
+     * 한 장도 없었다 — 처음 온 사람이 "여기가 뭐 하는 데지" 를 판단할
+     * 재료가 사라진다. 지난 파티 사진이 그 자리를 대신한다.
+     */
+    const { data: over } = await supabase
+      .from("events")
+      .select("id, slug, title")
+      .eq("status", "done")
+      .order("starts_at", { ascending: false })
+      .limit(4);
+    const past = (over ?? []) as Pick<EventRow, "id" | "slug" | "title">[];
+    const all = [...events, ...past];
+    if (!all.length) return { djs: [], photos: [] };
+
+    const ids = all.map((e) => e.id);
+    const bySlug = new Map(all.map((e) => [e.id, e]));
 
     const [{ data: lines }, { data: pics }] = await Promise.all([
+      // 라인업은 **파는 파티 것만.** 지난 디제이를 홈에 세우면 오늘
+      // 오는 사람인 줄 안다
       supabase
         .from("lineups")
         .select("id, event_id, artist_name, starts_at, sort_order")
-        .in("event_id", ids)
+        .in("event_id", events.length ? events.map((e) => e.id) : ["-"])
         .order("sort_order", { ascending: true }),
       supabase
         .from("event_photos")
         .select("id, event_id, url, caption, sort_order")
         .in("event_id", ids)
         .order("sort_order", { ascending: true })
-        .limit(12),
+        .limit(24),
     ]);
 
     /**
@@ -221,22 +240,64 @@ export const homeExtras = unstable_cache(
       }
     }
 
+    /**
+     * **파는 파티 사진이 먼저다.** 지난 파티 사진은 빈자리를 메우는
+     * 용도지, 오늘 파는 판을 밀어내라고 넣은 게 아니다.
+     */
+    const openIds = new Set(events.map((e) => e.id));
     const photos = ((pics ?? []) as {
       id: string;
       event_id: string;
       url: string;
       caption: string | null;
-    }[]).map((x) => ({
-      id: x.id,
-      url: x.url,
-      caption: x.caption,
-      slug: bySlug.get(x.event_id)?.slug ?? "",
-    }));
+    }[])
+      .map((x) => ({
+        id: x.id,
+        url: x.url,
+        caption: x.caption,
+        slug: bySlug.get(x.event_id)?.slug ?? "",
+        live: openIds.has(x.event_id),
+      }))
+      .sort((a, b) => Number(b.live) - Number(a.live))
+      .slice(0, 16)
+      .map(({ live: _live, ...rest }) => rest);
 
     return { djs: djs.slice(0, 20), photos };
   },
   ["home-extras"],
   { revalidate: 120, tags: [PARTY_TAG] },
+);
+
+/**
+ * 지금까지의 합계. **파티 사이 기간에 홈이 내놓을 유일한 증거다.**
+ *
+ * 팔 게 없을 때 "아직 열린 파티가 없어요" 만 띄우면 처음 온 사람은
+ * 그냥 나간다. 몇 번 열었고 몇 명이 왔는지는 그 자리에서 할 수 있는
+ * 가장 정직한 이야기다.
+ *
+ * 개인 단위는 한 줄도 안 들어간다 — event_recap 은 집계뿐이다.
+ */
+export const pastTotals = unstable_cache(
+  async () => {
+    const supabase = publicClient();
+    const { data } = await supabase
+      .from("event_recap")
+      .select("came, booked, solo");
+    const rows = (data ?? []) as {
+      came: number;
+      booked: number;
+      solo: number;
+    }[];
+    if (!rows.length) return null;
+    return {
+      parties: rows.length,
+      // 입장 체크를 안 한 파티는 예매 수로 센다
+      people: rows.reduce((a, r) => a + (r.came || r.booked), 0),
+      solo: rows.reduce((a, r) => a + r.solo, 0),
+    };
+  },
+  ["past-totals"],
+  { revalidate: 300, tags: [PARTY_TAG] },
 );
 
 /** 열려 있는 파티에 실제로 있는 지역만. 없는 지역을 칩으로 두면 빈 화면이 된다 */
