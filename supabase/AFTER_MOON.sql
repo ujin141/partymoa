@@ -60,11 +60,9 @@ begin
     array['딥하우스', '하우스', '테크노'],
     array['라운지', '솔로파티'],
     10000,
-    -- **디제이 지인은 반값이다. 공짜가 아니다.**
-    -- 무페이 디제이에게 줄 게 게스트 자리뿐인데, 완전 공짜로 풀면
-    -- 안 온다 — 돈을 한 푼도 안 낸 자리는 당일에 그냥 비워진다.
-    -- 5천원은 오게 만드는 최소한이고, 안 오면 아까운 금액이다
-    5000,
+    -- **게스트가를 안 둔다. 전원 1만원이다.**
+    -- 비워 두면 추천인 코드가 값을 안 바꾸고 누가 데려왔는지만 남는다 --
+    null,
     v_bank, 'draft'
   )
   returning id into v_event;
@@ -78,8 +76,11 @@ begin
   insert into event_perks (event_id, name, note, qty, per_person, sort_order)
   values (v_event, '웰컴 샷', '호세쿠엘보 1잔 · 바에서 보여 주세요', 1, true, 0);
 
-  -- 디제이 코드. **user_id 를 비워 둔다** — 채우면 그 사람이 명단과
-  -- 연락처를 볼 수 있게 된다. 코드는 값과 집계에만 쓰면 된다
+  -- 디제이 코드. 값은 안 깎이고 **누가 데려왔는지만 센다.**
+  -- 무페이라 나중에 뭘 챙겨 줄 근거가 필요한데, 그때 이 숫자가 근거다.
+  --
+  -- **user_id 를 비워 둔다** — 채우면 그 사람이 손님 명단과 연락처를
+  -- 볼 수 있게 된다. 코드는 집계에만 쓰면 된다
   insert into crew_members (crew_id, display_name, invite_code)
   values (v_crew, 'cheeps (보성)', 'CHEEPS'),
          (v_crew, 'ts (정훈)', 'TS'),
