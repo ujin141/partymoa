@@ -469,8 +469,10 @@ create policy crew_members_write on crew_members
 -- ─────────────────────────────────────────── 파티
 
 drop policy if exists events_read_open on events;
+-- draft 만 가린다. 끝난 파티는 기록으로 남기 때문에 열려 있어야 한다 --
+-- open 하나만 걸어 두면 행사를 done 으로 바꾸는 순간 페이지가 404 가 된다
 create policy events_read_open on events
-  for select using (status = 'open' or is_crew_staff(crew_id));
+  for select using (status <> 'draft' or is_crew_staff(crew_id));
 
 drop policy if exists events_write on events;
 create policy events_write on events
