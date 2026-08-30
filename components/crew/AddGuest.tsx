@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 
 import { addGuest } from "@/app/(crew)/crew/actions";
-import { won } from "@/lib/format";
+import { phoneMask, won } from "@/lib/format";
 import { priceFor } from "@/lib/rules";
 import type { EventTable, TicketTier } from "@/types/database";
 
@@ -77,7 +77,7 @@ export function AddGuest({
       const r = await addGuest({
         eventId,
         name,
-        phone,
+        phone: phoneMask(phone),
         gender: gender!,
         quantity: qty,
         tierId: tier?.id ?? null,
@@ -150,7 +150,7 @@ export function AddGuest({
           className={`${input} flex-1`}
           value={phone}
           inputMode="tel"
-          onChange={(e) => setPhone(e.target.value)}
+          onChange={(e) => setPhone(phoneMask(e.target.value))}
           placeholder="010-0000-0000"
         />
       </div>

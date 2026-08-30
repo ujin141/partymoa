@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 
 import { saveProfile } from "@/app/(guest)/my/profile/actions";
+import { phoneMask, phoneOk } from "@/lib/format";
 import type { Profile } from "@/types/database";
 
 const box =
@@ -67,7 +68,7 @@ export function ProfileForm({
 }) {
   const [nickname, setNickname] = useState(profile?.nickname ?? "");
   const [realName, setRealName] = useState(profile?.real_name ?? "");
-  const [phone, setPhone] = useState(profile?.phone ?? "");
+  const [phone, setPhone] = useState(phoneMask(profile?.phone ?? ""));
   const [areas, setAreas] = useState<string[]>(profile?.areas ?? []);
   const [cats, setCats] = useState<string[]>(profile?.categories ?? []);
   const [msg, setMsg] = useState<string | null>(null);
@@ -111,12 +112,19 @@ export function ProfileForm({
         className={box}
         inputMode="tel"
         value={phone}
-        onChange={(e) => setPhone(e.target.value)}
+        onChange={(e) => setPhone(phoneMask(e.target.value))}
         placeholder="010-0000-0000"
       />
-      <p className="mb-6 mt-1.5 text-[12.5px] text-sub">
-        예매한 파티에 변경이 생기면 호스트가 이 번호로 연락합니다.
-      </p>
+      {phone.trim() && !phoneOk(phone) ? (
+        <p className="mb-6 mt-1.5 text-[12.5px] text-hot">
+          번호를 다시 확인해 주세요. 해외 번호는 +부터 적어 주세요.
+        </p>
+      ) : (
+        <p className="mb-6 mt-1.5 text-[12.5px] text-sub">
+          예매한 파티에 변경이 생기면 호스트가 이 번호로 연락합니다. 여기
+          적어 두면 예매할 때 다시 안 적어도 돼요.
+        </p>
+      )}
 
       <div className="mb-6 border-t border-line pt-6">
         <h3 className="mb-1 text-[15px] font-extrabold">취향</h3>

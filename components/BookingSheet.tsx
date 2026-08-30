@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { BookingDone } from "@/components/BookingDone";
-import { won } from "@/lib/format";
+import { phoneMask, phoneOk, won } from "@/lib/format";
 import {
   genderCap,
   HOLD_HOURS,
@@ -65,7 +65,7 @@ export function BookingSheet(p: Props) {
   // 프로필에 적어 둔 값을 미리 채운다. 매번 다시 적는 게 제일 귀찮고,
   // 오타가 나면 입금자명이 안 맞아 대조가 깨진다
   const [name, setName] = useState(p.defaultName ?? "");
-  const [phone, setPhone] = useState(p.defaultPhone ?? "");
+  const [phone, setPhone] = useState(phoneMask(p.defaultPhone ?? ""));
   const [qty, setQty] = useState(1);
   // 멤버 초대 링크(`?i=CODE`)로 들어오면 코드를 미리 채운다. 손으로
   // 옮겨 적으라고 하면 대부분 안 적고, 그러면 그 멤버 성과가 안 잡힌다
@@ -123,7 +123,10 @@ export function BookingSheet(p: Props) {
   }, [tier, gender, p.maleMultiplier, guestPrice]);
   const total = unit ? unit * qty : null;
 
-  const ready = Boolean(tierId && gender && name.trim() && phone.trim());
+  // **번호가 말이 되는지까지 본다.** 예전에는 비어 있지만 않으면
+  // 통과해서, 아무 글자나 적고 자리를 잡을 수 있었다 — 그러면 입금을
+  // 확인하려 해도 연락할 데가 없다
+  const ready = Boolean(tierId && gender && name.trim() && phoneOk(phone));
 
   function reset() {
     setTierId(null);
@@ -371,10 +374,20 @@ export function BookingSheet(p: Props) {
             <input
               value={phone}
               inputMode="tel"
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => setPhone(phoneMask(e.target.value))}
               placeholder="010-0000-0000"
               className="w-full rounded-xl border-[1.5px] border-transparent bg-soft p-3.5 text-[15.5px] outline-none focus:border-brand focus:bg-white"
             />
+            {/* 다 치기 전에 빨간 글씨를 띄우면 치는 내내 틀렸다고 한다 */}
+            {phone.trim() && !phoneOk(phone) ? (
+              <p className="mt-1.5 text-[12.5px] text-hot">
+                번호를 다시 확인해 주세요. 해외 번호는 +부터 적어 주세요.
+              </p>
+            ) : (
+              <p className="mt-1.5 text-[12.5px] leading-relaxed text-sub">
+                입금 확인과 당일 안내를 이 번호로 보냅니다.
+              </p>
+            )}
           </div>
 
           <div className="mb-4">
@@ -489,7 +502,9 @@ export function BookingSheet(p: Props) {
                   ? "차수를 골라 주세요"
                   : !gender
                     ? "성별을 골라 주세요"
-                    : "이름과 연락처를 적어 주세요"}
+                    : !name.trim()
+                      ? "이름을 적어 주세요"
+                      : "연락처를 적어 주세요"}
               </b>
             )}
           </div>

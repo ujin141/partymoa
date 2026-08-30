@@ -1,6 +1,7 @@
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
+import { phoneMask, phoneOk } from "@/lib/format";
 import { PARTY_TAG } from "@/lib/queries";
 import { limit, who } from "@/lib/ratelimit";
 import { createClient } from "@/lib/supabase/server";
@@ -54,6 +55,17 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
+  /**
+   * **화면에서 이미 막지만 여기서 또 막는다.** 이 경로는 fetch 한 줄로
+   * 부를 수 있어서, 화면 검사만 두면 아무 값이나 들어온다. 연락 안 되는
+   * 번호로 잡힌 자리는 24시간 동안 아무도 못 산다.
+   */
+  if (!phoneOk(phone)) {
+    return NextResponse.json(
+      { message: "연락처를 다시 확인해 주세요." },
+      { status: 400 },
+    );
+  }
   if (gender !== "F" && gender !== "M") {
     return NextResponse.json({ message: "성별을 선택해 주세요." }, { status: 400 });
   }
@@ -75,11 +87,11 @@ export async function POST(req: Request) {
    */
   const ip = who(req);
   const digits = phone.replace(/[^0-9]/g, "");
-  const [ipOk, phoneOk] = await Promise.all([
+  const [ipUnder, numUnder] = await Promise.all([
     limit(`book:ip:${ip}`, 5, 60),
     limit(`book:phone:${digits}`, 6, 3600),
   ]);
-  if (!ipOk || !phoneOk) {
+  if (!ipUnder || !numUnder) {
     return NextResponse.json(
       { message: "잠시 뒤에 다시 시도해 주세요." },
       { status: 429 },
@@ -91,7 +103,9 @@ export async function POST(req: Request) {
     p_event_id: eventId,
     p_tier_id: tierId,
     p_name: name.trim(),
-    p_phone: phone.trim(),
+    // 저장 모양을 하나로 맞춘다. 01012345678 과 010-1234-5678 이
+    // 섞이면 크루가 같은 사람을 둘로 본다
+    p_phone: phoneMask(phone),
     p_gender: gender,
     p_quantity: qty,
     p_invite_code: inviteCode ?? null,
@@ -113,6 +127,38 @@ export async function POST(req: Request) {
       { status: 500 },
     );
   }
+  /**
+   * 프로필에 채워 둔다. **다음 예매 때 다시 안 적는다.**
+   *
+   * 마이 화면에 들어가 미리 적어 두는 사람은 거의 없다. 그런데 예매할
+   * 때는 어차피 적는다 — 그때 받은 것을 그대로 두면 두 번째부터는 폼이
+   * 채워진 채로 열린다.
+   *
+   * **비어 있을 때만 넣는다.** 일부러 다른 번호를 적어 둔 사람의 값을
+   * 예매 한 번으로 덮으면 안 된다. 그리고 실패해도 예매는 이미 끝났으니
+   * 막지 않는다.
+   */
+  try {
+    const { data: auth } = await supabase.auth.getUser();
+    if (auth?.user) {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("real_name, phone")
+        .eq("user_id", auth.user.id)
+        .maybeSingle();
+      const patch: { phone?: string; real_name?: string } = {};
+      if (!prof?.phone) patch.phone = phoneMask(phone);
+      if (!prof?.real_name) patch.real_name = name.trim();
+      if (Object.keys(patch).length) {
+        await supabase
+          .from("profiles")
+          .upsert({ user_id: auth.user.id, ...patch }, { onConflict: "user_id" });
+      }
+    }
+  } catch {
+    // 예매는 이미 됐다. 프로필은 다음에 채워도 된다
+  }
+
   // **잔여가 바뀌었으니 목록 캐시를 즉시 버린다.** 안 버리면 마감된
   // 파티가 잠깐 열려 보이고, 들어와서 매진을 본다
   revalidateTag(PARTY_TAG);

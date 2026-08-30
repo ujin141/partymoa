@@ -132,6 +132,52 @@ export function ago(iso: string) {
  * **저장된 값을 바꾸지 않는다.** 보여줄 때만 맞춘다 — 검색은 이미
  * 숫자만 뽑아 비교하므로 어느 쪽이든 걸린다.
  */
+/**
+ * 칠 때마다 모양을 맞춘다.
+ *
+ * **저장할 때가 아니라 치는 동안 맞춘다.** 나중에 고치면 손님은 자기가
+ * 친 것과 다른 값이 저장된 걸 모르고, 크루는 010-1234-5678 과
+ * 01012345678 을 다른 사람으로 본다.
+ *
+ * 외국 번호(+)는 안 건드린다 — 나라마다 자릿수가 달라서 우리가 아는
+ * 모양으로 끊으면 오히려 틀린다.
+ */
+export function phoneMask(raw: string): string {
+  const t = raw.trim();
+  if (t.startsWith("+")) return "+" + t.slice(1).replace(/[^0-9]/g, "");
+
+  const d = t.replace(/\D/g, "").slice(0, 11);
+  if (d.startsWith("02")) {
+    if (d.length <= 2) return d;
+    if (d.length <= 6) return `${d.slice(0, 2)}-${d.slice(2)}`;
+    return `${d.slice(0, 2)}-${d.slice(2, d.length - 4)}-${d.slice(-4)}`;
+  }
+  if (d.length <= 3) return d;
+  if (d.length <= 7) return `${d.slice(0, 3)}-${d.slice(3)}`;
+  return `${d.slice(0, 3)}-${d.slice(3, d.length - 4)}-${d.slice(-4)}`;
+}
+
+/**
+ * 연락이 닿을 번호인가.
+ *
+ * **이게 없으면 아무 글자나 통과한다.** 예매는 필수 입력이었지만
+ * 내용을 안 봤다 — 'ㅁㄴㅇㄹ' 로도 자리가 잡혔고, 그러면 호스트가
+ * 입금을 확인하려 해도 연락할 데가 없다.
+ *
+ * 외국 손님을 막지 않는다. 압구정·이태원 파티에 +81, +1 로 적는
+ * 사람이 실제로 온다 — 010 만 받으면 그 사람들은 예매를 못 한다.
+ */
+export function phoneOk(raw: string | null | undefined): boolean {
+  const t = (raw ?? "").trim();
+  if (t.startsWith("+")) {
+    const d = t.slice(1).replace(/\D/g, "");
+    return d.length >= 8 && d.length <= 15;
+  }
+  const d = t.replace(/\D/g, "");
+  // 휴대폰 10~11 자리와 서울 지역번호까지. 0 으로 시작하지 않으면 번호가 아니다
+  return /^0\d{8,10}$/.test(d);
+}
+
 export function phoneText(raw: string | null | undefined): string {
   const d = (raw ?? "").replace(/\D/g, "");
   if (d.length === 11) return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
