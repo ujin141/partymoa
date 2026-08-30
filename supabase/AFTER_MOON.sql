@@ -38,7 +38,8 @@ begin
     -- **남녀 같은 값을 받는다.** 기본값 1.25 를 그대로 두면 입장비를
     -- 1만원으로 넣어도 남자에게 12,500 원이 찍힌다
     male_price_multiplier,
-    solo_friendly, genres, categories, list_price, bank_account, status
+    solo_friendly, genres, categories, list_price, guest_price,
+    bank_account, status
   ) values (
     v_crew, 'after-moon-20260926', 'AFTER MOON',
     '한가위 라운지 · 압구정 딥하우즈',
@@ -58,7 +59,13 @@ begin
     true,
     array['딥하우스', '하우스', '테크노'],
     array['라운지', '솔로파티'],
-    10000, v_bank, 'draft'
+    10000,
+    -- **디제이 지인은 반값이다. 공짜가 아니다.**
+    -- 무페이 디제이에게 줄 게 게스트 자리뿐인데, 완전 공짜로 풀면
+    -- 안 온다 — 돈을 한 푼도 안 낸 자리는 당일에 그냥 비워진다.
+    -- 5천원은 오게 만드는 최소한이고, 안 오면 아까운 금액이다
+    5000,
+    v_bank, 'draft'
   )
   returning id into v_event;
 
@@ -71,15 +78,26 @@ begin
   insert into event_perks (event_id, name, note, qty, per_person, sort_order)
   values (v_event, '웰컴 샷', '호세쿠엘보 1잔 · 바에서 보여 주세요', 1, true, 0);
 
+  -- 디제이 코드. **user_id 를 비워 둔다** — 채우면 그 사람이 명단과
+  -- 연락처를 볼 수 있게 된다. 코드는 값과 집계에만 쓰면 된다
+  insert into crew_members (crew_id, display_name, invite_code)
+  values (v_crew, 'cheeps (보성)', 'CHEEPS'),
+         (v_crew, 'ts (정훈)', 'TS'),
+         (v_crew, 'aros (진혁)', 'AROS')
+  on conflict (crew_id, invite_code) do nothing;
+
   raise notice 'AFTER MOON 초안 생성. 크루 화면에서 열어 보세요.';
 end $party$;
 
 -- ─────────────────────────────────────────── 확인
 select title, status, capacity, list_price as 입장비,
-       male_price_multiplier as 남성배수,
+       male_price_multiplier as 남성배수, guest_price as 게스트가,
        to_char(starts_at at time zone 'Asia/Seoul', 'MM/DD(Dy) HH24:MI') as 시작
 from events where slug = 'after-moon-20260926';
 
 select name, qty, per_person from event_perks p
 join events e on e.id = p.event_id
 where e.slug = 'after-moon-20260926';
+
+select display_name, invite_code from crew_members
+where invite_code in ('CHEEPS', 'TS', 'AROS');
