@@ -68,7 +68,7 @@ export function Coupon({
           <div className="flex-none text-right">
             <b
               className={`block text-[30px] font-extrabold leading-none ${
-                gone ? "text-[#B0B4BC]" : "text-brand"
+                gone || over ? "text-[#B0B4BC]" : "text-brand"
               }`}
             >
               {left}
