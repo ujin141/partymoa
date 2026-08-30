@@ -12,7 +12,13 @@ import {
 } from "@/components/PartyCard";
 import { Wordmark } from "@/components/Symbol";
 import { Divider, Empty, SectionTitle } from "@/components/ui/primitives";
-import { homeExtras, listAreas, listCrews, listOpenParties } from "@/lib/queries";
+import {
+  homeExtras,
+  listAreas,
+  listCrews,
+  listOpenParties,
+  listPastParties,
+} from "@/lib/queries";
 import { seoulWeekday, shortDate } from "@/lib/format";
 import { isClosingSoon, soldRate } from "@/lib/rules";
 import { createClient } from "@/lib/supabase/server";
@@ -29,6 +35,7 @@ export default async function HomePage() {
 
   const [
     parties,
+    past,
     crews,
     areas,
     extras,
@@ -36,6 +43,7 @@ export default async function HomePage() {
     { count: unpaidCount },
   ] = await Promise.all([
     listOpenParties(),
+    listPastParties(6),
     listCrews(),
     listAreas(),
     homeExtras(),
@@ -339,6 +347,50 @@ export default async function HomePage() {
             {weekend.slice(0, 3).map((d) => (
               <PartyCard key={d.event.id} d={d} />
             ))}
+          </>
+        ) : null}
+
+        {/*
+          지난 파티. **파는 게 아니라 증거다.**
+
+          처음 온 사람이 제일 궁금해하는 건 "지난번엔 어땠나" 다. 끝난
+          파티를 지우면 그 답이 없어진다. 다만 예매하는 판과 섞이면
+          안 되므로 작게, 아래에 둔다.
+        */}
+        {past.length > 0 ? (
+          <>
+            <Divider />
+            <SectionTitle title="지난 파티" note="어떻게 놀았는지 남겨 뒀어요" />
+            <div className="no-scrollbar flex gap-2.5 overflow-x-auto px-4 pb-1">
+              {past.map((e) => (
+                <Link
+                  key={e.id}
+                  href={`/party/${e.slug}`}
+                  className="w-[220px] flex-none"
+                >
+                  <div className="relative aspect-3/2 overflow-hidden rounded-xl bg-soft">
+                    {e.cover_url ? (
+                      <Image
+                        src={e.cover_url}
+                        alt=""
+                        fill
+                        sizes="220px"
+                        className="object-cover grayscale-[0.35]"
+                      />
+                    ) : null}
+                    <span className="absolute left-2 top-2 rounded bg-ink/85 px-1.5 py-0.5 text-[11px] font-bold text-white">
+                      기록
+                    </span>
+                  </div>
+                  <div className="mt-2 truncate text-[14.5px] font-bold">
+                    {e.title}
+                  </div>
+                  <div className="mt-0.5 text-[12.5px] text-sub">
+                    {shortDate(e.starts_at)} · {e.area}
+                  </div>
+                </Link>
+              ))}
+            </div>
           </>
         ) : null}
 

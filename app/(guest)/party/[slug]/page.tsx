@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { BookingSheet } from "@/components/BookingSheet";
 import { PhotoStrip } from "@/components/PhotoStrip";
+import { Recap } from "@/components/Recap";
 import { Reviews } from "@/components/Reviews";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { ShareButton } from "@/components/ShareButton";
@@ -17,7 +18,12 @@ import {
   REFUND_CUTOFF_DAYS,
   soldRate,
 } from "@/lib/rules";
-import type { EventPhoto, EventTable, Review } from "@/types/database";
+import type {
+  EventPhoto,
+  EventRecap,
+  EventTable,
+  Review,
+} from "@/types/database";
 
 // **캐시를 안 쓴다.** 찜은 사람마다 다르고 잔여는 초 단위로 바뀐다.
 // revalidate 를 걸어 두면 남의 찜과 지난 잔여가 그대로 나간다
@@ -54,7 +60,9 @@ export default async function PartyPage({
 }) {
   const { slug } = await params;
   const d = await getParty(slug);
-  if (!d || (d.event.status !== "open" && d.event.status !== "closed")) {
+  // **끝난 파티도 연다.** 지우면 다음 파티를 고민하는 사람이 볼 게 없다 —
+  // 처음 오는 사람이 제일 궁금해하는 건 "지난번엔 어땠나" 다
+  if (!d || d.event.status === "draft") {
     notFound();
   }
 
@@ -103,6 +111,17 @@ export default async function PartyPage({
     .eq("event_id", event.id)
     .order("sort_order");
   const photos = (photoRows ?? []) as EventPhoto[];
+
+  // 끝난 파티만 집계를 가져온다. 이름·연락처·금액은 안 들어 있다
+  const done = event.status === "done";
+  const { data: recapRow } = done
+    ? await supabase
+        .from("event_recap")
+        .select("*")
+        .eq("event_id", event.id)
+        .maybeSingle()
+    : { data: null };
+  const recap = (recapRow as EventRecap | null) ?? null;
   const mine = reviews.some((r) => r.user_id === user?.id);
   const me = profile as {
     nickname: string | null;
@@ -307,7 +326,11 @@ export default async function PartyPage({
           })}
         </section>
 
-        <PhotoStrip photos={photos} />
+        {done ? (
+          <Recap recap={recap} photos={photos} />
+        ) : (
+          <PhotoStrip photos={photos} />
+        )}
 
         {/* 테이블은 차수와 다른 물건이다 — **잡으면 입장비가 없다.**
             가격 옆에 붙여야 "입장권을 살까 테이블을 잡을까" 를 그 자리에서

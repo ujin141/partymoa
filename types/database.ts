@@ -107,6 +107,21 @@ export type EventTable = {
   created_at: string;
 }
 
+/** 끝난 파티의 집계. **개인 단위는 한 줄도 없다** */
+export type EventRecap = {
+  event_id: string;
+  slug: string;
+  capacity: number;
+  /** 실제로 입장 처리된 인원 */
+  came: number;
+  booked: number;
+  booked_f: number;
+  booked_m: number;
+  solo: number;
+  tables: number;
+  inviters: number;
+}
+
 export type EventPhoto = {
   id: string;
   event_id: string;
@@ -417,6 +432,7 @@ export type Database = {
     };
     Views: {
       event_stats: View<EventStats>;
+      event_recap: View<EventRecap>;
       tier_stats: View<TierStats>;
       post_list: View<PostListRow>;
       open_reports: View<OpenReport>;

@@ -355,6 +355,23 @@ export async function myBookings(): Promise<
 }
 
 /** 크루 목록. 하루에 몇 번 바뀌지도 않는데 요청마다 읽을 이유가 없다 */
+/**
+ * 끝난 파티. **기록으로만 보여 준다.**
+ *
+ * 지우지 않는 이유는 처음 오는 사람이 제일 궁금해하는 게 "지난번엔
+ * 어땠나" 이기 때문이다. 파는 판이 아니라 증거다.
+ */
+export async function listPastParties(limit = 6): Promise<EventRow[]> {
+  const supabase = publicClient();
+  const { data } = await supabase
+    .from("events")
+    .select("*")
+    .eq("status", "done")
+    .order("starts_at", { ascending: false })
+    .limit(limit);
+  return (data ?? []) as EventRow[];
+}
+
 export const listCrews = unstable_cache(
   async (): Promise<Crew[]> => {
     const { data } = await publicClient()
