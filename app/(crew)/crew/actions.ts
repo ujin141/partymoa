@@ -35,6 +35,27 @@ export async function setPaid(bookingId: string, paid: boolean) {
   return { ok: true };
 }
 
+/**
+ * 쿠폰 소식 한 줄.
+ *
+ * **새 알림을 안 보낸다.** 입금 확정 알림에 얹는다 — 쿠폰이 생겼다고
+ * 따로 한 통 더 보내면 같은 일로 두 번 울리고, 밤에 확인한 건은 야간
+ * 발송에 걸린다. 어차피 같은 순간에 일어나는 일이다.
+ *
+ * 이름을 적는 이유는 그게 열어 볼 이유이기 때문이다. "쿠폰 1장" 보다
+ * "웰컴 드링크 4장" 이 눈에 걸린다. 셋 넘어가면 줄이 길어져서 숫자만 센다.
+ */
+function perkLine(
+  rows: { total: number; perk: { name: string } | null }[],
+): string | null {
+  const live = rows.filter((r) => r.perk);
+  if (live.length === 0) return null;
+  if (live.length > 2) {
+    return `쿠폰 ${live.reduce((a, r) => a + r.total, 0)}장`;
+  }
+  return live.map((r) => `${r.perk!.name} ${r.total}장`).join(" · ");
+}
+
 /** 입금 확정 알림. 그 사람 기기로만 간다 */
 async function notifyPaid(bookingId: string) {
   if (!pushReady()) return;
@@ -52,6 +73,18 @@ async function notifyPaid(bookingId: string) {
     | null;
   if (!b?.user_id) return;
 
+  // 쿠폰은 입금 확인 순간에 트리거가 이미 발급해 뒀다. 그걸 읽어 온다
+  const { data: perkRows } = await supabase
+    .from("booking_perks")
+    .select("total, perk:event_perks (name)")
+    .eq("booking_id", b.id);
+  const line = perkLine(
+    (perkRows ?? []) as unknown as {
+      total: number;
+      perk: { name: string } | null;
+    }[],
+  );
+
   const { data: subs } = await supabase
     .from("push_subscriptions")
     .select("endpoint, p256dh, auth, platform")
@@ -62,8 +95,13 @@ async function notifyPaid(bookingId: string) {
   for (const s of subs ?? []) {
     const alive = await sendPush(s, {
       title: "입금 확인됐어요",
-      body: `${b.event.title} · ${b.code} 예매가 확정됐습니다.`,
-      url: "/tickets",
+      body: line
+        ? `${b.event.title} · ${b.code} 확정
+${line}이 내 티켓에 들어왔어요`
+        : `${b.event.title} · ${b.code} 예매가 확정됐습니다.`,
+      // 쿠폰이 있으면 쿠폰 칸으로 바로 떨군다. 확정 소식을 보고 열었는데
+      // 입장권 목록이 뜨면 쿠폰을 또 찾아 들어가야 한다
+      url: line ? "/tickets?t=coupon" : "/tickets",
       tag: `${b.id}-paid`,
     });
     if (!alive) dead.push(s.endpoint);
