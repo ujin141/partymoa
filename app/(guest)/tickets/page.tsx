@@ -3,13 +3,14 @@ import Link from "next/link";
 import { Countdown, Deadline } from "@/components/Countdown";
 import { CancelBooking } from "@/components/CancelBooking";
 import { CopyButton } from "@/components/CopyButton";
+import { Coupon } from "@/components/Coupon";
 import { FindTicket } from "@/components/FindTicket";
 import { OfflineTicket } from "@/components/OfflineTicket";
 import { StoryShare } from "@/components/StoryShare";
 import { Empty, StatusPill } from "@/components/ui/primitives";
 import { longDate, stamp, won } from "@/lib/format";
 import { REFUND_CUTOFF_DAYS, refundOpen } from "@/lib/rules";
-import { myBookings } from "@/lib/queries";
+import { myBookings, myPerks } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -18,15 +19,43 @@ export const metadata = { title: "내 티켓" };
 export default async function TicketsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ new?: string }>;
+  searchParams: Promise<{ new?: string; t?: string }>;
 }) {
   const supabase = await createClient();
-  const [{ new: fresh }, list, { data: auth }] = await Promise.all([
+  const [{ new: fresh, t }, list, perks, { data: auth }] = await Promise.all([
     searchParams,
     myBookings(),
+    myPerks(),
     supabase.auth.getUser(),
   ]);
   const signedIn = Boolean(auth?.user && !auth.user.is_anonymous);
+
+  /**
+   * **입장권과 쿠폰을 갈라 둔다.**
+   *
+   * 입장은 예매 한 건에 한 장이고 쿠폰은 인원수만큼이다. 한 줄로 섞으면
+   * 바 앞에서 드링크가 몇 잔 남았는지를 예매 목록에서 뒤지게 된다.
+   * 입구와 바는 다른 자리이고 다른 순간이다.
+   */
+  const tab = t === "coupon" ? "coupon" : "ticket";
+
+  // 쓸 수 있는 것이 위로. 다 쓴 쿠폰도 남긴다 — 몇 잔 마셨는지가
+  // 바와의 정산에서 근거가 된다
+  const coupons = [...perks].sort((a, z) => {
+    const live = (x: typeof a) =>
+      x.used < x.total &&
+      new Date(x.booking.event.ends_at).getTime() > Date.now() - 12 * 3600_000;
+    if (live(a) !== live(z)) return live(a) ? -1 : 1;
+    return (
+      new Date(a.booking.event.starts_at).getTime() -
+      new Date(z.booking.event.starts_at).getTime()
+    );
+  });
+  const liveCount = coupons.filter(
+    (c) =>
+      c.used < c.total &&
+      new Date(c.booking.event.ends_at).getTime() > Date.now() - 12 * 3600_000,
+  ).length;
 
   /**
    * 입구에서 신호가 죽어도 보여야 하는 **한 장**.
@@ -55,12 +84,74 @@ export default async function TicketsPage({
             : null
         }
       />
-      <header className="flex flex-none items-center gap-2.5 border-b border-line px-4 py-3.5">
-        <span className="text-[17px] font-extrabold">내 티켓</span>
-        <span className="ml-auto text-[13px] text-sub">{list.length}건</span>
+      <header className="flex-none border-b border-line">
+        <div className="flex items-center gap-2.5 px-4 pb-2.5 pt-3.5">
+          <span className="text-[17px] font-extrabold">내 티켓</span>
+        </div>
+        {/* 입구에서 쓰는 것과 바에서 쓰는 것. 같은 화면에 두되 줄을 나눈다 */}
+        <div className="flex px-4">
+          {[
+            { key: "ticket", label: "입장권", n: list.length, href: "/tickets" },
+            {
+              key: "coupon",
+              label: "쿠폰",
+              n: liveCount,
+              href: "/tickets?t=coupon",
+            },
+          ].map((x) => (
+            <Link
+              key={x.key}
+              href={x.href}
+              scroll={false}
+              className={`-mb-px border-b-2 px-3.5 pb-2.5 text-[15px] font-bold ${
+                tab === x.key
+                  ? "border-ink text-ink"
+                  : "border-transparent text-sub"
+              }`}
+            >
+              {x.label}
+              {x.n > 0 ? (
+                <span
+                  className={`ml-1 text-[13px] ${
+                    tab === x.key ? "text-brand" : "text-sub"
+                  }`}
+                >
+                  {x.n}
+                </span>
+              ) : null}
+            </Link>
+          ))}
+        </div>
       </header>
 
       <div className="flex-1 overflow-y-auto overscroll-contain p-4">
+        {tab === "coupon" ? (
+          coupons.length === 0 ? (
+            <Empty>
+              아직 받은 쿠폰이 없어요.
+              <br />
+              웰컴 드링크 같은 건 입금이 확인되면 여기로 들어와요.
+            </Empty>
+          ) : (
+            <>
+              <p className="mb-3.5 rounded-xl bg-soft px-3.5 py-3 text-[12.5px] leading-relaxed text-sub">
+                <b className="text-ink">직원 앞에서 눌러 주세요.</b> 미리
+                누르면 쓴 걸로 처리돼요. 잘못 눌렀다면 크루에게 말씀해
+                주세요.
+              </p>
+              {coupons.map((c) => (
+                <Coupon
+                  key={c.id}
+                  row={c}
+                  perk={c.perk}
+                  event={c.booking.event}
+                  who={c.booking.name}
+                />
+              ))}
+            </>
+          )
+        ) : (
+        <>
         {fresh ? (
           <div className="mb-4 rounded-xl bg-brand-soft px-3.5 py-3 text-[13.5px] leading-relaxed text-brand">
             <b>{fresh}</b> 예매를 받았어요. 24시간 안에 입금하면 확정됩니다.
@@ -180,6 +271,8 @@ export default async function TicketsPage({
           ))
         )}
         {list.length > 0 ? <FindTicket /> : null}
+        </>
+        )}
       </div>
     </>
   );

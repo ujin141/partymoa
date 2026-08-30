@@ -9,6 +9,8 @@ import { heads, live, money } from "@/lib/crew";
 import { crewPage } from "@/lib/crew-page";
 import { longDate, won } from "@/lib/format";
 import { genderCap, soldRate } from "@/lib/rules";
+import { createClient } from "@/lib/supabase/server";
+import type { EventPerk } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "크루 현황" };
@@ -57,6 +59,40 @@ export default async function CrewDashboard({
   const inside = rows.filter((b) => b.status === "checked_in");
   const solo = rows.filter((b) => b.quantity === 1);
   const gcap = genderCap(event.capacity);
+
+  /**
+   * 쿠폰 사용. **바와 정산할 때 쓰는 숫자다.**
+   *
+   * 몇 장 나갔는지가 아니라 몇 장 썼는지를 센다 — 바는 나간 잔만
+   * 청구한다. 손님이 안 쓰고 간 것까지 물어 주면 안 된다.
+   */
+  const db = await createClient();
+  const { data: perkRows } = await db
+    .from("event_perks")
+    .select("*")
+    .eq("event_id", event.id)
+    .order("sort_order");
+  const perks = (perkRows ?? []) as EventPerk[];
+
+  const { data: issuedRows } = perks.length
+    ? await db
+        .from("booking_perks")
+        .select("perk_id, total, used")
+        .in("perk_id", perks.map((x) => x.id))
+    : { data: [] };
+  const issued = (issuedRows ?? []) as {
+    perk_id: string;
+    total: number;
+    used: number;
+  }[];
+  const perkUse = perks.map((x) => {
+    const mine = issued.filter((r) => r.perk_id === x.id);
+    return {
+      perk: x,
+      out: mine.reduce((a, r) => a + r.total, 0),
+      used: mine.reduce((a, r) => a + r.used, 0),
+    };
+  });
 
   // 멤버에 없는 코드로 들어온 예매를 코드별로 모은다
   const known = new Set(members.map((m) => m.invite_code));
@@ -194,6 +230,35 @@ export default async function CrewDashboard({
             </b>
           </div>
         </div>
+
+        {perkUse.length > 0 ? (
+          <>
+            <h4 className="mb-1 mt-5 text-base font-extrabold">쿠폰 사용</h4>
+            <p className="mb-2.5 text-[12.5px] leading-relaxed text-sub">
+              바에는 <b className="text-ink">쓴 장수</b>로 정산합니다. 나간
+              장수가 아니에요 — 안 쓰고 간 손님 것까지 물어 줄 이유가 없어요.
+            </p>
+            {perkUse.map((x) => (
+              <div
+                key={x.perk.id}
+                className="mb-2 rounded-xl bg-soft px-3.5 py-3"
+              >
+                <div className="flex items-baseline justify-between">
+                  <small className="text-[13px] font-bold">{x.perk.name}</small>
+                  <b className="text-[17px] font-extrabold">
+                    {x.used}
+                    <span className="text-[13px] font-semibold text-sub">
+                      {` / ${x.out}장`}
+                    </span>
+                  </b>
+                </div>
+                <div className="mt-2">
+                  <Gauge pct={x.out ? (x.used / x.out) * 100 : 0} />
+                </div>
+              </div>
+            ))}
+          </>
+        ) : null}
       </div>
 
       <Divider />

@@ -8,7 +8,9 @@ import { publicClient } from "@/lib/supabase/public";
 import { createClient } from "@/lib/supabase/server";
 import type {
   Booking,
+  BookingPerk,
   Crew,
+  EventPerk,
   EventRow,
   EventStats,
   Lineup,
@@ -352,6 +354,40 @@ export async function myBookings(): Promise<
     event: EventRow;
     tier: TicketTier;
   })[];
+}
+
+/**
+ * 내 쿠폰. **입장권과 따로 읽는다.**
+ *
+ * 입장은 예매 한 건에 한 장이고 쿠폰은 인원수만큼이다. 한 화면에 섞으면
+ * 바 앞에서 "내 드링크가 몇 잔 남았지" 를 예매 목록에서 뒤지게 된다.
+ *
+ * 다 쓴 쿠폰도 가져온다 — 몇 잔 마셨는지가 정산 다툼의 근거다.
+ */
+export async function myPerks(): Promise<
+  (BookingPerk & {
+    perk: EventPerk;
+    booking: Booking & { event: EventRow };
+  })[]
+> {
+  const user = await currentUser();
+  if (!user) return [];
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from("booking_perks")
+    .select("*, perk:event_perks (*), booking:bookings (*, event:events (*))")
+    .order("created_at", { ascending: false });
+
+  const rows = (data ?? []) as unknown as (BookingPerk & {
+    perk: EventPerk | null;
+    booking: (Booking & { event: EventRow | null }) | null;
+  })[];
+
+  // 조인이 비면 화면이 깨진다. 취소된 예매의 쿠폰도 여기서 뺀다
+  return rows.filter(
+    (r) => r.perk && r.booking?.event && r.booking.status !== "cancelled",
+  ) as (BookingPerk & { perk: EventPerk; booking: Booking & { event: EventRow } })[];
 }
 
 /** 크루 목록. 하루에 몇 번 바뀌지도 않는데 요청마다 읽을 이유가 없다 */

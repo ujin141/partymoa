@@ -33,3 +33,23 @@ export async function cancelMyBooking(bookingId: string) {
   revalidateTag(PARTY_TAG);
   return { ok: true as const };
 }
+
+/**
+ * 쿠폰 한 장 쓰기.
+ *
+ * **되돌릴 수 없다.** 손님이 되돌릴 수 있으면 그건 쿠폰이 아니다 —
+ * 잘못 눌렀을 때는 크루가 되돌린다. 그래서 화면에서 한 번 더 묻는다.
+ *
+ * 남은 장수·시간 판정은 전부 DB 의 use_perk 가 한다. 여기서 다시
+ * 세면 두 군데가 서로 다른 답을 내는 날이 온다.
+ */
+export async function redeemPerk(perkId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("use_perk", { p_id: perkId });
+  if (error) {
+    // DB 가 사람 말로 던진다. 그대로 보여 준다
+    return { ok: false as const, message: error.message || "쓰지 못했어요." };
+  }
+  revalidatePath("/tickets");
+  return { ok: true as const, left: data ? data.total - data.used : 0 };
+}

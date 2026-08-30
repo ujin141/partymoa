@@ -250,6 +250,39 @@ export type Booking = {
   created_at: string;
 }
 
+/**
+ * 파티가 주는 것. 웰컴 드링크, 락커, 방수 밴드 같은 것들.
+ * **입장권과 다른 물건이다** — 입장은 한 번 쓰고 끝나고 이건 나눠 쓴다.
+ */
+export type EventPerk = {
+  id: string;
+  event_id: string;
+  name: string;
+  note: string | null;
+  /** 1인당 장수. per_person 이 false 면 예매 한 건당 */
+  qty: number;
+  per_person: boolean;
+  /** 테이블 잡은 손님만 받는 것 */
+  table_only: boolean;
+  sort_order: number;
+  created_at: string;
+}
+
+/**
+ * 실제로 발급된 쿠폰. 4명이면 카드 넉 장이 아니라 **한 장에 4잔**이다 —
+ * 바 앞에 폰을 들고 서는 건 한 명이다.
+ */
+export type BookingPerk = {
+  id: string;
+  booking_id: string;
+  perk_id: string;
+  total: number;
+  used: number;
+  first_used_at: string | null;
+  last_used_at: string | null;
+  created_at: string;
+}
+
 /** 보낸 광고. 수신거부 분쟁의 근거라 지우지 않는다 */
 export type MarketingLog = {
   id: string;
@@ -368,6 +401,13 @@ export type Database = {
         EventTable,
         Insertable<EventTable, "event_id" | "name" | "price" | "seats">
       >;
+      event_perks: Table<
+        EventPerk,
+        Insertable<EventPerk, "event_id" | "name">
+      >;
+      // 발급은 트리거가 한다. 앱에서 넣거나 고치는 길은 없다 —
+      // 쿠폰 장수를 앱이 바꿀 수 있으면 그건 쿠폰이 아니다
+      booking_perks: Table<BookingPerk, never, never>;
       reviews: Table<
         Review,
         Insertable<Review, "event_id" | "user_id" | "rating" | "body" | "nickname">
@@ -464,6 +504,14 @@ export type Database = {
           p_invite_code: string | null;
         };
         Returns: Booking;
+      };
+      use_perk: {
+        Args: { p_id: string };
+        Returns: BookingPerk;
+      };
+      unuse_perk: {
+        Args: { p_id: string };
+        Returns: BookingPerk;
       };
       expire_unpaid_bookings: {
         Args: Record<string, never>;

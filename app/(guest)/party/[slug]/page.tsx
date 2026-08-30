@@ -19,6 +19,7 @@ import {
   soldRate,
 } from "@/lib/rules";
 import type {
+  EventPerk,
   EventPhoto,
   EventRecap,
   EventTable,
@@ -104,6 +105,14 @@ export default async function PartyPage({
     .eq("event_id", event.id)
     .order("sort_order");
   const tables = (tableRows ?? []) as EventTable[];
+
+  // 예매에 딸려 오는 것. 웰컴 드링크 같은 것들 — 사기 전에 알아야 한다
+  const { data: perkRows } = await supabase
+    .from("event_perks")
+    .select("*")
+    .eq("event_id", event.id)
+    .order("sort_order");
+  const perks = (perkRows ?? []) as EventPerk[];
 
   const { data: photoRows } = await supabase
     .from("event_photos")
@@ -338,6 +347,41 @@ export default async function PartyPage({
             );
           })}
         </section>
+
+        {/* **가격 바로 밑이다.** 사기 전에 뭐가 딸려 오는지를 알아야
+            비싼지 싼지를 판단한다. 아래로 내리면 이미 결정한 뒤에 본다 */}
+        {perks.length > 0 ? (
+          <section className="border-b-8 border-soft px-4 py-4.5">
+            <h4 className="mb-1 text-base font-extrabold">포함</h4>
+            <p className="mb-3 text-[12.5px] leading-relaxed text-sub">
+              입금이 확인되면 <b className="text-ink">내 티켓 → 쿠폰</b> 에
+              들어옵니다. 현장에서 보여 주고 쓰세요.
+            </p>
+            {perks.map((x) => (
+              <div
+                key={x.id}
+                className="flex items-start gap-3 border-b border-line py-2.5 last:border-b-0"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="text-[15px] font-bold">{x.name}</div>
+                  {x.note ? (
+                    <p className="mt-0.5 text-[12.5px] leading-relaxed text-sub">
+                      {x.note}
+                    </p>
+                  ) : null}
+                  {x.table_only ? (
+                    <p className="mt-0.5 text-[12px] text-sub">
+                      테이블 예약 손님만
+                    </p>
+                  ) : null}
+                </div>
+                <b className="flex-none text-[13.5px] text-brand">
+                  {x.per_person ? `1인 ${x.qty}장` : `${x.qty}장`}
+                </b>
+              </div>
+            ))}
+          </section>
+        ) : null}
 
         <PhotoStrip photos={shots} />
         </>

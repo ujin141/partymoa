@@ -8,6 +8,7 @@ import { updateEvent } from "@/app/(crew)/crew/events/[id]/edit/actions";
 import { toLocalInput } from "@/lib/format";
 import { priceFor } from "@/lib/rules";
 import type {
+  EventPerk,
   EventPhoto,
   EventRow,
   EventTable,
@@ -21,6 +22,7 @@ export interface EventFormInitial {
   lineups: Lineup[];
   tables: EventTable[];
   photos: EventPhoto[];
+  perks: EventPerk[];
 }
 
 const CATEGORIES = ["풀파티", "솔로파티", "루프탑", "클럽", "라운지", "야외"];
@@ -160,6 +162,27 @@ export function EventForm({
     })) ?? [],
   );
   const [tablesNote, setTablesNote] = useState(ev?.tables_note ?? "");
+
+  // 쿠폰으로 나갈 것들. 입금이 확인되면 손님 화면에 자동으로 들어간다
+  const [perks, setPerks] = useState<
+    {
+      id?: string;
+      name: string;
+      note: string;
+      qty: string;
+      perPerson: boolean;
+      tableOnly: boolean;
+    }[]
+  >(
+    initial?.perks.map((x) => ({
+      id: x.id,
+      name: x.name,
+      note: x.note ?? "",
+      qty: String(x.qty),
+      perPerson: x.per_person,
+      tableOnly: x.table_only,
+    })) ?? [],
+  );
   /** 초대 코드를 넣었을 때의 금액. 비우면 할인 없음 */
   const [guestPrice, setGuestPrice] = useState(
     ev?.guest_price == null ? "" : String(ev.guest_price),
@@ -234,6 +257,17 @@ export function EventForm({
           sortOrder: i,
         })),
         tablesNote,
+        perks: perks
+          .filter((x) => x.name.trim())
+          .map((x, i) => ({
+            id: x.id,
+            name: x.name.trim(),
+            note: x.note.trim() || null,
+            qty: Math.max(1, Number(x.qty) || 1),
+            perPerson: x.perPerson,
+            tableOnly: x.tableOnly,
+            sortOrder: i,
+          })),
         guestPrice: guestPrice.trim() === "" ? null : Number(guestPrice) || 0,
         photos: photos
           .filter((x) => x.url.trim())
@@ -837,6 +871,119 @@ export function EventForm({
       ) : (
         <div className="mb-6" />
       )}
+
+      {/* ── 쿠폰 ── */}
+      <h4 className="mb-1 text-base font-extrabold">쿠폰</h4>
+      <p className="mb-3 text-[12.5px] leading-relaxed text-sub">
+        웰컴 드링크처럼 <b className="text-ink">현장에서 한 장씩 쓰는 것.</b>{" "}
+        입금이 확인되면 손님 <b className="text-ink">내 티켓 → 쿠폰</b> 에
+        저절로 들어갑니다. 손님이 바에서 직접 눌러요.
+      </p>
+      {perks.map((x, i) => (
+        <div key={i} className="mb-2.5 rounded-xl border border-line p-3">
+          <div className="mb-2 flex gap-2">
+            <input
+              className={input}
+              value={x.name}
+              onChange={(e) =>
+                setPerks(
+                  perks.map((y, j) =>
+                    j === i ? { ...y, name: e.target.value } : y,
+                  ),
+                )
+              }
+              placeholder="웰컴 드링크"
+            />
+            <button
+              type="button"
+              onClick={() => setPerks(perks.filter((_, j) => j !== i))}
+              className="flex-none rounded-xl border border-line px-3 text-[13px] text-sub"
+            >
+              삭제
+            </button>
+          </div>
+          <input
+            className={`${input} mb-2`}
+            value={x.note}
+            onChange={(e) =>
+              setPerks(
+                perks.map((y, j) =>
+                  j === i ? { ...y, note: e.target.value } : y,
+                ),
+              )
+            }
+            placeholder="시그니처 칵테일 1잔 · 바에서 보여 주세요"
+          />
+          <div className="flex items-center gap-2">
+            <div className="w-20 flex-none">
+              <span className="mb-1 block text-[12px] text-sub">장수</span>
+              <input
+                className={input}
+                inputMode="numeric"
+                value={x.qty}
+                onChange={(e) =>
+                  setPerks(
+                    perks.map((y, j) =>
+                      j === i
+                        ? { ...y, qty: e.target.value.replace(/\D/g, "") }
+                        : y,
+                    ),
+                  )
+                }
+              />
+            </div>
+            {/* 1인당이면 4명 예매에 넉 장이 나간다. 예매당이면 한 장이다 */}
+            <div className="flex-1 pt-5">
+              <label className="flex items-center gap-2 text-[13.5px]">
+                <input
+                  type="checkbox"
+                  checked={x.perPerson}
+                  onChange={(e) =>
+                    setPerks(
+                      perks.map((y, j) =>
+                        j === i ? { ...y, perPerson: e.target.checked } : y,
+                      ),
+                    )
+                  }
+                />
+                1인당
+              </label>
+              <label className="mt-1 flex items-center gap-2 text-[13.5px]">
+                <input
+                  type="checkbox"
+                  checked={x.tableOnly}
+                  onChange={(e) =>
+                    setPerks(
+                      perks.map((y, j) =>
+                        j === i ? { ...y, tableOnly: e.target.checked } : y,
+                      ),
+                    )
+                  }
+                />
+                테이블 손님만
+              </label>
+            </div>
+          </div>
+          <p className="mt-2 text-[12px] leading-relaxed text-sub">
+            {x.perPerson
+              ? `4명이 예매하면 ${Math.max(1, Number(x.qty) || 1) * 4}장 나갑니다.`
+              : `4명이 예매해도 ${Math.max(1, Number(x.qty) || 1)}장입니다.`}
+            {x.tableOnly ? " 테이블을 잡은 예매에만 나갑니다." : ""}
+          </p>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() =>
+          setPerks([
+            ...perks,
+            { name: "", note: "", qty: "1", perPerson: true, tableOnly: false },
+          ])
+        }
+        className="mb-6 w-full rounded-xl border border-line py-3 text-[14.5px] font-semibold"
+      >
+        쿠폰 추가
+      </button>
 
       {/* ── 사진 ── */}
       <h4 className="mb-1 text-base font-extrabold">사진</h4>

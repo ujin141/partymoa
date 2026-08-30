@@ -5,6 +5,7 @@ import { EventForm } from "@/components/crew/EventForm";
 import { myCrew } from "@/lib/crew";
 import { createClient } from "@/lib/supabase/server";
 import type {
+  EventPerk,
   EventPhoto,
   EventRow,
   EventTable,
@@ -25,8 +26,14 @@ export default async function EditEventPage({
 
   const { id } = await params;
   const supabase = await createClient();
-  const [{ data: event }, { data: tiers }, { data: lineups }, { data: tables }, { data: photos }] =
-    await Promise.all([
+  const [
+    { data: event },
+    { data: tiers },
+    { data: lineups },
+    { data: tables },
+    { data: photos },
+    { data: perks },
+  ] = await Promise.all([
       supabase.from("events").select("*").eq("id", id).maybeSingle(),
       supabase
         .from("ticket_tiers")
@@ -41,6 +48,11 @@ export default async function EditEventPage({
         .order("sort_order"),
       supabase
         .from("event_photos")
+        .select("*")
+        .eq("event_id", id)
+        .order("sort_order"),
+      supabase
+        .from("event_perks")
         .select("*")
         .eq("event_id", id)
         .order("sort_order"),
@@ -68,6 +80,7 @@ export default async function EditEventPage({
           lineups: (lineups ?? []) as Lineup[],
           tables: (tables ?? []) as EventTable[],
           photos: (photos ?? []) as EventPhoto[],
+          perks: (perks ?? []) as EventPerk[],
         }}
       />
     </div>

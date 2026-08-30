@@ -49,6 +49,16 @@ export interface EventDraft {
     sortOrder: number;
   }[];
   tablesNote: string;
+  /** 쿠폰으로 나갈 것들. 입금이 확인되면 트리거가 손님에게 발급한다 */
+  perks: {
+    id?: string;
+    name: string;
+    note: string | null;
+    qty: number;
+    perPerson: boolean;
+    tableOnly: boolean;
+    sortOrder: number;
+  }[];
   guestPrice: number | null;
   photos: { url: string; caption: string | null; sortOrder: number }[];
   lineups: { artist: string; time: string }[];
@@ -177,6 +187,19 @@ export async function createEvent(d: EventDraft) {
     sort_order: i,
   }));
   if (photoRows.length) await supabase.from("event_photos").insert(photoRows);
+
+  const perkRows = d.perks
+    .filter((x) => x.name.trim())
+    .map((x, i) => ({
+      event_id: event.id,
+      name: x.name.trim(),
+      note: x.note,
+      qty: x.qty,
+      per_person: x.perPerson,
+      table_only: x.tableOnly,
+      sort_order: i,
+    }));
+  if (perkRows.length) await supabase.from("event_perks").insert(perkRows);
 
   if (tableRows.length) {
     await supabase.from("event_tables").insert(tableRows);

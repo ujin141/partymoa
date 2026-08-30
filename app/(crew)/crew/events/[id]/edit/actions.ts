@@ -38,6 +38,16 @@ export interface EventPatch {
     closed?: boolean;
   }[];
   lineups: { artist: string; time: string }[];
+  /** 쿠폰. 발급된 것이 딸려 있어서 지웠다 다시 넣지 않는다 */
+  perks: {
+    id?: string;
+    name: string;
+    note: string | null;
+    qty: number;
+    perPerson: boolean;
+    tableOnly: boolean;
+    sortOrder: number;
+  }[];
   tables: {
     id?: string;
     name: string;
@@ -213,8 +223,61 @@ export async function updateEvent(eventId: string, d: EventPatch) {
     })
     .eq("id", eventId);
 
+  /**
+   * 쿠폰. **테이블처럼 지웠다 다시 넣으면 안 된다** — 발급된 쿠폰이
+   * 딸려 있어서 같이 사라진다. 이미 마신 잔이 없던 일이 되면 바와
+   * 정산이 안 맞는다. id 가 있는 줄은 고치고 없는 줄만 새로 넣는다.
+   */
+  const keepPerks = d.perks.map((x) => x.id).filter(Boolean) as string[];
+  const { data: had } = await supabase
+    .from("event_perks")
+    .select("id")
+    .eq("event_id", eventId);
+  const drop = ((had ?? []) as { id: string }[])
+    .map((x) => x.id)
+    .filter((id) => !keepPerks.includes(id));
+
+  let kept = 0;
+  if (drop.length) {
+    // 한 장이라도 쓴 쿠폰이 걸려 있으면 그 줄은 안 지운다
+    const { data: usedRows } = await supabase
+      .from("booking_perks")
+      .select("perk_id")
+      .in("perk_id", drop)
+      .gt("used", 0);
+    const locked = new Set(
+      ((usedRows ?? []) as { perk_id: string }[]).map((x) => x.perk_id),
+    );
+    kept = locked.size;
+    const free = drop.filter((id) => !locked.has(id));
+    if (free.length) {
+      await supabase.from("event_perks").delete().in("id", free);
+    }
+  }
+
+  for (const [i, x] of d.perks.filter((x) => x.name.trim()).entries()) {
+    const row = {
+      name: x.name.trim(),
+      note: x.note,
+      qty: x.qty,
+      per_person: x.perPerson,
+      table_only: x.tableOnly,
+      sort_order: i,
+    };
+    if (x.id) {
+      await supabase.from("event_perks").update(row).eq("id", x.id);
+    } else {
+      await supabase.from("event_perks").insert({ event_id: eventId, ...row });
+    }
+  }
+
   revalidatePath("/crew", "layout");
   revalidateTag(PARTY_TAG);
   revalidatePath("/", "layout");
-  return { ok: true as const };
+  return {
+    ok: true as const,
+    message: kept
+      ? `쿠폰 ${kept}종은 이미 쓴 손님이 있어서 안 지웠어요.`
+      : undefined,
+  };
 }
