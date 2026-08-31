@@ -15,14 +15,41 @@
 -- 대표 계정을 심사용으로 바꾸면 **진짜 대표가 자기 크루에서 밀려난다.**
 -- 크루원으로만 넣으면 권한은 같고 대표는 그대로다.
 
+-- 먼저 지금 있는 계정을 본다. **다른 주소로 만드셨으면 아래 v_email 을
+-- 그 주소로 바꿀 것** — 오타 하나로 또 멈춘다
+select email, (email_confirmed_at is not null) as 인증됨, created_at
+from auth.users order by created_at desc limit 10;
+
 do $review$
 declare
+  v_email text := 'review@partymoa.com';   -- ← 만든 주소로 바꿀 것
   v_user uuid;
   v_crew uuid;
 begin
-  select id into v_user from auth.users where email = 'review@partymoa.com';
+  select id into v_user from auth.users where lower(email) = lower(v_email);
   if v_user is null then
-    raise exception '심사용 계정이 없습니다. Supabase 에서 먼저 만들어 주세요 (Auto Confirm 켜기).';
+    raise exception E'% 계정이 없습니다.
+
+'
+      'Supabase 대시보드 → Authentication → Users → Add user 에서
+'
+      '먼저 만들어 주세요. **Auto Confirm User 를 켜야** 합니다 —
+'
+      '안 켜면 메일 인증을 못 해 로그인이 안 됩니다.
+
+'
+      '다른 주소로 만드셨으면 이 파일 위쪽 v_email 을 그 주소로 바꾸세요.',
+      v_email;
+  end if;
+
+  if not exists (select 1 from auth.users
+                 where id = v_user and email_confirmed_at is not null) then
+    raise exception E'% 계정이 아직 인증 전입니다.
+
+'
+      'Authentication → Users 에서 그 사람을 열고 Confirm 하거나,
+'
+      '지우고 Auto Confirm User 를 켠 채 다시 만들어 주세요.', v_email;
   end if;
 
   select crew_id into v_crew from events order by starts_at desc limit 1;
