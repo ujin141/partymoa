@@ -82,8 +82,7 @@ begin
   -- **user_id 를 비워 둔다** — 채우면 그 사람이 손님 명단과 연락처를
   -- 볼 수 있게 된다. 코드는 집계에만 쓰면 된다
   insert into crew_members (crew_id, display_name, invite_code)
-  values (v_crew, 'cheeps (보성)', 'CHEEPS'),
-         (v_crew, 'ts (정훈)', 'TS'),
+  values (v_crew, 'ts (정훈)', 'TS'),
          (v_crew, 'aros (진혁)', 'AROS')
   on conflict (crew_id, invite_code) do nothing;
 
@@ -101,4 +100,4 @@ join events e on e.id = p.event_id
 where e.slug = 'after-moon-20260926';
 
 select display_name, invite_code from crew_members
-where invite_code in ('CHEEPS', 'TS', 'AROS');
+where invite_code in ('TS', 'AROS');
