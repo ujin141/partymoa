@@ -51,5 +51,8 @@ export async function redeemPerk(perkId: string) {
     return { ok: false as const, message: error.message || "쓰지 못했어요." };
   }
   revalidatePath("/tickets");
+  // **크루 화면도 같이 버린다.** 바에서 한 잔 나갈 때마다 호스트가 보는
+  // 숫자가 따라가야 한다 — 안 그러면 새로 고칠 때까지 예전 숫자가 남는다
+  revalidatePath("/crew", "layout");
   return { ok: true as const, left: data ? data.total - data.used : 0 };
 }

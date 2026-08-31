@@ -243,14 +243,27 @@ export default async function CrewDashboard({
                 key={x.perk.id}
                 className="mb-2 rounded-xl bg-soft px-3.5 py-3"
               >
+                {/*
+                  **세 숫자를 다 적는다.**
+
+                  예전에는 `1 / 4장` 한 덩이였다. 그런데 손님 화면은 남은
+                  장수를 세고(4 → 3) 이 화면은 쓴 장수를 센다(0 → 1) —
+                  같은 쿠폰이 두 화면에서 반대로 움직인다. 한 잔 나갔는데
+                  뒤의 4가 그대로라 "안 줄어든다" 로 읽힌다.
+
+                  정산에 쓰는 건 여전히 쓴 장수라 그걸 제일 크게 둔다.
+                */}
                 <div className="flex items-baseline justify-between">
                   <small className="text-[13px] font-bold">{x.perk.name}</small>
                   <b className="text-[17px] font-extrabold">
-                    {x.used}
-                    <span className="text-[13px] font-semibold text-sub">
-                      {` / ${x.out}장`}
+                    {`${x.used}장`}
+                    <span className="ml-1 text-[12.5px] font-semibold text-sub">
+                      사용
                     </span>
                   </b>
+                </div>
+                <div className="mt-1 text-[12.5px] text-sub">
+                  {`나간 ${x.out}장 · 남은 ${Math.max(0, x.out - x.used)}장`}
                 </div>
                 <div className="mt-2">
                   <Gauge pct={x.out ? (x.used / x.out) * 100 : 0} />
