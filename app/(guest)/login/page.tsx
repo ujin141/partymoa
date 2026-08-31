@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { Agree } from "@/components/Agree";
 import { InAppBrowserNotice } from "@/components/InAppBrowserNotice";
 import { PasswordLogin } from "@/components/PasswordLogin";
 import { SocialLogin } from "@/components/SocialLogin";
@@ -53,8 +54,13 @@ export default async function LoginPage({
         ) : null}
 
         <InAppBrowserNotice />
-        <SocialLogin next={next ?? "/my"} />
-        <PasswordLogin next={next ?? "/my"} />
+
+        {/* **동의가 먼저다.** 애플 가이드라인 1.2 — 사용자끼리 글을
+            주고받는 앱은 가입·로그인 전에 약관 동의를 받아야 한다 */}
+        <Agree>
+          <SocialLogin next={next ?? "/my"} />
+          <PasswordLogin next={next ?? "/my"} />
+        </Agree>
 
         <Link
           href="/"
@@ -62,18 +68,6 @@ export default async function LoginPage({
         >
           그냥 둘러보기
         </Link>
-
-        <p className="mt-6 text-center text-[12px] leading-relaxed text-sub">
-          로그인하면{" "}
-          <Link href="/terms" className="underline">
-            이용약관
-          </Link>
-          과{" "}
-          <Link href="/privacy" className="underline">
-            개인정보처리방침
-          </Link>
-          에 동의하는 것으로 봅니다.
-        </p>
 
         <div className="mt-8 border-t border-line pt-5 text-center">
           <Link href="/crew/login" className="text-[13px] text-sub underline">

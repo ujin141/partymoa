@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { isNativeIOS } from "@/lib/native";
 import { createClient } from "@/lib/supabase/client";
 
 type Provider = "kakao" | "apple" | "google";
@@ -92,6 +93,26 @@ const ENABLED: Provider[] = ["google", "apple"];
 export function SocialLogin({ next = "/my" }: { next?: string }) {
   const [busy, setBusy] = useState<Provider | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [native, setNative] = useState(false);
+
+  useEffect(() => setNative(isNativeIOS()), []);
+
+  /**
+   * **아이폰 앱에서는 소셜 로그인을 안 띄운다.**
+   *
+   * 앱 심사에서 이걸로 반려됐다(가이드라인 4). 구글 로그인은 우리
+   * 도메인 밖(accounts.google.com)으로 나가는데, 웹뷰가 남의 주소를
+   * 못 열게 막아 둬서 사파리가 통째로 열린다 — 앱을 쓰다가 갑자기
+   * 브라우저로 튕기는 모양이 된다.
+   *
+   * 웹뷰 안에서 열게 풀 수도 없다. **구글이 임베디드 웹뷰의 OAuth 를
+   * 거부한다**(disallowed_useragent). 제대로 고치려면 네이티브 쪽에
+   * ASWebAuthenticationSession 을 붙여야 하는데, 그건 Xcode 작업이다.
+   *
+   * 그동안 아이폰에서는 이메일 로그인만 연다. 예매는 원래 로그인
+   * 없이도 되므로 손님이 막히는 곳은 없다.
+   */
+  if (native) return null;
 
   async function go(provider: Provider) {
     setBusy(provider);

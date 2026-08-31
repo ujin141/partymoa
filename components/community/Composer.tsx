@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 
 import { writeComment, writePost } from "@/app/(guest)/community/actions";
+import { Rules } from "@/components/community/Rules";
 
 const NICK_KEY = "partymoa:nick";
 
@@ -32,8 +33,15 @@ export function PostComposer() {
   const [nick, setNick] = useNickname();
   const [body, setBody] = useState("");
   const [open, setOpen] = useState(false);
+  const [agreed, setAgreed] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [busy, start] = useTransition();
+
+  // **동의를 먼저 받는다.** 이 앱은 로그인 없이도 글이 써져서, 로그인
+  // 화면의 약관만으로는 한 번도 로그인 안 한 사람에게 안 걸린다
+  if (open && !agreed) {
+    return <Rules onAgree={() => setAgreed(true)} />;
+  }
 
   if (!open) {
     return (

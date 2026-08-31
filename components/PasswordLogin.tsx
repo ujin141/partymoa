@@ -1,8 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { isNativeIOS } from "@/lib/native";
 import { createClient } from "@/lib/supabase/client";
 
 /**
@@ -28,6 +29,15 @@ import { createClient } from "@/lib/supabase/client";
 export function PasswordLogin({ next = "/my" }: { next?: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+
+  /**
+   * **아이폰 앱에서는 처음부터 펴 둔다.** 거기서는 이게 유일한 문이다 —
+   * 소셜 로그인이 사파리를 여는 문제로 심사에서 막혀 숨겨 뒀다.
+   * 접힌 링크 하나만 남겨 두면 로그인이 아예 없는 앱으로 보인다.
+   */
+  useEffect(() => {
+    if (isNativeIOS()) setOpen(true);
+  }, []);
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [busy, setBusy] = useState(false);
