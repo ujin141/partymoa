@@ -62,7 +62,7 @@ begin
     true,
     array['딥하우스', '하우스', '테크노'],
     array['라운지', '솔로파티'],
-    10000,
+    9900,
     -- **게스트가를 안 둔다. 전원 1만원이다.**
     -- 비워 두면 추천인 코드가 값을 안 바꾸고 누가 데려왔는지만 남는다 --
     null,
@@ -72,7 +72,7 @@ begin
 
   -- 차수는 하나. 정원과 같은 수량이라야 정원을 다 판다
   insert into ticket_tiers (event_id, name, note, price, capacity, sort_order)
-  values (v_event, '1차', '남녀 같은 값', 10000, 30, 0)
+  values (v_event, '1차', '남녀 동일', 9900, 30, 0)
   returning id into v_tier;
 
   -- 베뉴가 호세 한 바틀을 준다. **원가 0원짜리 쿠폰이다**
