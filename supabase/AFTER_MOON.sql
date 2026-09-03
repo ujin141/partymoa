@@ -55,9 +55,9 @@ begin
     -- 확정 전에 박아 두면 바뀌었을 때 이미 예매한 사람에게 딴 데를
     -- 알려 준 셈이 된다. 정해지면 크루 화면에서 채운다
     '곧 공개', '서울',
-    -- 자리만 잡아 둔 시각. 정해지면 크루 화면에서 고친다
-    timestamptz '2026-09-26 21:00+09',
-    timestamptz '2026-09-27 03:00+09',
+    -- 시간표대로. 22:00 시작, 마지막 셋이 02:10 에 끝난다
+    timestamptz '2026-09-26 22:00+09',
+    timestamptz '2026-09-27 02:10+09',
     30, true, 1,
     true,
     array['딥하우스', '하우스', '테크노'],
@@ -85,9 +85,21 @@ begin
   -- **user_id 를 비워 둔다** — 채우면 그 사람이 손님 명단과 연락처를
   -- 볼 수 있게 된다. 코드는 집계에만 쓰면 된다
   insert into crew_members (crew_id, display_name, invite_code)
-  values (v_crew, 'ts (정훈)', 'TS'),
-         (v_crew, 'aros (진혁)', 'AROS')
+  values (v_crew, 'bho', 'BHO'),
+         (v_crew, 'lynn', 'LYNN'),
+         (v_crew, 'lii', 'LII'),
+         (v_crew, 'aros (진혁)', 'AROS'),
+         (v_crew, 'ts (정훈)', 'TS')
   on conflict (crew_id, invite_code) do nothing;
+
+  -- 시간표. **파티 상세의 라인업 칸이 이걸 읽는다**
+  delete from lineups where event_id = v_event;
+  insert into lineups (event_id, artist_name, starts_at, sort_order)
+  values (v_event, 'BHO',  time '22:00', 0),
+         (v_event, 'LYNN', time '22:50', 1),
+         (v_event, 'LII',  time '23:40', 2),
+         (v_event, 'AROS', time '00:30', 3),
+         (v_event, 'TS',   time '01:20', 4);
 
   raise notice 'AFTER MOON 초안 생성. 크루 화면에서 열어 보세요.';
 end $party$;
@@ -118,4 +130,9 @@ join events e on e.id = p.event_id
 where e.slug = 'after-moon-20260926';
 
 select display_name, invite_code from crew_members
-where invite_code in ('TS', 'AROS');
+where invite_code in ('BHO', 'LYNN', 'LII', 'AROS', 'TS')
+order by display_name;
+
+select artist_name, starts_at from lineups l
+join events e on e.id = l.event_id
+where e.slug = 'after-moon-20260926' order by sort_order;
