@@ -45,8 +45,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ message: "잘못된 요청이에요." }, { status: 400 });
   }
 
-  const { eventId, tierId, name, phone, gender, quantity, inviteCode } =
-    body as {
+  const {
+    eventId, tierId, name, phone, gender, quantity, inviteCode, instagram,
+  } = body as {
       eventId?: string;
       tierId?: string;
       name?: string;
@@ -54,6 +55,7 @@ export async function POST(req: Request) {
       gender?: string;
       quantity?: number;
       inviteCode?: string | null;
+      instagram?: string | null;
     };
 
   if (!eventId || !tierId || !name?.trim() || !phone?.trim()) {
@@ -116,6 +118,20 @@ export async function POST(req: Request) {
     p_gender: gender,
     p_quantity: qty,
     p_invite_code: inviteCode ?? null,
+    /**
+     * 인스타 아이디. **선택 항목이라 틀렸다고 예매를 막지 않는다.**
+     * 앞의 @ 와 붙여 넣은 주소를 걷어내고 인스타가 허용하는 글자만
+     * 남긴다. 남는 게 없으면 그냥 비운다 — 여기서 되돌려 보내면
+     * 손님은 왜 막혔는지 모른 채 예매를 포기한다.
+     */
+    p_instagram:
+      (instagram ?? "")
+        .trim()
+        .replace(/^https?:\/\/(www\.)?instagram\.com\//i, "")
+        .replace(/[/?#].*$/, "")
+        .replace(/^@+/, "")
+        .toLowerCase()
+        .match(/^[a-z0-9._]{1,30}$/)?.[0] ?? null,
   });
 
   if (error) {

@@ -241,6 +241,8 @@ export type Booking = {
   quantity: number;
   amount: number;
   invite_code: string | null;
+  /** 인스타 아이디. **@ 없이 저장한다.** 선택 항목이라 비어 있을 수 있다 */
+  instagram: string | null;
   /** 앉는 테이블. **표시용이고 금액은 안 담는다** — 한 테이블에 여럿이 앉는다 */
   table_id: string | null;
   status: BookingStatus;
@@ -502,6 +504,7 @@ export type Database = {
           p_gender: string;
           p_quantity: number;
           p_invite_code: string | null;
+          p_instagram: string | null;
         };
         Returns: Booking;
       };

@@ -68,6 +68,7 @@ export function BookingSheet(p: Props) {
   // 오타가 나면 입금자명이 안 맞아 대조가 깨진다
   const [name, setName] = useState(p.defaultName ?? "");
   const [phone, setPhone] = useState(phoneMask(p.defaultPhone ?? ""));
+  const [insta, setInsta] = useState("");
   const [qty, setQty] = useState(1);
   // 멤버 초대 링크(`?i=CODE`)로 들어오면 코드를 미리 채운다. 손으로
   // 옮겨 적으라고 하면 대부분 안 적고, 그러면 그 멤버 성과가 안 잡힌다
@@ -135,6 +136,7 @@ export function BookingSheet(p: Props) {
     setGender(null);
     setName("");
     setPhone("");
+    setInsta("");
     setQty(1);
     setInvite("");
     setErr(null);
@@ -153,6 +155,7 @@ export function BookingSheet(p: Props) {
           tierId,
           name: name.trim(),
           phone: phone.trim(),
+          instagram: insta.trim() || null,
           gender,
           quantity: qty,
           inviteCode: invite.trim() || null,
@@ -413,6 +416,30 @@ export function BookingSheet(p: Props) {
                 입금 확인과 당일 안내를 이 번호로 보냅니다.
               </p>
             )}
+          </div>
+
+          <div className="mb-4">
+            <label className="mb-1.5 block text-[13.5px] font-bold">
+              인스타그램 <span className="font-normal text-sub">(선택)</span>
+            </label>
+            {/* **@ 를 칸 안에 박아 둔다.** 안 그러면 절반은 @ 를 같이 적고
+                절반은 안 적어서 명단에서 눈으로 훑기가 나빠진다.
+                주소를 통째로 붙여 넣어도 서버가 아이디만 남긴다 */}
+            <div className="flex items-center rounded-xl border-[1.5px] border-transparent bg-soft focus-within:border-brand focus-within:bg-white">
+              <span className="pl-3.5 text-[15.5px] text-sub">@</span>
+              <input
+                value={insta}
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                onChange={(e) => setInsta(e.target.value)}
+                placeholder="아이디"
+                className="w-full rounded-r-xl bg-transparent p-3.5 pl-1.5 text-[15.5px] outline-none"
+              />
+            </div>
+            <p className="mt-1.5 text-[12.5px] leading-relaxed text-sub">
+              혼자 오시는 분들 자리를 붙여 드릴 때 씁니다. 공개되지 않아요.
+            </p>
           </div>
 
           <div className="mb-4">

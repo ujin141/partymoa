@@ -69,7 +69,7 @@ const kindOf = (b: Booking): Kind =>
 function hits(b: Booking, needle: string): boolean {
   const digits = b.phone.replace(/\D/g, "");
   const hay =
-    `${b.name}${b.phone}${digits}${b.code}${b.invite_code ?? ""}`.toLowerCase();
+    `${b.name}${b.phone}${digits}${b.code}${b.invite_code ?? ""}${b.instagram ?? ""}`.toLowerCase();
   if (hay.includes(needle)) return true;
   const nd = needle.replace(/\D/g, "");
   return nd.length > 0 && hay.includes(nd);
@@ -89,6 +89,7 @@ function csvDownload(
     "초대코드",
     "이름",
     "연락처",
+    "인스타",
     "성별",
     "인원",
     "차수",
@@ -114,6 +115,7 @@ function csvDownload(
     b.invite_code ?? "",
     b.name,
     phoneText(b.phone),
+    b.instagram ? `@${b.instagram}` : "",
     b.gender === "F" ? "여" : "남",
     b.quantity,
     tierName(b.tier_id),
@@ -550,6 +552,19 @@ export function GuestList({
                   >
                     문자
                   </a>
+                  {/* **눌러서 바로 프로필로 간다.** 아이디를 옮겨 적게
+                      하면 아무도 안 본다 */}
+                  {b.instagram ? (
+                    <a
+                      href={`https://instagram.com/${b.instagram}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="truncate underline"
+                    >
+                      @{b.instagram}
+                    </a>
+                  ) : null}
                   <span className="truncate">
                     {b.quantity}명 · {tierName(b.tier_id)}
                   </span>
