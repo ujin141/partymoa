@@ -114,6 +114,36 @@ export default async function PartyPage({
     .order("sort_order");
   const perks = (perkRows ?? []) as EventPerk[];
 
+  /**
+   * 이 사람이 이 파티를 이미 잡아 뒀는가.
+   *
+   * **막는 건 서버가 한다** — create_booking 이 같은 번호를 거른다. 여기서
+   * 읽는 건 폼을 다 채운 다음에야 거절당하는 걸 막으려는 것뿐이다.
+   *
+   * user_id 로만 찾는다. RLS 가 자기 예매만 열어 주기 때문에 번호로 뒤져도
+   * 남의 건 안 나온다. 다른 기기에서 넣어 둔 건은 여기서 못 보고, 그건
+   * 서버가 잡는다.
+   *
+   * 24시간이 지나 죽은 pending 은 자리를 안 잡고 있으니 빼고 본다.
+   */
+  const { data: mineRow } = user
+    ? await supabase
+        .from("bookings")
+        .select("code, status, expires_at")
+        .eq("event_id", event.id)
+        .eq("user_id", user.id)
+        .neq("status", "cancelled")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    : { data: null };
+  const myBookingCode =
+    mineRow &&
+    (mineRow.status !== "pending" ||
+      new Date(mineRow.expires_at).getTime() > Date.now())
+      ? mineRow.code
+      : null;
+
   const { data: photoRows } = await supabase
     .from("event_photos")
     .select("*")
@@ -516,6 +546,7 @@ export default async function PartyPage({
         bookedM={stats.booked_m}
         booked={stats.booked}
         soldOut={soldOut}
+        mine={myBookingCode}
         closed={event.status !== "open"}
         currentTierName={tier?.name ?? null}
         currentPrice={

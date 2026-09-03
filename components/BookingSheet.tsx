@@ -26,6 +26,8 @@ interface Props {
   bookedF: number;
   bookedM: number;
   soldOut: boolean;
+  /** 이미 잡아 둔 예매의 코드. 있으면 다시 못 넣는다 */
+  mine?: string | null;
   closed: boolean;
   currentTierName: string | null;
   currentPrice: number | null;
@@ -174,6 +176,29 @@ export function BookingSheet(p: Props) {
   }
 
   const disabled = p.soldOut || p.closed;
+
+  /**
+   * **이미 예매한 사람에게는 폼을 안 연다.**
+   *
+   * 서버가 어차피 거절하지만, 그 전에 이름·번호·성별·인원을 다 채우게
+   * 하고 마지막에 막는 건 화나는 일이다. 여기서 바로 티켓으로 보낸다.
+   */
+  if (p.mine) {
+    return (
+      <div className="flex flex-none items-center gap-3 border-t border-line bg-white px-4 pb-[calc(0.7rem+env(safe-area-inset-bottom))] pt-2.5">
+        <div className="flex-1">
+          <small className="block text-xs text-sub">이미 예매했어요</small>
+          <b className="text-lg font-extrabold">{p.mine}</b>
+        </div>
+        <a
+          href="/tickets"
+          className="rounded-xl bg-brand px-6 py-3.5 text-base font-bold text-white"
+        >
+          내 티켓
+        </a>
+      </div>
+    );
+  }
 
   return (
     <>
