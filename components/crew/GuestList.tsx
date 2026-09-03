@@ -123,10 +123,63 @@ function csvDownload(
     b.code,
     stampFull(b.created_at),
   ]);
+  /**
+   * 합계.
+   *
+   * **엑셀에서 다시 더하게 하지 않는다.** 정산할 때 필요한 건 명단이
+   * 아니라 이 숫자들이고, 손으로 더하면 그 자리에서 틀린다.
+   *
+   * 셋으로 나눈다 — 무엇으로 얼마가 들어왔나(구분), 얼마가 실제로
+   * 들어왔나(입금), 누가 데려왔나(추천인). 마지막 것이 크루와 나눌 때
+   * 근거가 된다.
+   *
+   * **인원은 건수가 아니라 사람 수다.** 4명 예매 한 건은 1건이 아니라
+   * 4명으로 센다 — 입장할 때 문을 지나는 건 네 명이다.
+   */
+  const heads = (list: Booking[]) => list.reduce((a, b) => a + b.quantity, 0);
+  const money = (list: Booking[]) => list.reduce((a, b) => a + b.amount, 0);
+  const paid = sorted.filter((b) => b.status !== "pending");
+  const pending = sorted.filter((b) => b.status === "pending");
+
+  const sum: (string | number)[][] = [
+    [],
+    ["합계"],
+    ["구분", "인원", "금액"],
+  ];
+  for (const k of ["일반", "게스트", "테이블", "무료"] as Kind[]) {
+    const g = sorted.filter((b) => kindOf(b) === k);
+    if (g.length) sum.push([k, heads(g), money(g)]);
+  }
+  sum.push(["전체", heads(sorted), money(sorted)]);
+
+  sum.push([], ["입금", "인원", "금액"]);
+  sum.push(["완료", heads(paid), money(paid)]);
+  sum.push(["대기", heads(pending), money(pending)]);
+
+  sum.push([], ["성별", "인원"]);
+  for (const [label, g] of [
+    ["여", sorted.filter((b) => b.gender === "F")],
+    ["남", sorted.filter((b) => b.gender === "M")],
+  ] as [string, Booking[]][]) {
+    sum.push([label, heads(g)]);
+  }
+
+  sum.push([], ["입장", "인원"]);
+  sum.push(["완료", heads(sorted.filter((b) => b.status === "checked_in"))]);
+
+  const codes = [...new Set(sorted.map((b) => b.invite_code ?? ""))];
+  if (codes.some((c) => c)) {
+    sum.push([], ["추천인", "코드", "인원", "금액"]);
+    for (const c of codes.sort()) {
+      const g = sorted.filter((b) => (b.invite_code ?? "") === c);
+      sum.push([c ? memberName(c) : "없음", c, heads(g), money(g)]);
+    }
+  }
+
   // **BOM 을 반드시 붙인다.** 없으면 엑셀에서 한글이 깨진다
   const text =
     "﻿" +
-    [head, ...body]
+    [head, ...body, ...sum]
       .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
       .join("\r\n");
   const url = URL.createObjectURL(
