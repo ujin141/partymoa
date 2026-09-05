@@ -137,6 +137,10 @@ select display_name, invite_code from crew_members
 where invite_code in ('BHO', 'LYNN', 'LII', 'AROS', 'TS')
 order by display_name;
 
-select artist_name, starts_at from lineups l
+-- lineups 와 events 둘 다 starts_at 이 있어서 앞을 안 붙이면 42702 로
+-- 죽는다. 맨 끝 확인 질의라 앞의 insert 와 open 은 이미 다 들어간 뒤다
+select l.artist_name,
+       to_char(l.starts_at at time zone 'Asia/Seoul', 'HH24:MI') as 시작
+from lineups l
 join events e on e.id = l.event_id
-where e.slug = 'after-moon-20260926' order by sort_order;
+where e.slug = 'after-moon-20260926' order by l.sort_order;
