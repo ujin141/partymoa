@@ -15,7 +15,23 @@
 --  파티가 끝나고 기록을 올릴 때 이 셋은 앞에 안 선다.
 --
 --  두 번 돌려도 안전하다. 이 경로의 사진만 지우고 다시 넣는다.
+--  RECAP_KIND.sql 을 안 돌렸어도 된다. kind 컬럼을 여기서도 만든다.
 -- ═══════════════════════════════════════════════════════════════════
+
+-- ─────────────────────────────────────────── 0. kind 컬럼
+--
+--  RECAP_KIND.sql 이 만드는 컬럼인데, 그걸 안 돌린 프로젝트에서 이
+--  파일이 42703 으로 죽었다. 여기서도 만든다. 정의는 그쪽과 같다.
+--  기본값이 promo 라 이미 있는 행은 안 건드려도 된다.
+
+alter table event_photos
+  add column if not exists kind text not null default 'promo'
+    check (kind in ('promo', 'recap'));
+
+-- 컬럼을 여기서 처음 만든 거라면 AFTER SUNSET 기록 16장이 promo 로
+-- 남는다. 그러면 끝난 파티 페이지에 홍보 컷이 앞에 선다. 같이 표시한다
+update event_photos set kind = 'recap'
+where url like '/photos/after-sunset/recap/%' and kind <> 'recap';
 
 do $ph$
 declare
