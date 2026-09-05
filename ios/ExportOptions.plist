@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  App Store Connect 로 내보낼 때 쓰는 설정.
+
+    xcodebuild -exportArchive \
+      -archivePath /tmp/partymoa.xcarchive \
+      -exportOptionsPlist ios/ExportOptions.plist \
+      -exportPath store/ios/build
+
+  Release 는 수동 서명이다(CODE_SIGN_STYLE = Manual). 자동으로 두면
+  아카이브는 되는데 내보낼 때 프로파일을 못 골라서 멈춘다.
+-->
+<plist version="1.0">
+<dict>
+  <key>method</key>
+  <string>app-store-connect</string>
+
+  <key>teamID</key>
+  <string>94XAL28D97</string>
+
+  <key>signingStyle</key>
+  <string>manual</string>
+
+  <key>provisioningProfiles</key>
+  <dict>
+    <key>io.partymoa.app</key>
+    <string>PARTYMOA App Store</string>
+  </dict>
+
+  <!-- 심볼을 같이 올린다. 없으면 크래시 로그가 주소 숫자로만 온다 -->
+  <key>uploadSymbols</key>
+  <true/>
+
+  <!-- 비트코드는 없어진 지 오래다. 켜면 경고만 난다 -->
+  <key>compileBitcode</key>
+  <false/>
+</dict>
+</plist>

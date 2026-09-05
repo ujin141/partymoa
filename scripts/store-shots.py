@@ -7,10 +7,11 @@
 
   python3 scripts/store-shots.py
 
-  screenshots/     원본 (6.9인치 1320x2868)
-  screenshots-65/  원본 (6.5인치 1242x2688)
+  screenshots/       원본 (6.9인치 1320x2868)
+  screenshots-65/    원본 (6.5인치 1242x2688)
+  screenshots-ipad/  원본 (13인치 아이패드 2064x2752)
         ↓
-  upload/69/  upload/65/   올릴 것
+  upload/69/  upload/65/  upload/ipad13/   올릴 것
 
 **원본은 안 건드린다.** 문구를 고치고 다시 돌리면 되게 둔다.
 """
@@ -38,6 +39,17 @@ SHOTS = [
     # 안 되는 걸 스토어에 걸 수는 없어서 오프라인 티켓으로 뒀다.
     # 키가 들어가면 05-alerts 를 다시 찍어 이 줄을 바꾸면 된다
     ("05-offline",  "신호가 끊겨도\n티켓은 보입니다",  "입구에서 예매번호를 못 보는 일이 없게"),
+]
+
+# 아이패드는 원본이 따로다. 화면이 다르니 문구도 그 화면에 맞춘다.
+# **05 는 라인업이다.** 내 티켓은 예매가 없으면 빈 화면이고, 커뮤니티는
+# 테스트 글뿐이라 둘 다 스토어에 걸 수 없다
+SHOTS_IPAD = [
+    ("01-home",     "서울 파티,\n한 곳에서",      "흩어진 파티를 모아 봅니다"),
+    ("02-explore",  "혼자 가도\n괜찮습니다",      "1인 환영 파티만 따로 모아서"),
+    ("03-party",    "라인업부터\n입금 계좌까지",  "필요한 건 한 화면에"),
+    ("04-booking",  "자리는\n서버가 잡습니다",    "마감된 자리가 다시 팔리지 않아요"),
+    ("05-lineup",   "누가 언제\n트는지까지",      "타임테이블을 미리 봅니다"),
 ]
 
 
@@ -127,26 +139,34 @@ def compose(src_path, head, sub, out_path, canvas_size=None):
     return out_path
 
 
-# 아이패드는 **아이폰 전용 앱이면 안 올려도 된다.** 빌드가 버전에 붙기
-# 전에는 App Store Connect 가 탭을 다 띄워서, 막힐 때만 쓰라고 만들어 둔다.
+# 13인치 아이패드. 아이패드를 지원하면서(TARGETED_DEVICE_FAMILY "1,2")
+# **이 규격이 없으면 제출 자체가 안 된다.**
+#
+# 예전에는 아이폰 원본을 이 캔버스에 얹어서 만들었다. 그러면 아이패드
+# 칸에 아이폰 목업이 들어가고, 심사에서 "그 기기에서 찍은 화면이 아니다"
+# 로 걸린다(2.3.3). 지금은 아이패드 시뮬레이터에서 직접 찍는다.
 IPAD_13 = (2064, 2752)
 
 
 if __name__ == "__main__":
-    for src_dir, out_dir in [("screenshots", "upload/69"), ("screenshots-65", "upload/65"),
-                             ("screenshots", "upload/ipad13")]:
+    # (원본, 내보낼 곳, 문구, 캔버스). 아이패드만 원본과 문구가 따로다
+    JOBS = [
+        ("screenshots",      "upload/69",     SHOTS,      None),
+        ("screenshots-65",   "upload/65",     SHOTS,      None),
+        ("screenshots-ipad", "upload/ipad13", SHOTS_IPAD, IPAD_13),
+    ]
+    for src_dir, out_dir, shots, canvas in JOBS:
         s = os.path.join(STORE, src_dir)
         o = os.path.join(STORE, out_dir)
         if not os.path.isdir(s):
             print(f"건너뜀 — {s} 없음")
             continue
         os.makedirs(o, exist_ok=True)
-        for name, head, sub in SHOTS:
+        for name, head, sub in shots:
             src = os.path.join(s, f"{name}.png")
             if not os.path.exists(src):
                 print(f"  없음 {src}")
                 continue
-            p = compose(src, head, sub, os.path.join(o, f"{name}.png"),
-                        IPAD_13 if out_dir.endswith("ipad13") else None)
+            p = compose(src, head, sub, os.path.join(o, f"{name}.png"), canvas)
             im = Image.open(p)
             print(f"  {out_dir}/{name}.png  {im.width}x{im.height}")
