@@ -31,6 +31,8 @@ export type CrewMember = {
   role: "owner" | "member";
   /** 적어 두면 그 주소로 소셜 로그인한 사람이 바로 스태프가 된다 */
   email: string | null;
+  /** 라인업에 나오는 얼굴. public/dj/ 아래 누끼. 없으면 첫 글자 */
+  avatar_url: string | null;
   created_at: string;
 }
 
@@ -481,6 +483,8 @@ export type Database = {
       post_list: View<PostListRow>;
       open_reports: View<OpenReport>;
       review_stats: View<ReviewStats>;
+      /** 크루원 이름과 사진만. crew_members 는 스태프만 읽어서 따로 낸다 */
+      crew_faces: View<{ crew_id: string; name: string; avatar_url: string }>;
       platform_stats: View<{
         event_id: string;
         crew_id: string;

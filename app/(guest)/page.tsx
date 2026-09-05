@@ -477,8 +477,20 @@ export default async function HomePage() {
                   href={`/party/${x.slug}`}
                   className="w-[64px] flex-none text-center"
                 >
-                  <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-ink text-[13px] font-extrabold tracking-wide text-white">
-                    {x.name.slice(0, 2).toUpperCase()}
+                  <div className="relative mx-auto h-12 w-12 overflow-hidden rounded-full bg-ink">
+                    {x.image ? (
+                      <Image
+                        src={x.image}
+                        alt=""
+                        fill
+                        sizes="48px"
+                        className="object-cover object-top"
+                      />
+                    ) : (
+                      <span className="grid h-full w-full place-items-center text-[13px] font-extrabold tracking-wide text-white">
+                        {x.name.slice(0, 2).toUpperCase()}
+                      </span>
+                    )}
                   </div>
                   <span className="mt-1.5 block truncate text-[12.5px] font-bold">
                     {x.name}

@@ -173,13 +173,19 @@ export const homeExtras = unstable_cache(
     const supabase = publicClient();
     const { data: open } = await supabase
       .from("events")
-      .select("id, slug, title")
+      .select("id, slug, title, crew_id")
       .eq("status", "open")
       .gte("ends_at", new Date().toISOString())
       .order("starts_at", { ascending: true })
       .limit(10);
 
-    const events = (open ?? []) as Pick<EventRow, "id" | "slug" | "title">[];
+    const events = (open ?? []) as Pick<
+      EventRow,
+      "id" | "slug" | "title" | "crew_id"
+    >[];
+    // 라인업 얼굴. 파는 파티의 크루 것만 — 라인업 자체가 그렇다
+    const faces = await crewFaces([...new Set(events.map((e) => e.crew_id))]);
+    const crewOf = new Map(events.map((e) => [e.id, e.crew_id]));
 
     /**
      * **끝난 파티 사진으로 채운다.**
@@ -231,7 +237,13 @@ export const homeExtras = unstable_cache(
      * 그냥 같은 이름이 반복되는 것으로 보인다.
      */
     const seen = new Set<string>();
-    const djs: { id: string; name: string; slug: string; time: string | null }[] = [];
+    const djs: {
+      id: string;
+      name: string;
+      slug: string;
+      time: string | null;
+      image: string | null;
+    }[] = [];
     for (const l of (lines ?? []) as Lineup[]) {
       // **양옆에 공백이 있을 때만 자른다.** `[x]` 만 보면 XANTHIC 이
       // 'ANTHIC' 이 된다. 백투백은 늘 'HEIDY x CHIPS' 처럼 띄어 쓴다
@@ -243,6 +255,7 @@ export const homeExtras = unstable_cache(
           id: l.id + key,
           name: name.trim(),
           slug: bySlug.get(l.event_id)?.slug ?? "",
+          image: faceFor(faces, crewOf.get(l.event_id) ?? "", name),
           // 몇 시에 트는지. 홈에서 이름만 세우면 순서가 안 보인다.
           // **lineups.starts_at 은 time 컬럼이다** — '22:00:00' 으로 온다.
           // Date 로 읽으면 Invalid Date 가 된다. 앞 다섯 글자면 된다
@@ -372,10 +385,49 @@ export async function listOpenParties(): Promise<PartyCardData[]> {
   }));
 }
 
+/** 라인업 한 줄에 얼굴을 붙인 것. 없는 사람은 null — 첫 글자로 나간다 */
+export type LineupFace = Lineup & { image_url: string | null };
+
 export interface PartyDetail extends PartyCardData {
   tiers: TicketTier[];
-  lineups: Lineup[];
+  lineups: LineupFace[];
   tierSold: Record<string, number>;
+}
+
+/**
+ * 크루원 얼굴. **crew_faces 뷰는 이름과 사진만 내놓는다** — crew_members
+ * 자체는 초대 코드가 들어 있어 스태프만 읽는다.
+ *
+ * 이름으로 맞춘다. 백투백('A x B')은 앞뒤를 나눠 각각 찾는다. 사진은
+ * 사람 것이라 크루원에 달아 두면 파티를 고쳐도 안 날아간다.
+ */
+async function crewFaces(crewIds: string[]): Promise<Map<string, string>> {
+  if (!crewIds.length) return new Map();
+  const { data } = await publicClient()
+    .from("crew_faces")
+    .select("crew_id, name, avatar_url")
+    .in("crew_id", crewIds);
+  const map = new Map<string, string>();
+  for (const f of (data ?? []) as {
+    crew_id: string;
+    name: string;
+    avatar_url: string;
+  }[]) {
+    map.set(`${f.crew_id}:${f.name}`, f.avatar_url);
+  }
+  return map;
+}
+
+function faceFor(
+  faces: Map<string, string>,
+  crewId: string,
+  artist: string,
+): string | null {
+  for (const part of artist.split(/\s+[x×]\s+/i)) {
+    const hit = faces.get(`${crewId}:${part.trim().toUpperCase()}`);
+    if (hit) return hit;
+  }
+  return null;
 }
 
 export async function getParty(slug: string): Promise<PartyDetail | null> {
@@ -404,13 +456,16 @@ export async function getParty(slug: string): Promise<PartyDetail | null> {
     (a, b) => a.sort_order - b.sort_order,
   );
   const { crew, lineups, ...event } = raw;
+  const faces = await crewFaces([crew.id]);
 
   return {
     event,
     crew,
     favorited: (await favoriteIds([raw.id])).has(raw.id),
     tiers,
-    lineups: [...(lineups ?? [])].sort((a, b) => a.sort_order - b.sort_order),
+    lineups: [...(lineups ?? [])]
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((l) => ({ ...l, image_url: faceFor(faces, crew.id, l.artist_name) })),
     tierSold: Object.fromEntries(sold),
     stats: (stats as EventStats) ?? emptyStats(event),
     tier: currentTier(tiers, sold),

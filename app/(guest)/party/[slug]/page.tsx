@@ -489,6 +489,23 @@ export default async function PartyPage({
                 key={l.id}
                 className="flex items-center gap-3 border-b border-line py-2.5 last:border-b-0"
               >
+                {/* 얼굴. 누끼가 있는 사람만 — 없으면 첫 글자.
+                    검은 원 위에 올려야 누끼 가장자리가 안 보인다 */}
+                <div className="relative h-11 w-11 flex-none overflow-hidden rounded-full bg-ink">
+                  {l.image_url ? (
+                    <Image
+                      src={l.image_url}
+                      alt=""
+                      fill
+                      sizes="44px"
+                      className="object-cover object-top"
+                    />
+                  ) : (
+                    <span className="grid h-full w-full place-items-center text-[12px] font-extrabold text-white">
+                      {l.artist_name.slice(0, 2).toUpperCase()}
+                    </span>
+                  )}
+                </div>
                 <span className="w-12 flex-none text-[13px] text-sub">
                   {l.starts_at.slice(0, 5)}
                 </span>
