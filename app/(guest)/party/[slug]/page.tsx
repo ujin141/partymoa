@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { BookingSheet } from "@/components/BookingSheet";
+import { Description } from "@/components/Description";
 import { PhotoStrip } from "@/components/PhotoStrip";
 import { Recap } from "@/components/Recap";
 import { Reviews } from "@/components/Reviews";
@@ -235,9 +236,7 @@ export default async function PartyPage({
 
         {event.description ? (
           <section className="border-b-8 border-soft px-4 py-4.5">
-            <p className="whitespace-pre-wrap text-[14.5px] leading-7 text-ink">
-              {event.description}
-            </p>
+            <Description text={event.description} />
           </section>
         ) : null}
 

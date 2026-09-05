@@ -324,7 +324,10 @@ export function EventForm({
           placeholder="해질녘부터 자정까지"
         />
       </Field>
-      <Field label="상세 설명">
+      <Field
+        label="상세 설명"
+        hint="줄 앞에 ── 를 붙이면 소제목, **글자** 는 굵게 나와요. 빈 줄이 문단 간격이에요."
+      >
         <textarea
           className={`${input} h-28 resize-none`}
           value={description}
