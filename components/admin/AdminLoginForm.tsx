@@ -3,17 +3,28 @@
 import { useState } from "react";
 
 import { createClient } from "@/lib/supabase/client";
+import { useNativeIOS } from "@/lib/use-native";
 
 /**
- * 운영자 로그인 — **구글만 받는다.**
+ * 운영자 로그인 — **웹에서 구글만 받는다.**
  *
- * 크루 로그인에는 이메일·비밀번호가 남아 있다. 크루는 스태프가 여럿이고
+ * 크루 로그인에는 이메일·비밀번호가 있다. 크루는 스태프가 여럿이고
  * 구글 계정이 없는 사람도 있어서다. 운영자는 다르다 — 전 크루의 매출과
  * 손님 명단을 보는 자리라 비밀번호를 돌릴 여지를 아예 두지 않는다.
+ *
+ * **앱에서는 아무 버튼도 안 띄운다.**
+ *
+ * 2026-09-04 가이드라인 4.8 로 반려됐다. 서드파티 로그인을 두면 애플이
+ * 동등한 대안을 같이 두라고 요구한다. 운영자 화면은 우리 셋만 쓰는
+ * 내부 화면이라 **앱에 로그인 길을 둘 이유가 없다.** 브라우저로 안내한다.
+ *
+ * 어차피 앱에서는 눌러도 안 된다 — 구글이 임베디드 웹뷰의 OAuth 를
+ * 거부한다(disallowed_useragent).
  */
 export function AdminLoginForm() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const native = useNativeIOS();
 
   async function google() {
     setBusy(true);
@@ -34,6 +45,16 @@ export function AdminLoginForm() {
       );
       setBusy(false);
     }
+  }
+
+  // 앱이면 버튼 대신 안내만. 웹인 게 확실해질 때까지도 안 그린다 —
+  // 한 프레임이라도 보이면 심사에서 그대로 잡힌다
+  if (native !== false) {
+    return native === null ? null : (
+      <p className="rounded-xl bg-soft p-4 text-[13px] leading-7 text-sub">
+        운영자 화면은 브라우저에서 들어가 주세요. www.partymoa.com/admin
+      </p>
+    );
   }
 
   return (

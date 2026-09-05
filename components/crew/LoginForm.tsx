@@ -4,18 +4,28 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { createClient } from "@/lib/supabase/client";
+import { useNativeIOS } from "@/lib/use-native";
 
 /**
  * 크루·운영 로그인.
  *
- * **구글이 먼저다.** 현장에서 스태프 여럿이 각자 폰으로 들어가는데
- * 비밀번호를 단톡방에 돌리게 되면 그게 그대로 명단 접근 권한이 된다.
- * 구글은 각자 자기 계정으로 들어간다.
+ * **웹에서는 구글이 먼저다.** 현장에서 스태프 여럿이 각자 폰으로
+ * 들어가는데 비밀번호를 단톡방에 돌리게 되면 그게 그대로 명단 접근
+ * 권한이 된다. 구글은 각자 자기 계정으로 들어간다.
  *
- * 이메일·비밀번호는 **지금 꺼 둔다.** Supabase 에서 Email provider 를
- * 껐기 때문에 눌러도 "Email logins are disabled" 만 뜬다. 되는 척하는
- * 버튼이 제일 나쁘다 — 손님은 앱이 고장 난 줄 안다.
- * 대시보드에서 다시 켜면 아래 EMAIL_LOGIN 만 true 로 바꾸면 된다.
+ * **앱에서는 구글을 안 띄운다. 이메일로만 들어간다.**
+ *
+ * 2026-09-04 가이드라인 4.8 로 반려됐다. 서드파티 로그인을 두면 애플이
+ * 동등한 대안(Sign in with Apple)을 같이 두라고 요구하는데, 이 화면은
+ * 구글 단독이었다. 게스트 화면(SocialLogin)에만 네이티브 분기가 걸려
+ * 있어서 여기가 그대로 남아 있었다.
+ *
+ * **어차피 앱에서는 눌러도 안 된다.** 구글이 임베디드 웹뷰의 OAuth 를
+ * 거부한다(disallowed_useragent). 되는 척하는 버튼을 지운 것이기도 하다.
+ *
+ * **여기서 이메일 폼을 또 그리지 않는다.** 이 화면은 PasswordLogin 을
+ * 따로 렌더한다(app/(crew)/crew/login/page.tsx). 둘 다 켜면 "이메일로
+ * 로그인" 링크가 두 개 나온다. 앱에 남는 길은 그쪽이다.
  */
 const EMAIL_LOGIN = false;
 export function LoginForm({ next = "/crew" }: { next?: string }) {
@@ -25,6 +35,7 @@ export function LoginForm({ next = "/crew" }: { next?: string }) {
   const [busy, setBusy] = useState<"google" | "password" | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [showPw, setShowPw] = useState(false);
+  const native = useNativeIOS();
 
   async function google() {
     setBusy("google");
@@ -73,6 +84,9 @@ export function LoginForm({ next = "/crew" }: { next?: string }) {
 
   return (
     <>
+      {/* **웹인 게 확실할 때만 그린다.** false 로 시작해서 나중에 끄면
+          앱에서도 한 프레임 동안 구글 버튼이 보인다 — 심사자는 그걸 본다 */}
+      {native === false ? (
       <button
         type="button"
         disabled={busy !== null}
@@ -99,6 +113,7 @@ export function LoginForm({ next = "/crew" }: { next?: string }) {
         </svg>
         {busy === "google" ? "이동 중…" : "구글로 로그인"}
       </button>
+      ) : null}
 
       {err ? (
         <p className="mt-2.5 text-[13px] font-semibold text-hot">{err}</p>

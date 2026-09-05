@@ -18,8 +18,8 @@ import { createClient } from "@/lib/supabase/client";
  * 회수할 방법이 마땅치 않다. 심사 전용 계정 하나만 주고 끝나면 지우는
  * 쪽이 낫다.
  *
- * 그래서 **접어 둔다.** 링크를 눌러야 열린다. 모르는 사람은 평생 안
- * 본다.
+ * 그래서 웹에서는 **접어 둔다.** 링크를 눌러야 열린다. 모르는 사람은
+ * 평생 안 본다. 앱에서는 아래 useEffect 가 처음부터 펴 준다.
  *
  * ⚠ Supabase 대시보드에서 이메일 **가입은 꺼 두어야 한다**
  * (Authentication → Providers → Email → Allow new users to sign up).
