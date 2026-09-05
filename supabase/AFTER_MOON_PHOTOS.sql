@@ -35,9 +35,11 @@ begin
     values (v_event, '/photos/after-moon/' || i || '.jpg', null, i, 'promo');
   end loop;
 
-  -- 커버가 비어 있으면 전경을 쓴다. 홈 카드에 그림이 없는 파티는
-  -- 눌러 보지도 않는다. 이미 넣어 둔 커버는 건드리지 않는다
-  update events set cover_url = '/photos/after-moon/1.jpg'
+  -- 커버는 따로 그린 게 있다 — public/covers/after-moon.jpg,
+  -- scripts/after-moon-cover.py 가 만든다. 카드가 네 비율로 자르는 걸
+  -- 견디게 5:3 으로 그린 판이라 매장 사진보다 그게 맞다. 그 파일을
+  -- 가리키는 SQL 이 없어서 여기서 건다. 이미 넣어 둔 커버는 안 건드린다
+  update events set cover_url = '/covers/after-moon.jpg'
   where id = v_event and cover_url is null;
 
   -- ── 장소 ──
