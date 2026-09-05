@@ -197,12 +197,12 @@ export const homeExtras = unstable_cache(
       .limit(4);
     const past = (over ?? []) as Pick<EventRow, "id" | "slug" | "title">[];
     const all = [...events, ...past];
-    if (!all.length) return { djs: [], photos: [] };
+    if (!all.length) return { djs: [], photos: [], perks: [] };
 
     const ids = all.map((e) => e.id);
     const bySlug = new Map(all.map((e) => [e.id, e]));
 
-    const [{ data: lines }, { data: pics }] = await Promise.all([
+    const [{ data: lines }, { data: pics }, { data: perkRows }] = await Promise.all([
       // 라인업은 **파는 파티 것만.** 지난 디제이를 홈에 세우면 오늘
       // 오는 사람인 줄 안다
       supabase
@@ -216,6 +216,13 @@ export const homeExtras = unstable_cache(
         .in("event_id", ids)
         .order("sort_order", { ascending: true })
         .limit(24),
+      // 예매에 딸려 오는 것. 웰컴샷 같은 것 — 홈에서 파티 하나를 크게
+      // 보여 줄 때 값 옆에 같이 선다
+      supabase
+        .from("event_perks")
+        .select("event_id, name, qty, sort_order")
+        .in("event_id", events.length ? events.map((e) => e.id) : ["-"])
+        .order("sort_order", { ascending: true }),
     ]);
 
     /**
@@ -224,7 +231,7 @@ export const homeExtras = unstable_cache(
      * 그냥 같은 이름이 반복되는 것으로 보인다.
      */
     const seen = new Set<string>();
-    const djs: { id: string; name: string; slug: string }[] = [];
+    const djs: { id: string; name: string; slug: string; time: string | null }[] = [];
     for (const l of (lines ?? []) as Lineup[]) {
       // **양옆에 공백이 있을 때만 자른다.** `[x]` 만 보면 XANTHIC 이
       // 'ANTHIC' 이 된다. 백투백은 늘 'HEIDY x CHIPS' 처럼 띄어 쓴다
@@ -236,9 +243,23 @@ export const homeExtras = unstable_cache(
           id: l.id + key,
           name: name.trim(),
           slug: bySlug.get(l.event_id)?.slug ?? "",
+          // 몇 시에 트는지. 홈에서 이름만 세우면 순서가 안 보인다.
+          // **lineups.starts_at 은 time 컬럼이다** — '22:00:00' 으로 온다.
+          // Date 로 읽으면 Invalid Date 가 된다. 앞 다섯 글자면 된다
+          time: l.starts_at ? l.starts_at.slice(0, 5) : null,
         });
       }
     }
+
+    const perks = ((perkRows ?? []) as {
+      event_id: string;
+      name: string;
+      qty: number;
+    }[]).map((p) => ({
+      slug: bySlug.get(p.event_id)?.slug ?? "",
+      name: p.name,
+      qty: p.qty,
+    }));
 
     /**
      * **파는 파티 사진이 먼저다.** 지난 파티 사진은 빈자리를 메우는
@@ -262,7 +283,7 @@ export const homeExtras = unstable_cache(
       .slice(0, 16)
       .map(({ live: _live, ...rest }) => rest);
 
-    return { djs: djs.slice(0, 20), photos };
+    return { djs: djs.slice(0, 20), photos, perks };
   },
   ["home-extras"],
   { revalidate: 120, tags: [PARTY_TAG] },
@@ -479,4 +500,35 @@ export const listCrews = unstable_cache(
   },
   ["crews"],
   { revalidate: 300, tags: [PARTY_TAG] },
+);
+
+export type HomeReview = {
+  id: string;
+  rating: number;
+  body: string;
+  nickname: string;
+  created_at: string;
+  event: { title: string; slug: string } | null;
+};
+
+/**
+ * 최근 후기 몇 개. **파티 사이 기간에 홈이 내놓을 수 있는 두 번째 증거다.**
+ *
+ * 숫자(몇 명 왔나)는 크기를 말하고 후기는 분위기를 말한다. 처음 온
+ * 사람이 예매 버튼을 누르기 전에 보는 건 결국 남이 뭐라고 했느냐다.
+ *
+ * 닉네임과 본문뿐이다. 개인을 가리키는 건 없다.
+ */
+export const recentReviews = unstable_cache(
+  async (limit = 4): Promise<HomeReview[]> => {
+    const { data } = await publicClient()
+      .from("reviews")
+      .select("id, rating, body, nickname, created_at, event:events (title, slug)")
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    return (data ?? []) as unknown as HomeReview[];
+  },
+  ["home-reviews"],
+  { revalidate: 120, tags: [PARTY_TAG] },
 );

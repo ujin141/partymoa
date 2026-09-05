@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { HomeBanner, type BannerItem } from "@/components/HomeBanner";
+import { HomeFeature } from "@/components/HomeFeature";
 import {
   HeroCard,
   MiniRow,
@@ -12,6 +13,7 @@ import {
 } from "@/components/PartyCard";
 import { Wordmark } from "@/components/Symbol";
 import { Divider, SectionTitle } from "@/components/ui/primitives";
+import { listPosts } from "@/lib/community";
 import {
   homeExtras,
   listAreas,
@@ -19,14 +21,24 @@ import {
   listOpenParties,
   listPastParties,
   pastTotals,
+  recentReviews,
 } from "@/lib/queries";
-import { seoulWeekday, shortDate } from "@/lib/format";
+import { ago, seoulWeekday, shortDate } from "@/lib/format";
 import { isClosingSoon, soldRate } from "@/lib/rules";
 import { createClient } from "@/lib/supabase/server";
 
 // **캐시를 안 쓴다.** 찜은 사람마다 다르고 잔여는 초 단위로 바뀐다.
 // revalidate 를 걸어 두면 남의 찜과 지난 잔여가 그대로 나간다
 export const dynamic = "force-dynamic";
+
+/** 칸 제목 옆에 붙는 '전체 보기' */
+function More({ href, label = "전체 보기" }: { href: string; label?: string }) {
+  return (
+    <Link href={href} className="text-[13px] font-semibold text-brand">
+      {label}
+    </Link>
+  );
+}
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -41,6 +53,8 @@ export default async function HomePage() {
     crews,
     areas,
     extras,
+    reviews,
+    posts,
     { data: profile },
     { count: unpaidCount },
   ] = await Promise.all([
@@ -50,6 +64,8 @@ export default async function HomePage() {
     listCrews(),
     listAreas(),
     homeExtras(),
+    recentReviews(4),
+    listPosts(0),
     // 시작 화면에서 고른 취향. 안 고른 사람은 예전과 똑같이 보인다
     user && !user.is_anonymous
       ? supabase
@@ -116,17 +132,6 @@ export default async function HomePage() {
         )
       : [];
 
-  /**
-   * **칸을 줄인다.**
-   *
-   * 예전에는 지금 뜨는 파티 · 혼자 가도 좋아요 · 마감 임박 · 이번 주말이
-   * 각각 칸이었다. 서울에 파티가 매일 열리는 게 아니라서, 그 넷이 전부
-   * 같은 파티 한 장으로 채워졌다. 스크롤을 내리면 같은 사진이 계속
-   * 나온다.
-   *
-   * 그 넷은 이제 둘러보기의 필터다(❤️ 솔로/커플 · 📅 날짜 · 🔥 예약
-   * 많은 순). 홈은 **한 목록**만 보여 준다 — 다가오는 순서로.
-   */
   const upcoming = [...parties].sort(
     (a, b) => +new Date(a.event.starts_at) - +new Date(b.event.starts_at),
   );
@@ -135,7 +140,13 @@ export default async function HomePage() {
    * 칸마다 다른 파티를 보여 주려는 게 아니라 **다른 각도로** 보여
    * 준다. 같은 파티가 여러 칸에 나오는 건 괜찮다 — 어느 각도에서
    * 걸릴지는 사람마다 다르다.
+   *
+   * **다만 파티가 셋보다 적으면 그 각도 칸들을 접는다.** 파티 하나를
+   * 세 칸에서 세 번 보여 주면 다른 각도가 아니라 같은 사진의 반복이다.
+   * 그 자리는 라인업·현장·숫자·후기 같은, 파티 수와 상관없이 있는
+   * 것들이 채운다.
    */
+  const few = parties.length < 3;
   const byRate = [...parties].sort(
     (a, b) =>
       soldRate(b.stats.booked, b.stats.capacity) -
@@ -195,6 +206,18 @@ export default async function HomePage() {
           : null,
     }))
     .filter((b) => b.cover);
+
+  // 파티가 하나뿐일 때 배너와 큰 카드가 같은 사진을 연달아 보여 준다.
+  // 그럴 땐 배너를 접고 큰 카드 하나로 간다
+  const showBanner = banner.length > 0 && !(few && parties.length === 1);
+
+  const totalTiles = totals
+    ? [
+        { k: "연 파티 수", v: `${totals.parties}번` },
+        { k: "다녀간 사람", v: `${totals.people}명` },
+        { k: "혼자 온 사람", v: `${totals.solo}명` },
+      ]
+    : [];
 
   return (
     <>
@@ -267,7 +290,7 @@ export default async function HomePage() {
 
         {/* 맨 위는 배너다. 갈래 칸은 둘러보기로 옮겼다 — 홈은
             "뭐가 있나" 를 보는 곳이고, 좁히는 건 거기서 한다 */}
-        {banner.length > 0 ? <HomeBanner items={banner} /> : null}
+        {showBanner ? <HomeBanner items={banner} /> : null}
 
         {areas.length > 1 ? (
           <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto px-4">
@@ -315,11 +338,7 @@ export default async function HomePage() {
             {totals ? (
               <section className="mt-5 px-4">
                 <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { k: "연 파티 수", v: `${totals.parties}번` },
-                    { k: "다녀간 사람", v: `${totals.people}명` },
-                    { k: "혼자 온 사람", v: `${totals.solo}명` },
-                  ].map((x) => (
+                  {totalTiles.map((x) => (
                     <div key={x.k} className="rounded-xl bg-soft px-3 py-3">
                       <small className="text-[12px] text-sub">{x.k}</small>
                       <b className="mt-0.5 block text-[19px] font-extrabold">
@@ -354,9 +373,36 @@ export default async function HomePage() {
           </>
         ) : null}
 
-        {/* **제일 촘촘한 칸을 맨 앞에 둔다.** 한 화면에 네 개가 들어와서
-            "뭐가 있나" 가 바로 잡힌다 */}
-        {upcoming.length > 0 ? (
+        {/*
+          파티가 적으면 한 장을 크게, 많으면 격자로.
+
+          2열 격자에 한 장만 넣으면 오른쪽 반이 빈다. 그 자리에 세울
+          다른 파티가 없으니, 넓게 쓰고 그 파티에 대해 더 말한다.
+        */}
+        {!quiet && few ? (
+          <>
+            <SectionTitle
+              title="다음 파티"
+              note={
+                upcoming.length === 1
+                  ? "지금 예매 받는 파티예요"
+                  : `${upcoming.length}개 열려 있어요`
+              }
+            />
+            <div className="grid gap-6 pb-1">
+              {upcoming.map((d) => (
+                <HomeFeature
+                  key={d.event.id}
+                  d={d}
+                  djs={extras.djs.filter((x) => x.slug === d.event.slug)}
+                  perks={extras.perks.filter((x) => x.slug === d.event.slug)}
+                />
+              ))}
+            </div>
+          </>
+        ) : null}
+
+        {!quiet && !few ? (
           <>
             <SectionTitle title="다가오는 파티" note="빠른 날짜 순서" />
             <div className="grid grid-cols-2 gap-x-3 gap-y-5 px-4 pb-1">
@@ -367,7 +413,7 @@ export default async function HomePage() {
           </>
         ) : null}
 
-        {byRate.length > 0 ? (
+        {!few && byRate.length > 0 ? (
           <>
             <Divider />
             <SectionTitle title="지금 뜨는 파티" note="예매가 빠르게 차는 순서" />
@@ -379,7 +425,7 @@ export default async function HomePage() {
           </>
         ) : null}
 
-        {solo.length > 0 ? (
+        {!few && solo.length > 0 ? (
           <>
             <Divider />
             <SectionTitle
@@ -404,13 +450,140 @@ export default async function HomePage() {
           </>
         ) : null}
 
-        {weekend.length > 0 ? (
+        {weekend.length > 0 && !few ? (
           <>
             <Divider />
             <SectionTitle title="이번 주말" note="금·토에 열리는 파티" />
             {weekend.slice(0, 3).map((d) => (
               <PartyCard key={d.event.id} d={d} />
             ))}
+          </>
+        ) : null}
+
+        {/*
+          라인업. **누가 트는지가 클럽 씬에서는 실제 구매 이유다.**
+          파는 파티 것만 — 지난 디제이를 세우면 오늘 오는 사람인 줄 안다.
+
+          규격: 원 48, 이름 12.5 굵게, 시각 11.5 흐리게. 가로 한 줄.
+        */}
+        {extras.djs.length > 0 ? (
+          <>
+            <Divider />
+            <SectionTitle title="라인업" note="이번에 트는 사람들" />
+            <div className="no-scrollbar flex gap-4 overflow-x-auto px-4 pb-1">
+              {extras.djs.map((x) => (
+                <Link
+                  key={x.id}
+                  href={`/party/${x.slug}`}
+                  className="w-[64px] flex-none text-center"
+                >
+                  <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-ink text-[13px] font-extrabold tracking-wide text-white">
+                    {x.name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <span className="mt-1.5 block truncate text-[12.5px] font-bold">
+                    {x.name}
+                  </span>
+                  {x.time ? (
+                    <span className="block text-[11.5px] text-sub">{x.time}</span>
+                  ) : null}
+                </Link>
+              ))}
+            </div>
+          </>
+        ) : null}
+
+        {/*
+          현장. **커버 한 장으로는 어떤 파티인지 안 전해진다.**
+
+          한 줄로 흘리던 것을 3열 격자로 바꿨다. 같은 사진 여섯 장이
+          한 줄에 있으면 스쳐 가고, 두 줄로 쌓이면 멈춘다.
+
+          규격: 3열, gap 6, 4:5, rounded-lg. 여섯 장.
+        */}
+        {extras.photos.length > 0 ? (
+          <>
+            <Divider />
+            <SectionTitle
+              title="현장"
+              note={quiet ? "지난 파티에서 찍은 것들" : "이런 분위기예요"}
+              action={
+                extras.photos[0]?.slug ? (
+                  <More href={`/party/${extras.photos[0].slug}`} label="더 보기" />
+                ) : undefined
+              }
+            />
+            <div className="grid grid-cols-3 gap-1.5 px-4 pb-1">
+              {extras.photos.slice(0, 6).map((p) => (
+                <Link
+                  key={p.id}
+                  href={`/party/${p.slug}`}
+                  className="relative aspect-4/5 overflow-hidden rounded-lg bg-soft"
+                >
+                  <Image
+                    src={p.url}
+                    alt={p.caption ?? ""}
+                    fill
+                    sizes="(max-width: 430px) 33vw, 130px"
+                    className="object-cover"
+                  />
+                </Link>
+              ))}
+            </div>
+          </>
+        ) : null}
+
+        {/*
+          숫자. 팔 게 없는 날에만 보이던 것을 늘 보이게 했다. 파티가
+          하나뿐인 날에도 "여기가 몇 번 열었고 몇 명이 왔나" 는 처음 온
+          사람이 제일 먼저 묻는 것이다. 위의 큰 카드와 같은 칸 규격이다.
+        */}
+        {!quiet && totals ? (
+          <>
+            <Divider />
+            <SectionTitle title="지금까지" note="숫자로 남겨 둔 것" />
+            <div className="grid grid-cols-3 gap-2 px-4 pb-1">
+              {totalTiles.map((x) => (
+                <div key={x.k} className="rounded-xl bg-soft px-3 py-3">
+                  <small className="text-[12px] text-sub">{x.k}</small>
+                  <b className="mt-0.5 block text-[19px] font-extrabold">
+                    {x.v}
+                  </b>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : null}
+
+        {/*
+          후기. 숫자는 크기를 말하고 후기는 분위기를 말한다.
+
+          규격: 카드 bg-soft rounded-xl p-3.5, 별 12 brand, 본문 13.5
+          두 줄, 아랫줄 12 흐리게.
+        */}
+        {reviews.length > 0 ? (
+          <>
+            <Divider />
+            <SectionTitle title="후기" note="다녀간 사람들이 남긴 말" />
+            <div className="grid gap-2 px-4 pb-1">
+              {reviews.map((r) => (
+                <Link
+                  key={r.id}
+                  href={r.event ? `/party/${r.event.slug}` : "/explore"}
+                  className="rounded-xl bg-soft p-3.5 transition active:opacity-70"
+                >
+                  <span className="text-[12px] tracking-[0.1em] text-brand">
+                    {"★".repeat(Math.max(1, Math.min(5, r.rating)))}
+                  </span>
+                  <p className="clamp-2 mt-1 text-[13.5px] leading-relaxed">
+                    {r.body}
+                  </p>
+                  <p className="mt-1.5 truncate text-[12px] text-sub">
+                    {r.nickname}
+                    {r.event ? ` · ${r.event.title}` : ""}
+                  </p>
+                </Link>
+              ))}
+            </div>
           </>
         ) : null}
 
@@ -496,28 +669,40 @@ export default async function HomePage() {
           </>
         ) : null}
 
-        {/* 커버 한 장으로는 어떤 파티인지 안 전해진다 */}
-        {extras.photos.length > 0 ? (
+        {/*
+          커뮤니티. 파티 사이 기간에도 글은 올라온다 — 홈에 세 줄만
+          끌어다 놓으면 "여기 사람이 있다" 가 보인다.
+
+          규격: 줄 사이 1px line, 닉네임 12.5 굵게 + 시각 흐리게,
+          본문 14 두 줄, 댓글 수 12 흐리게.
+        */}
+        {posts.length > 0 ? (
           <>
             <Divider />
             <SectionTitle
-              title="현장"
-              note={quiet ? "지난 파티에서 찍은 것들" : "이런 분위기예요"}
+              title="커뮤니티"
+              note="요즘 올라온 글"
+              action={<More href="/community" />}
             />
-            <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 pb-1">
-              {extras.photos.map((p) => (
+            <div className="mx-4 divide-y divide-line rounded-xl border border-line">
+              {posts.slice(0, 3).map((p) => (
                 <Link
                   key={p.id}
-                  href={`/party/${p.slug}`}
-                  className="relative h-[150px] w-[112px] flex-none overflow-hidden rounded-xl bg-soft"
+                  href={`/community/${p.id}`}
+                  className="block px-3.5 py-3 transition active:bg-soft"
                 >
-                  <Image
-                    src={p.url}
-                    alt={p.caption ?? ""}
-                    fill
-                    sizes="112px"
-                    className="object-cover"
-                  />
+                  <div className="flex items-baseline gap-2 text-[12.5px]">
+                    <b className="truncate">{p.nickname}</b>
+                    <span className="flex-none text-sub">{ago(p.created_at)}</span>
+                    {p.comment_count > 0 ? (
+                      <span className="ml-auto flex-none text-sub">
+                        {`댓글 ${p.comment_count}`}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="clamp-2 mt-1 text-[14px] leading-relaxed">
+                    {p.body}
+                  </p>
                 </Link>
               ))}
             </div>
