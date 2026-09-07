@@ -47,8 +47,6 @@ function emptyStats(e: EventRow): EventStats {
     booked: 0,
     booked_f: 0,
     booked_m: 0,
-    revenue_paid: 0,
-    revenue_total: 0,
   };
 }
 

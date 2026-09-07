@@ -40,7 +40,7 @@ export default async function PostPage({
               {ago(post.created_at)}
             </span>
             <span className="ml-auto flex items-center gap-1">
-              {uid && post.user_id === uid ? (
+              {post.mine ? (
                 <DeleteButton id={post.id} kind="post" redirectTo="/community" />
               ) : (
                 <ReportMenu type="post" id={post.id} />

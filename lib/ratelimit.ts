@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
  * 요청 제한.
@@ -17,7 +17,12 @@ export async function limit(
   seconds: number,
 ): Promise<boolean> {
   try {
-    const supabase = await createClient();
+    // **service_role 로 부른다.** rate_ok 는 이제 손님(anon)이 못 부른다 —
+    // 버킷 이름을 마음대로 넣어 남을 잠그거나 표를 채울 수 있어서 막았다.
+    // 서버 라우트만 세면 되니 여기서만 service_role 을 쓴다
+    const supabase = createAdminClient();
+    // 키가 없는 환경(로컬)이면 못 센다. 막지 않고 통과시킨다
+    if (!supabase) return true;
     const { data, error } = await supabase.rpc("rate_ok", {
       p_bucket: bucket,
       p_limit: max,

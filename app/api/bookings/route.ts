@@ -35,6 +35,9 @@ const MESSAGES: Record<string, (left: number) => string> = {
       : "해당 성별은 마감됐어요. 성비를 맞추려고 남녀 정원을 나눠 받고 있어요.",
   BAD_GENDER: () => "성별을 선택해 주세요.",
   BAD_QUANTITY: () => "인원은 1명에서 4명까지예요.",
+  // DB 안의 제한(같은 번호 시간당 3건 · 전체 10분 60건)에 걸렸다.
+  // 라우트의 IP 제한과 별개다 — RPC 를 직접 부르는 쪽도 여기서 막힌다
+  RATE: () => "너무 여러 번 시도했어요. 잠시 뒤에 다시 해 주세요.",
 };
 
 export async function POST(req: Request) {

@@ -90,7 +90,7 @@ export default async function AdminCommunityPage() {
               <span className="text-[12px] text-sub">
                 댓글 {p.comment_count}
               </span>
-              {!p.user_id ? (
+              {p.anon ? (
                 <span className="rounded bg-soft px-1.5 py-0.5 text-[11px] font-semibold text-sub">
                   익명
                 </span>

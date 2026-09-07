@@ -2,14 +2,14 @@ import Link from "next/link";
 
 import { PostComposer } from "@/components/community/Composer";
 import { Empty } from "@/components/ui/primitives";
-import { currentUserId, listPosts } from "@/lib/community";
+import { listPosts } from "@/lib/community";
 import { ago } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "커뮤니티" };
 
 export default async function CommunityPage() {
-  const [posts, uid] = await Promise.all([listPosts(), currentUserId()]);
+  const posts = await listPosts();
 
   return (
     <>
@@ -36,7 +36,7 @@ export default async function CommunityPage() {
               >
                 <div className="flex items-center gap-2">
                   <span className="text-[13.5px] font-bold">{p.nickname}</span>
-                  {uid && p.user_id === uid ? (
+                  {p.mine ? (
                     <span className="rounded bg-brand-soft px-1.5 py-0.5 text-[11px] font-bold text-brand">
                       내 글
                     </span>

@@ -64,6 +64,13 @@ export async function POST(req: Request) {
 
   if (error) {
     const kind = (error.message ?? "").trim();
+    // DB 안의 제한. 번호 하나에 10분 6번 — 이름을 돌리는 쪽을 막는다
+    if (kind === "RATE") {
+      return NextResponse.json(
+        { message: "너무 여러 번 시도했어요. 잠시 뒤에 다시 해 주세요." },
+        { status: 429 },
+      );
+    }
     return NextResponse.json(
       {
         message:

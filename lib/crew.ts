@@ -6,6 +6,7 @@ import type {
   Crew,
   CrewMember,
   EventRow,
+  EventMoney,
   EventStats,
   EventTable,
   TicketTier,
@@ -66,6 +67,8 @@ export async function crewEvents(crewId: string): Promise<EventRow[]> {
 export interface AdminEvent {
   event: EventRow;
   stats: EventStats;
+  /** 매출. 스태프 권한으로 읽는다 */
+  money: EventMoney;
   tiers: (TicketTier & { sold: number })[];
   bookings: Booking[];
   members: CrewMember[];
@@ -88,6 +91,7 @@ export async function adminEvent(eventId: string): Promise<AdminEvent | null> {
 
   const [
     { data: stats },
+    { data: money },
     { data: tiers },
     { data: tierStats },
     { data: bookings },
@@ -95,6 +99,9 @@ export async function adminEvent(eventId: string): Promise<AdminEvent | null> {
     { data: tables },
   ] = await Promise.all([
       supabase.from("event_stats").select("*").eq("event_id", eventId).maybeSingle(),
+      // 매출은 따로. event_stats 는 손님도 읽는 뷰라 돈을 뺐다.
+      // event_money 는 호출자 권한으로 돌아서 스태프만 실제 값을 본다
+      supabase.from("event_money").select("*").eq("event_id", eventId).maybeSingle(),
       supabase.from("ticket_tiers").select("*").eq("event_id", eventId).order("sort_order"),
       supabase.from("tier_stats").select("*").eq("event_id", eventId),
       supabase
@@ -122,6 +129,9 @@ export async function adminEvent(eventId: string): Promise<AdminEvent | null> {
       booked: 0,
       booked_f: 0,
       booked_m: 0,
+    },
+    money: (money as EventMoney) ?? {
+      event_id: eventId,
       revenue_paid: 0,
       revenue_total: 0,
     },

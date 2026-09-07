@@ -313,12 +313,18 @@ export type EventExpense = {
 }
 
 /** 파생값은 저장하지 않는다 — 뷰에서 집계한다 (사양서 5절) */
+/** 손님도 읽는 값. 잔여·성비까지. **돈은 여기 없다** — event_money 로 */
 export type EventStats = {
   event_id: string;
   capacity: number;
   booked: number;
   booked_f: number;
   booked_m: number;
+}
+
+/** 매출. security_invoker 뷰라 스태프·관리자에게만 실제 값이 나온다 */
+export type EventMoney = {
+  event_id: string;
   revenue_paid: number;
   revenue_total: number;
 }
@@ -353,7 +359,10 @@ export type PostComment = {
 /** 목록용 — 댓글 수와 연결된 파티 제목이 붙어 온다 */
 export type PostListRow = {
   id: string;
-  user_id: string | null;
+  /** 내 글인가. 남의 uid 는 안 내보낸다 — 뷰가 auth.uid() 와 비교해 준다 */
+  mine: boolean;
+  /** 로그인 없이 쓴 글. 관리자 화면에서 '익명' 표시 */
+  anon: boolean;
   nickname: string;
   body: string;
   event_id: string | null;
@@ -478,6 +487,7 @@ export type Database = {
     };
     Views: {
       event_stats: View<EventStats>;
+      event_money: View<EventMoney>;
       event_recap: View<EventRecap>;
       tier_stats: View<TierStats>;
       post_list: View<PostListRow>;
