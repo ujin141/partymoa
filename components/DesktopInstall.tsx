@@ -121,19 +121,41 @@ export function DesktopInstall() {
           폰으로 열어 두면 입장할 때 바로 보여 줄 수 있어요.
         </p>
 
+        {/* **QR 은 앱 받는 곳을 담는다.**
+            /api/qr 은 우리 도메인 경로만 받아서 스토어 주소를 직접 못 넣는다.
+            /app 이 기기를 보고 스토어로 넘긴다.
+
+            PC 에서 QR 을 눌러도 되게 링크로 감쌌다 — 폰이 없거나 카메라를
+            켜기 귀찮은 사람은 그냥 누른다. 아래에 주소를 글자로도 적는다.
+            찍지도 누르지도 못하는 사람이 폰에 직접 칠 수 있어야 한다 */}
         <div className="mt-5 rounded-2xl bg-soft p-5">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={`/api/qr?p=${encodeURIComponent(path)}`}
-            alt="폰으로 열기 QR"
-            width={150}
-            height={150}
-            className="mx-auto h-[150px] w-[150px]"
-          />
+          <a
+            href={APP_STORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="App Store 에서 앱 받기"
+            className="block rounded-xl transition hover:opacity-80"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/api/qr?p=%2Fapp"
+              alt="앱 받기 QR"
+              width={150}
+              height={150}
+              className="mx-auto h-[150px] w-[150px]"
+            />
+          </a>
           <p className="mt-3.5 text-[12.5px] leading-relaxed text-sub">
-            폰 카메라로 찍으면{" "}
-            <b className="text-ink">지금 보던 이 화면</b>이 열려요.
+            폰 카메라로 찍으면 <b className="text-ink">앱 받는 곳</b>이 열려요.
           </p>
+          <a
+            href="/app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 block text-[12.5px] font-semibold text-brand underline underline-offset-2"
+          >
+            www.partymoa.com/app
+          </a>
         </div>
 
         {installed ? (
