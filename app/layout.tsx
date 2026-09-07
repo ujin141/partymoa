@@ -33,6 +33,10 @@ export const metadata: Metadata = {
   description: "서울 언더그라운드 파티를 한 곳에서. 사전예매 플랫폼.",
   applicationName: "파티모아",
   appleWebApp: { capable: true, title: "파티모아", statusBarStyle: "default" },
+  // 아이폰 사파리 위에 애플이 직접 그리는 "App Store 에서 보기" 띠.
+  // 우리가 만든 배너보다 이게 낫다 — 설치돼 있으면 "열기" 로 바뀌고,
+  // 앱 안(웹뷰)에서는 안 뜬다. 앱이 스토어에 올라간 뒤에만 켠다
+  itunes: { appId: "6805604836" },
   formatDetection: { telephone: false },
   openGraph: {
     type: "website",
