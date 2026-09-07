@@ -131,3 +131,63 @@ export async function nativeSet(key: string, value: unknown) {
     /* 저장에 실패해도 화면은 그대로 돈다 */
   }
 }
+
+/* ─────────────────────────────────────────── 소셜 로그인 */
+
+/** 로그인이 끝나고 앱으로 돌아오는 주소. Info.plist 의 URL 스킴과 같아야 한다 */
+export const NATIVE_AUTH_REDIRECT = "io.partymoa.app://auth";
+
+/**
+ * 앱에서 소셜 로그인 창을 연다. 끝나면 돌아온 주소를 돌려준다.
+ *
+ * **웹뷰 안에서 열면 안 된다.** 구글이 임베디드 웹뷰의 OAuth 를
+ * 거부한다(disallowed_useragent) — 앱이 로그인 화면의 입력을 들여다볼 수
+ * 있어서 막아 둔 정책이다. 사파리를 통째로 여는 것도 답이 아니다.
+ * 앱에서 튕겨 나가는 모양이 되고, 세션이 사파리에 남아 앱은 계속
+ * 로그아웃 상태다.
+ *
+ * Browser.open 은 iOS 에서 ASWebAuthenticationSession(시스템이 띄우는
+ * 로그인 시트)으로 뜬다. **구글은 이걸 웹뷰로 안 본다.** 앱 위에 덮이듯
+ * 열리고, 끝나면 위 스킴으로 앱에 돌아온다.
+ *
+ * 손님이 그냥 닫으면 아무것도 안 돌아온다 — 그때 null 이다.
+ */
+export function nativeOAuth(url: string, timeoutMs = 180000): Promise<string | null> {
+  const browser = plugin("Browser");
+  const app = plugin("App");
+  if (!browser || !app) return Promise.resolve(null);
+
+  return new Promise((resolve) => {
+    let done = false;
+    let off: (() => void) | null = null;
+
+    const finish = (v: string | null) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      off?.();
+      // 로그인 시트가 열린 채로 남으면 손님이 직접 닫아야 한다
+      browser.close().catch(() => {});
+      resolve(v);
+    };
+
+    const timer = setTimeout(() => finish(null), timeoutMs);
+
+    (async () => {
+      try {
+        const h = (await (app as unknown as {
+          addListener: (
+            e: string,
+            cb: (d: { url?: string }) => void,
+          ) => Promise<{ remove: () => Promise<void> }>;
+        }).addListener("appUrlOpen", (d) => {
+          if (d?.url?.startsWith(NATIVE_AUTH_REDIRECT)) finish(d.url);
+        }));
+        off = () => void h.remove().catch(() => {});
+        await browser.open({ url, presentationStyle: "popover" });
+      } catch {
+        finish(null);
+      }
+    })();
+  });
+}

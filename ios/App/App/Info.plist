@@ -57,6 +57,20 @@
 	<array>
 		<string>arm64</string>
 	</array>
+	<!-- 로그인이 끝나고 앱으로 돌아올 길.
+	     ASWebAuthenticationSession 이 io.partymoa.app://auth 로 되돌려준다.
+	     이게 없으면 구글 창에서 로그인해도 앱으로 못 돌아온다 -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>io.partymoa.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>io.partymoa.app</string>
+			</array>
+		</dict>
+	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

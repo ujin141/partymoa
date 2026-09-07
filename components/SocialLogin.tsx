@@ -1,7 +1,9 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { NATIVE_AUTH_REDIRECT, nativeOAuth } from "@/lib/native";
 import { useNativeIOS } from "@/lib/use-native";
 import { createClient } from "@/lib/supabase/client";
 
@@ -91,34 +93,71 @@ function Icon({ p }: { p: Provider }) {
 const ENABLED: Provider[] = ["google", "apple"];
 
 export function SocialLogin({ next = "/my" }: { next?: string }) {
+  const router = useRouter();
   const [busy, setBusy] = useState<Provider | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const native = useNativeIOS();
 
   /**
-   * **앱에서는 소셜 로그인을 안 띄운다.** 아이패드도 같다.
+   * **앱인지 아직 모를 때는 아무것도 안 그린다.**
    *
-   * 앱 심사에서 이걸로 반려됐다(가이드라인 4). 구글 로그인은 우리
-   * 도메인 밖(accounts.google.com)으로 나가는데, 웹뷰가 남의 주소를
-   * 못 열게 막아 둬서 사파리가 통째로 열린다 — 앱을 쓰다가 갑자기
-   * 브라우저로 튕기는 모양이 된다.
-   *
-   * 웹뷰 안에서 열게 풀 수도 없다. **구글이 임베디드 웹뷰의 OAuth 를
-   * 거부한다**(disallowed_useragent). 제대로 고치려면 네이티브 쪽에
-   * ASWebAuthenticationSession 을 붙여야 하는데, 그건 Xcode 작업이다.
-   *
-   * 그동안 아이폰에서는 이메일 로그인만 연다. 예매는 원래 로그인
-   * 없이도 되므로 손님이 막히는 곳은 없다.
+   * false 로 시작해서 나중에 끄면 앱에서도 한 프레임 동안 버튼이 보인다.
+   * 지금은 앱에서도 띄우지만, 웹과 앱의 동작이 다르므로 정해진 뒤에
+   * 그리는 편이 안전하다.
    */
-  // **웹인 게 확실할 때만 그린다.** false 로 시작해서 useEffect 로 끄면
-  // 앱에서도 한 프레임 동안 구글 버튼이 보인다 — 심사자는 그걸 본다
-  if (native !== false) return null;
+  if (native === null) return null;
+
+  // 클로저 안에서는 위 가드로 좁혀지지 않는다. 값을 고정해서 넘긴다
+  const isApp = native;
 
   async function go(provider: Provider) {
     setBusy(provider);
     setErr(null);
     const supabase = createClient();
-    const redirectTo = `${location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
+
+    /**
+     * **앱은 돌아올 주소가 다르다.**
+     *
+     * 웹은 /auth/callback 으로 돌아오지만 앱은 URL 스킴으로 돌아온다.
+     * 웹 주소로 돌려보내면 로그인 시트 안에서 사이트가 한 번 더 열리고,
+     * 세션은 그 시트에 남아 앱은 계속 로그아웃이다.
+     */
+    const redirectTo = isApp
+      ? NATIVE_AUTH_REDIRECT
+      : `${location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
+
+    /**
+     * 앱에서는 우리가 직접 창을 열고 돌아온 주소를 받는다.
+     * 실패하면 아무 일도 안 일어난 것처럼 되돌린다 — 손님이 그냥
+     * 닫았을 수도 있어서 오류를 띄우지 않는다.
+     */
+    async function run(url: string) {
+      if (!isApp) {
+        location.href = url;
+        return true;
+      }
+      const back = await nativeOAuth(url);
+      if (!back) {
+        setBusy(null);
+        return false;
+      }
+      // PKCE. 코드 검증값은 이 웹뷰가 들고 있어서 여기서 교환된다
+      const code = new URL(back.replace("#", "?")).searchParams.get("code");
+      if (!code) {
+        setErr("로그인이 완료되지 않았어요. 다시 시도해 주세요.");
+        setBusy(null);
+        return false;
+      }
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) {
+        setErr(error.message);
+        setBusy(null);
+        return false;
+      }
+      router.replace(next);
+      router.refresh();
+      return true;
+    }
 
     const {
       data: { user },
@@ -147,10 +186,10 @@ export function SocialLogin({ next = "/my" }: { next?: string }) {
     if (user?.is_anonymous && hasBooking) {
       const { data, error } = await supabase.auth.linkIdentity({
         provider,
-        options: { redirectTo },
+        options: { redirectTo, skipBrowserRedirect: isApp },
       });
       if (!error && data?.url) {
-        location.href = data.url;
+        await run(data.url);
         return;
       }
     }
@@ -158,10 +197,15 @@ export function SocialLogin({ next = "/my" }: { next?: string }) {
     // 익명 세션을 먼저 끊는다. 안 끊으면 새 로그인이 옛 세션과 섞인다
     if (user?.is_anonymous) await supabase.auth.signOut();
 
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo },
+      // 앱에서는 우리가 창을 여니까 Supabase 가 바로 넘기면 안 된다
+      options: { redirectTo, skipBrowserRedirect: isApp },
     });
+    if (!error && data?.url) {
+      await run(data.url);
+      return;
+    }
     if (error) {
       setErr(
         error.message.includes("not enabled")
