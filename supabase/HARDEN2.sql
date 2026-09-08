@@ -22,8 +22,9 @@
 
 drop policy if exists crews_insert on crews;
 
--- owner 가 update 로 owner_id 를 바꾸는 것도 막는다.
--- with check 가 없으면 using 만 통과하고 아무 값이나 쓸 수 있다
+-- with check 를 적어 둔다. Postgres 는 with check 가 없으면 using 을
+-- 그대로 쓰므로 실제로는 이미 막혀 있었다 — 읽는 사람이 헷갈리지 않게
+-- 명시한다
 drop policy if exists crews_write on crews;
 create policy crews_write on crews
   for update using (owner_id = auth.uid())
@@ -400,7 +401,7 @@ drop view if exists review_list cascade;
 create view review_list as
 select
   r.id, r.event_id, r.rating, r.body, r.nickname, r.created_at,
-  (r.user_id = auth.uid()) as mine
+  coalesce(r.user_id = auth.uid(), false) as mine
 from reviews r
 where r.deleted_at is null;
 grant select on review_list to anon, authenticated;
@@ -443,40 +444,15 @@ select r.rolname,
        has_column_privilege(r.rolname, 'public.posts', 'body', 'select') as posts_body
 from (values ('anon'), ('authenticated')) as r(rolname);
 
--- ─────────────────────────────────────────── 9. 확인된 이메일만 권한에 쓴다
+-- ─────────────────────────────────────────── 9. (뺐다) 이메일 확인 검사
 --
---  운영자·크루 스태프 판정이 JWT 의 email 로 이뤄진다. 그 주소가 확인
---  안 된 계정(가입만 하고 인증 안 함)이어도 JWT 에는 실린다. 대시보드에서
---  가입이 열려 있으면 운영자 주소로 가입해서 운영자가 될 수 있다.
---  auth.users 에서 확인 시각이 있는 주소만 돌려준다.
-
-create or replace function auth_email()
-returns text
-language sql
-stable
-security definer
-set search_path = public
-as $fn$
-  select lower(u.email)
-  from auth.users u
-  where u.id = auth.uid()
-    and coalesce(u.email_confirmed_at, u.confirmed_at) is not null
-    and nullif(u.email, '') is not null;
-$fn$;
-revoke all on function auth_email from public;
-grant execute on function auth_email to anon, authenticated, service_role;
+--  auth_email() 에 email_confirmed_at 검사를 넣으려다 뺐다. 대시보드에서
+--  "Confirm email" 이 켜져 있으면 미확인 계정은 애초에 세션을 못 받고,
+--  꺼져 있으면 가입 즉시 확인 처리돼 검사가 무의미하다. 얻는 게 없고
+--  대시보드에서 만든 계정을 잠글 위험만 있다. 진짜 잠금장치는 대시보드다:
+--  Authentication → Providers → Email → "Allow new users to sign up" OFF.
 
 -- ─────────────────────────────────────────── 확인 3
---  권한 주소인데 확인이 안 된 계정. 여기 뜨면 그 사람은 지금부터 못 들어온다 —
---  대시보드 Authentication → Users 에서 Confirm email 을 눌러 준다
-select u.email, u.email_confirmed_at, u.confirmed_at
-from auth.users u
-where lower(u.email) in (
-  select email from admin_emails
-  union select lower(email) from crew_members where email is not null
-)
-and coalesce(u.email_confirmed_at, u.confirmed_at) is null;
-
 --  create_booking 은 한 줄(9개짜리)만 남고 service_role 만 true
 select p.oid::regprocedure as sig, r.rolname,
        has_function_privilege(r.rolname, p.oid, 'execute') as can_call

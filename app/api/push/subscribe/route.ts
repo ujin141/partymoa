@@ -16,7 +16,7 @@ const PUSH_HOSTS = [
   ".push.apple.com",
   "updates.push.services.mozilla.com",
   ".notify.windows.com",
-  ".push.samsungosp.com",
+  ".samsungosp.com",
   "push-api.cloud.huawei.com",
 ];
 

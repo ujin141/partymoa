@@ -42,7 +42,7 @@ const MESSAGES: Record<string, (left: number) => string> = {
   // 라우트의 IP 제한과 별개다 — RPC 를 직접 부르는 쪽도 여기서 막힌다
   RATE: () => "너무 여러 번 시도했어요. 잠시 뒤에 다시 해 주세요.",
   PENDING_CAP: () =>
-    "입금 대기 중인 예매가 이미 2건이에요. 입금하거나 취소한 뒤 다시 해 주세요.",
+    "입금 대기 중인 예매가 이미 2건이에요. 일행은 한 예매에 인원(최대 4명)으로 넣거나, 입금·취소 뒤 다시 해 주세요.",
 };
 
 export async function POST(req: Request) {

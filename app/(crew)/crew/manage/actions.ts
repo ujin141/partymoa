@@ -24,7 +24,7 @@ export async function updateCrew(input: {
     return { ok: false as const, message: "사진 " + IMG_MSG };
   }
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data: row, error } = await supabase
     .from("crews")
     .update({
       name: input.name.trim(),
@@ -33,9 +33,15 @@ export async function updateCrew(input: {
       instagram: input.instagram.trim().replace(/^@/, "") || null,
       avatar_url: safeImageUrl(input.avatarUrl),
     })
-    .eq("id", crew.id);
+    .eq("id", crew.id)
+    .select("id")
+    .maybeSingle();
 
   if (error) return { ok: false as const, message: error.message };
+  // 정책이 걸러도 오류가 아니라 0줄이다. 그걸 "저장했어요" 로 보이면 안 된다
+  if (!row) {
+    return { ok: false as const, message: "크루 대표 계정만 바꿀 수 있어요." };
+  }
   revalidatePath("/crew", "layout");
   revalidatePath("/", "layout");
   return { ok: true as const };
