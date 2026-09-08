@@ -23,13 +23,53 @@ function canonicalHost(req: NextRequest) {
 }
 
 /**
- * 모든 응답에 붙는 보안 헤더.
+ * CSP — 페이지가 어디서 스크립트를 받고 어디로 요청을 보낼 수 있는지.
  *
- * CSP 는 안 건다 — Next 가 인라인 스크립트로 하이드레이션 데이터를
- * 넘기고, nonce 를 붙이려면 모든 페이지를 동적으로 돌려야 한다.
- * 그러면 캐시가 통째로 죽어서 얻는 것보다 잃는 게 크다. 대신 나머지를
- * 촘촘히 건다.
+ * 스크립트는 우리 것과 이번 요청의 nonce 가 붙은 인라인만 돈다. 어디선가
+ * XSS 가 뚫려도 붙여 넣은 스크립트는 nonce 가 없어서 안 돌고, 돈다 해도
+ * connect-src 밖으로는 데이터를 못 보낸다. 그게 이 헤더가 사는 값이다.
+ *
+ * nonce 를 쓰면 페이지가 요청마다 렌더된다. 이 앱은 어차피 거의 전부
+ * force-dynamic 이고 캐시는 데이터 층(unstable_cache)에 있어서 잃는 게
+ * 없다. 정적이던 약관·개인정보·도움말 세 장만 동적이 된다.
+ *
+ * 외부에서 불러오는 게 없다. 스크립트·폰트·스타일은 전부 우리 것,
+ * 이미지는 unsplash 와 Supabase 저장소, 통신은 Supabase 뿐이다.
  */
+function csp(nonce: string) {
+  const sb = (() => {
+    try {
+      return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").origin;
+    } catch {
+      return "";
+    }
+  })();
+  const sbWs = sb.replace(/^https:/, "wss:");
+  const dev = process.env.NODE_ENV !== "production";
+  return [
+    "default-src 'self'",
+    // strict-dynamic: nonce 가 붙은 스크립트가 불러오는 청크는 믿는다.
+    // 개발 서버는 eval 로 모듈을 붙인다
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`,
+    // 스타일은 인라인을 열어 둔다 — Tailwind 가 style 속성을 쓰고,
+    // 인라인 스타일로는 데이터를 빼낼 길이 없다
+    "style-src 'self' 'unsafe-inline'",
+    `img-src 'self' data: blob: https://images.unsplash.com https://*.supabase.co`,
+    "font-src 'self' data:",
+    `connect-src 'self' ${sb} ${sbWs} https://*.supabase.co wss://*.supabase.co`,
+    "worker-src 'self'",
+    "manifest-src 'self'",
+    "media-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "frame-src 'none'",
+    "upgrade-insecure-requests",
+  ].join("; ");
+}
+
+/** 모든 응답에 붙는 보안 헤더 */
 function harden(res: NextResponse) {
   res.headers.set("x-content-type-options", "nosniff");
   // 우리 화면을 남의 사이트에 끼워 넣지 못하게 — 클릭재킹
@@ -85,7 +125,16 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(to);
   }
 
-  const res = harden(NextResponse.next({ request: req }));
+  // nonce 는 요청마다 새로 만든다. Next 는 요청 헤더의 CSP 에서 nonce 를
+  // 읽어 자기 인라인 스크립트에 붙인다 — 그래서 응답이 아니라 요청 쪽에도
+  // 헤더를 넣는다
+  const nonce = btoa(crypto.randomUUID());
+  const policy = csp(nonce);
+  const reqHeaders = new Headers(req.headers);
+  reqHeaders.set("x-nonce", nonce);
+  reqHeaders.set("content-security-policy", policy);
+  const res = harden(NextResponse.next({ request: { headers: reqHeaders } }));
+  res.headers.set("content-security-policy", policy);
 
   // 세션 쿠키가 없으면 갱신할 것도 없다. 로그인 안 한 방문자에게
   // Supabase 왕복을 한 번씩 붙이지 않는다

@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { Quiet } from "@/components/Quiet";
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
@@ -63,9 +64,17 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+/**
+ * 요청 헤더를 한 번 읽는다. **그래서 모든 페이지가 요청마다 렌더된다.**
+ * CSP nonce 는 요청마다 다르고, 미리 만들어 둔 HTML 에는 그 nonce 가 없어
+ * 인라인 스크립트가 막힌다. 약관·개인정보·도움말·404 까지 전부 동적으로
+ * 돌려야 nonce 가 붙는다. 이 앱은 나머지가 이미 전부 동적이라 잃는 게 없다.
+ */
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  await headers();
+
   return (
     /* suppressHydrationWarning 은 **이 두 태그에만** 건다.
        크롬 확장이 body 에 ap-style, __processed_…__ 같은 속성을 끼워 넣어
