@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 
 import { pushReady, sendPush } from "@/lib/push";
@@ -31,11 +32,19 @@ export async function GET(req: Request) {
   // 크론 비밀키가 있으면 맞을 때만 돈다. 없으면 누구나 부를 수 있으니
   // 반드시 넣어야 한다
   const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const got = req.headers.get("authorization");
-    if (got !== `Bearer ${secret}`) {
-      return NextResponse.json({ message: "금지" }, { status: 401 });
-    }
+  if (!secret) {
+    // 키가 없으면 아무나 부를 수 있는 문이 된다. 여는 대신 닫는다
+    console.error("cron: CRON_SECRET 없음");
+    return NextResponse.json({ message: "설정 없음" }, { status: 500 });
+  }
+  const got = req.headers.get("authorization") ?? "";
+  const want = `Bearer ${secret}`;
+  const a = Buffer.from(got);
+  const b = Buffer.from(want);
+  // 길이가 다르면 비교 자체가 다른 시간을 쓴다. 같은 길이끼리만 재고,
+  // 다른 길이는 그냥 거절
+  if (a.length !== b.length || !timingSafeEqual(a, b)) {
+    return NextResponse.json({ message: "금지" }, { status: 401 });
   }
 
   if (!pushReady()) {

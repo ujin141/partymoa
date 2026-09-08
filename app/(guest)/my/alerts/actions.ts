@@ -28,7 +28,7 @@ export async function setMarketingPush(on: boolean) {
     },
     { onConflict: "user_id" },
   );
-  if (error) return { ok: false as const, message: error.message };
+  if (error) return { ok: false as const, message: "저장하지 못했어요. 잠시 뒤 다시 해 주세요." };
 
   revalidatePath("/my/alerts");
   return { ok: true as const };

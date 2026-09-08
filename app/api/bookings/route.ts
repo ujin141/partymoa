@@ -41,6 +41,8 @@ const MESSAGES: Record<string, (left: number) => string> = {
   // DB 안의 제한(같은 번호 시간당 3건 · 전체 10분 60건)에 걸렸다.
   // 라우트의 IP 제한과 별개다 — RPC 를 직접 부르는 쪽도 여기서 막힌다
   RATE: () => "너무 여러 번 시도했어요. 잠시 뒤에 다시 해 주세요.",
+  PENDING_CAP: () =>
+    "입금 대기 중인 예매가 이미 2건이에요. 입금하거나 취소한 뒤 다시 해 주세요.",
 };
 
 export async function POST(req: Request) {
@@ -64,6 +66,10 @@ export async function POST(req: Request) {
       instagram?: string | null;
     };
 
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (typeof eventId !== "string" || !UUID.test(eventId) || typeof tierId !== "string" || !UUID.test(tierId)) {
+    return NextResponse.json({ message: "잘못된 요청이에요." }, { status: 400 });
+  }
   if (!eventId || !tierId || !name?.trim() || !phone?.trim()) {
     return NextResponse.json(
       { message: "이름과 연락처를 모두 적어 주세요." },
@@ -123,6 +129,14 @@ export async function POST(req: Request) {
    */
   const { data: auth } = await supabase.auth.getUser();
   const admin = createAdminClient();
+  if (!admin && process.env.VERCEL) {
+    // 키가 빠지면 예매가 통째로 죽는다. 조용히 500 이 아니라 크게 남긴다
+    console.error("bookings: SUPABASE_SERVICE_ROLE_KEY 없음");
+    return NextResponse.json(
+      { message: "지금은 예매를 받을 수 없어요. 잠시 뒤 다시 해 주세요." },
+      { status: 503 },
+    );
+  }
   const args = {
     p_event_id: eventId,
     p_tier_id: tierId,
@@ -153,7 +167,8 @@ export async function POST(req: Request) {
     : await supabase.rpc("create_booking", args);
   // 배포와 SQL 적용 사이의 틈. 새 인자를 아직 모르는 DB 면 옛 모양으로
   // 손님 세션에서 한 번 더 부른다. HARDEN2.sql 이 돌고 나면 안 타는 길이다
-  if (error && /p_user_id|Could not find the function/i.test(error.message ?? "")) {
+  // PGRST202 = 그 이름·인자의 함수가 없다. 그때만 옛 길로 간다
+  if (error && error.code === "PGRST202") {
     ({ data, error } = await supabase.rpc("create_booking", args));
   }
 
@@ -167,7 +182,8 @@ export async function POST(req: Request) {
         { status: 409 },
       );
     }
-    console.error("create_booking", error);
+    // 통째로 찍으면 details 에 이름·번호가 실린다. 코드와 메시지만
+    console.error("create_booking", error.code, error.message);
     return NextResponse.json(
       { message: "예매 처리 중 문제가 생겼어요. 잠시 뒤 다시 시도해 주세요." },
       { status: 500 },

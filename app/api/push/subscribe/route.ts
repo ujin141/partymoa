@@ -17,6 +17,7 @@ const PUSH_HOSTS = [
   "updates.push.services.mozilla.com",
   ".notify.windows.com",
   ".push.samsungosp.com",
+  "push-api.cloud.huawei.com",
 ];
 
 function endpointOk(endpoint: string, ios: boolean): boolean {
@@ -30,7 +31,9 @@ function endpointOk(endpoint: string, ios: boolean): boolean {
   }
   if (u.protocol !== "https:") return false;
   const h = u.hostname.toLowerCase();
-  return PUSH_HOSTS.some((p) => (p.startsWith(".") ? h.endsWith(p) : h === p));
+  return PUSH_HOSTS.some((p) =>
+    p.startsWith(".") ? h === p.slice(1) || h.endsWith(p) : h === p,
+  );
 }
 
 export async function POST(req: Request) {
@@ -53,6 +56,10 @@ export async function POST(req: Request) {
    * 푸시 서비스 호스트만 받는다. 아이폰 토큰은 64자리 16진수다.
    */
   if (!endpointOk(body.endpoint, ios)) {
+    // 호스트만 남긴다. 어느 브라우저를 빠뜨렸는지 여기서 보인다
+    let host = "?";
+    try { host = new URL(body.endpoint).hostname; } catch { /* 주소가 아니다 */ }
+    console.warn("push: 허용 밖 호스트", ios ? "ios-token" : host);
     return NextResponse.json({ message: "구독 주소가 올바르지 않아요." }, { status: 400 });
   }
 
@@ -80,7 +87,8 @@ export async function POST(req: Request) {
     if (/RATE/.test(error.message ?? "")) {
       return NextResponse.json({ message: "기기가 너무 많아요. 안 쓰는 기기에서 알림을 꺼 주세요." }, { status: 429 });
     }
-    return NextResponse.json({ message: error.message }, { status: 500 });
+    console.error("push subscribe", error.code, error.message);
+    return NextResponse.json({ message: "알림 설정을 저장하지 못했어요." }, { status: 500 });
   }
   return NextResponse.json({ ok: true });
 }

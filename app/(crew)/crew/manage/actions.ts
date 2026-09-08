@@ -1,6 +1,6 @@
 "use server";
 
-import { safeImageUrl } from "@/lib/safe-url";
+import { IMG_MSG, safeImageUrl } from "@/lib/safe-url";
 import { revalidatePath } from "next/cache";
 
 import { myCrew } from "@/lib/crew";
@@ -20,6 +20,9 @@ export async function updateCrew(input: {
     return { ok: false as const, message: "크루 이름은 비울 수 없어요." };
   }
 
+  if (input.avatarUrl.trim() && !safeImageUrl(input.avatarUrl)) {
+    return { ok: false as const, message: "사진 " + IMG_MSG };
+  }
   const supabase = await createClient();
   const { error } = await supabase
     .from("crews")

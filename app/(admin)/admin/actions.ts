@@ -1,5 +1,6 @@
 "use server";
 
+import { safeImageUrl } from "@/lib/safe-url";
 import { revalidatePath } from "next/cache";
 
 import { requireAdmin } from "@/lib/admin";
@@ -55,7 +56,7 @@ export async function createCrew(input: {
       slug,
       bio: input.bio.trim() || null,
       instagram: input.instagram.trim().replace(/^@/, "") || null,
-      avatar_url: input.avatarUrl?.trim() || null,
+      avatar_url: safeImageUrl(input.avatarUrl),
       owner_id: (owner as string | null) ?? null,
     })
     .select()

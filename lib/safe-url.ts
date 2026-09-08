@@ -27,3 +27,6 @@ export function safeImageUrl(raw: string | null | undefined): string | null {
   if (h.endsWith(".supabase.co") && !u.pathname.startsWith("/storage/")) return null;
   return u.toString();
 }
+
+/** 폼에서 막힐 때 보여 주는 말. 어디가 되는지 바로 알려 준다 */
+export const IMG_MSG = "이미지 주소는 images.unsplash.com 이나 Supabase 저장소 주소만 됩니다.";

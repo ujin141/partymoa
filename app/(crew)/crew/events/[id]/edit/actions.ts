@@ -1,6 +1,6 @@
 "use server";
 
-import { safeImageUrl } from "@/lib/safe-url";
+import { IMG_MSG, safeImageUrl } from "@/lib/safe-url";
 import { revalidatePath, revalidateTag } from "next/cache";
 
 import { fromSeoulInput } from "@/lib/format";
@@ -90,6 +90,13 @@ export async function updateEvent(eventId: string, d: EventPatch) {
     return { ok: false as const, message: "차수를 최소 하나는 넣어 주세요." };
   }
 
+  if (d.coverUrl.trim() && !safeImageUrl(d.coverUrl)) {
+    return { ok: false as const, message: "커버 " + IMG_MSG };
+  }
+  const badPhoto = d.photos.find((x) => x.url.trim() && !safeImageUrl(x.url));
+  if (badPhoto) {
+    return { ok: false as const, message: "사진 " + IMG_MSG };
+  }
   const supabase = await createClient();
 
   // 이미 팔린 만큼보다 정원을 줄이면 장부가 음수가 된다
@@ -195,7 +202,7 @@ export async function updateEvent(eventId: string, d: EventPatch) {
   // 사진도 지우고 새로 넣는다. 예매가 참조하지 않는다
   await supabase.from("event_photos").delete().eq("event_id", eventId);
   const photoRows = d.photos
-    .filter((x) => safeImageUrl(x.url))
+    .filter((x) => x.url.trim())
     .map((x, i) => ({
     event_id: eventId,
     url: safeImageUrl(x.url)!,

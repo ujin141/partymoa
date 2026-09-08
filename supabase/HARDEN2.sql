@@ -111,7 +111,7 @@ begin
     select count(*) from bookings b
     where b.user_id = v_uid and b.status = 'pending' and b.expires_at > now()
   ) >= 2 then
-    raise exception 'RATE' using errcode = 'P0001';
+    raise exception 'PENDING_CAP' using errcode = 'P0001';
   end if;
 
   select * into v_tier
@@ -174,8 +174,22 @@ begin
   return v_row;
 end $fn$;
 
--- 8개짜리가 남으면 PostgREST 가 어느 쪽인지 못 고른다
+-- 옛 모양이 남으면 PostgREST 가 그쪽을 고를 수 있다. 7개·8개 다 지운다.
+-- SETUP.sql 을 다시 돌리면 7개짜리가 anon 권한으로 되살아난다 — 그래서
+-- 이름이 같은 함수 전부에서 손님 권한을 뗀다
+drop function if exists create_booking(uuid, uuid, text, text, text, int, text);
 drop function if exists create_booking(uuid, uuid, text, text, text, int, text, text);
+do $do$
+declare r record;
+begin
+  for r in
+    select p.oid::regprocedure as sig
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'create_booking'
+  loop
+    execute format('revoke all on function %s from public, anon, authenticated', r.sig);
+  end loop;
+end $do$;
 
 revoke all on function
   create_booking(uuid, uuid, text, text, text, int, text, text, uuid)
@@ -194,6 +208,13 @@ as $fn$
 declare
   v_digits text := regexp_replace(coalesce(new.phone, ''), '\D', '', 'g');
 begin
+  -- SQL 편집기·psql 에서 넣는 줄(손님 명단 import)은 요청 JWT 가 없다.
+  -- 그건 운영자가 직접 하는 일이라 안 센다. 라우트의 service_role 호출은
+  -- JWT 를 들고 오므로 여전히 센다
+  if current_setting('request.jwt.claims', true) is null
+     or current_setting('request.jwt.claims', true) = '' then
+    return new;
+  end if;
   if is_event_staff(new.event_id) or is_app_admin() then
     return new;
   end if;
@@ -397,9 +418,14 @@ security definer
 set search_path = public
 as $fn$
 begin
-  if new.user_id is not null and (
-    select count(*) from push_subscriptions where user_id = new.user_id
-  ) >= 5 then
+  -- 같은 기기가 다시 구독하는 건(upsert 가 같은 endpoint 로 옴) 줄이 안 늘어난다.
+  -- 죽은 구독(failed_at)은 안 센다
+  if new.user_id is not null
+     and not exists (select 1 from push_subscriptions where endpoint = new.endpoint)
+     and (
+       select count(*) from push_subscriptions
+       where user_id = new.user_id and failed_at is null
+     ) >= 5 then
     raise exception 'RATE' using errcode = 'P0001';
   end if;
   return new;
@@ -416,3 +442,45 @@ select r.rolname,
        has_column_privilege(r.rolname, 'public.posts', 'user_id', 'select') as posts_uid,
        has_column_privilege(r.rolname, 'public.posts', 'body', 'select') as posts_body
 from (values ('anon'), ('authenticated')) as r(rolname);
+
+-- ─────────────────────────────────────────── 9. 확인된 이메일만 권한에 쓴다
+--
+--  운영자·크루 스태프 판정이 JWT 의 email 로 이뤄진다. 그 주소가 확인
+--  안 된 계정(가입만 하고 인증 안 함)이어도 JWT 에는 실린다. 대시보드에서
+--  가입이 열려 있으면 운영자 주소로 가입해서 운영자가 될 수 있다.
+--  auth.users 에서 확인 시각이 있는 주소만 돌려준다.
+
+create or replace function auth_email()
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $fn$
+  select lower(u.email)
+  from auth.users u
+  where u.id = auth.uid()
+    and coalesce(u.email_confirmed_at, u.confirmed_at) is not null
+    and nullif(u.email, '') is not null;
+$fn$;
+revoke all on function auth_email from public;
+grant execute on function auth_email to anon, authenticated, service_role;
+
+-- ─────────────────────────────────────────── 확인 3
+--  권한 주소인데 확인이 안 된 계정. 여기 뜨면 그 사람은 지금부터 못 들어온다 —
+--  대시보드 Authentication → Users 에서 Confirm email 을 눌러 준다
+select u.email, u.email_confirmed_at, u.confirmed_at
+from auth.users u
+where lower(u.email) in (
+  select email from admin_emails
+  union select lower(email) from crew_members where email is not null
+)
+and coalesce(u.email_confirmed_at, u.confirmed_at) is null;
+
+--  create_booking 은 한 줄(9개짜리)만 남고 service_role 만 true
+select p.oid::regprocedure as sig, r.rolname,
+       has_function_privilege(r.rolname, p.oid, 'execute') as can_call
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+cross join (values ('anon'), ('authenticated'), ('service_role')) as r(rolname)
+where n.nspname = 'public' and p.proname = 'create_booking';

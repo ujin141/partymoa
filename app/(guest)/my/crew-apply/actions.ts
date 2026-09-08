@@ -99,7 +99,7 @@ export async function applyForCrew(input: ApplyInput) {
     note: input.note.trim() || null,
     user_id: user.id,
   });
-  if (error) return { ok: false as const, message: error.message };
+  if (error) return { ok: false as const, message: "신청을 넣지 못했어요. 잠시 뒤 다시 해 주세요." };
 
   revalidatePath("/my/crew-apply");
   revalidatePath("/admin/applications");
