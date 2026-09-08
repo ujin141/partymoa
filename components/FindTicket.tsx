@@ -6,9 +6,9 @@ import { useState } from "react";
 import { CopyButton } from "@/components/CopyButton";
 import { StatusPill } from "@/components/ui/primitives";
 import { won } from "@/lib/format";
-import type { Booking } from "@/types/database";
+import type { TicketView } from "@/types/database";
 
-type Found = Booking & {
+type Found = TicketView & {
   bank_account?: string | null;
   event_title?: string | null;
 };

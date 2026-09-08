@@ -29,7 +29,9 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || "/";
+  let url = (event.notification.data && event.notification.data.url) || "/";
+  // 우리 경로만 연다. 알림은 우리 서버만 만들지만, 여기서도 한 번 더 막는다
+  if (typeof url !== "string" || !url.startsWith("/") || url.startsWith("//")) url = "/";
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
       // 이미 열려 있으면 그 창을 쓴다. 창을 자꾸 새로 여는 앱은 미움받는다

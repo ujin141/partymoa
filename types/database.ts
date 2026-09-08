@@ -372,6 +372,25 @@ export type PostListRow = {
   event_slug: string | null;
 };
 
+/**
+ * 이름+번호 조회가 돌려주는 티켓. **예매 줄이 아니다** — 인스타·성별·
+ * 초대코드·계정 uuid·전화번호는 안 온다. 찾은 사람이 볼 것만 온다
+ */
+export type TicketView = {
+  id: string;
+  code: string;
+  event_id: string;
+  tier_id: string;
+  name: string;
+  quantity: number;
+  amount: number;
+  status: BookingStatus;
+  expires_at: string;
+  paid_at: string | null;
+  checked_in_at: string | null;
+  created_at: string;
+};
+
 /** 댓글 목록용. user_id 대신 mine — 뷰가 auth.uid() 와 비교해 준다 */
 export type CommentListRow = {
   id: string;
@@ -561,11 +580,11 @@ export type Database = {
       };
       find_booking: {
         Args: { p_code: string; p_phone: string };
-        Returns: Booking;
+        Returns: TicketView;
       };
       claim_booking: {
         Args: { p_code: string; p_phone: string };
-        Returns: Booking;
+        Returns: TicketView;
       };
       create_post: {
         Args: { p_nickname: string; p_body: string; p_event_id: string | null };
@@ -581,11 +600,11 @@ export type Database = {
       can_review: { Args: { p_event: string }; Returns: boolean };
       find_bookings_by_phone: {
         Args: { p_phone: string; p_name: string };
-        Returns: Booking[];
+        Returns: TicketView[];
       };
       claim_bookings_by_phone: {
         Args: { p_phone: string; p_name: string };
-        Returns: Booking[];
+        Returns: TicketView[];
       };
       preference_stats: {
         Args: Record<string, never>;

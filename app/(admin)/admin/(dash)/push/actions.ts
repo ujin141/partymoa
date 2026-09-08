@@ -55,7 +55,12 @@ export async function sendMarketing(input: {
     platform: string | null;
   }[];
 
-  const url = input.url?.trim() || "/";
+  // 우리 안의 경로만. 운영 세션이 털렸을 때 알림이 피싱 링크가 되면 안 된다
+  const rawUrl = input.url?.trim() || "/";
+  if (!rawUrl.startsWith("/") || rawUrl.startsWith("//") || rawUrl.startsWith("/\\")) {
+    return { ok: false as const, message: "누르면 갈 곳은 /party/… 처럼 우리 경로만 됩니다." };
+  }
+  const url = rawUrl;
   let sent = 0;
   const dead: string[] = [];
 

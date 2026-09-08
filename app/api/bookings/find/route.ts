@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { limit, who } from "@/lib/ratelimit";
 import { createClient } from "@/lib/supabase/server";
-import type { Booking } from "@/types/database";
+import type { TicketView } from "@/types/database";
 
 /**
  * 티켓 찾기. 두 가지로 찾는다.
@@ -86,7 +86,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const rows = (Array.isArray(data) ? data : [data]) as Booking[];
+  const rows = (Array.isArray(data) ? data : [data]) as TicketView[];
   if (rows.length === 0) {
     return NextResponse.json(
       { message: "찾은 티켓이 없어요." },

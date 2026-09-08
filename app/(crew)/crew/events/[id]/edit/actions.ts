@@ -89,6 +89,26 @@ export async function updateEvent(eventId: string, d: EventPatch) {
   if (!d.tiers.length) {
     return { ok: false as const, message: "차수를 최소 하나는 넣어 주세요." };
   }
+  if (!Number.isFinite(d.maleMultiplier) || d.maleMultiplier < 0 || d.maleMultiplier > 5) {
+    return { ok: false as const, message: "남성 배수는 0에서 5 사이여야 해요." };
+  }
+  if (!Number.isInteger(d.capacity) || d.capacity < 1 || d.capacity > 5000) {
+    return { ok: false as const, message: "정원은 1명에서 5000명 사이여야 해요." };
+  }
+  if (!Number.isInteger(d.listPrice) || d.listPrice < 0 || d.listPrice > 10_000_000) {
+    return { ok: false as const, message: "입장비를 확인해 주세요." };
+  }
+  if (d.guestPrice != null && (!Number.isInteger(d.guestPrice) || d.guestPrice < 0 || d.guestPrice > 10_000_000)) {
+    return { ok: false as const, message: "게스트가를 확인해 주세요." };
+  }
+  // 차수 상한의 합이 정원보다 작으면 정원을 못 채우고 끝난다 (새로 만들 때와 같은 검사)
+  const tierSum = d.tiers.reduce((a, t) => a + t.capacity, 0);
+  if (tierSum < d.capacity) {
+    return {
+      ok: false as const,
+      message: `차수 수량의 합(${tierSum})이 정원(${d.capacity})보다 적어요. 정원을 다 못 팝니다.`,
+    };
+  }
 
   if (d.coverUrl.trim() && !safeImageUrl(d.coverUrl)) {
     return { ok: false as const, message: "커버 " + IMG_MSG };

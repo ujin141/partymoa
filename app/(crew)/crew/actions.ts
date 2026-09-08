@@ -15,7 +15,18 @@ import { createClient } from "@/lib/supabase/server";
  * "0줄 수정" 으로 조용히 끝난다. 그걸 성공으로 보고 알림을 쏘고 캐시를
  * 비우면, 권한 없는 세션이 남의 예매에 '입금 확인' 알림을 보낼 수 있다.
  */
-const NOT_MINE = { ok: false, message: "권한이 없거나 없는 예매예요." };
+const NOT_MINE = {
+  ok: false,
+  message: "상태가 이미 바뀌었거나 권한이 없어요. 명단을 새로고침해 주세요.",
+};
+
+/** DB 트리거·정책이 던진 말을 크루가 읽을 말로 */
+function crewError(message: string) {
+  if (/CANCELLED_IS_FINAL/.test(message)) {
+    return "취소된 예매는 되살릴 수 없어요. 다시 받으려면 명단에 새로 넣어 주세요.";
+  }
+  return message;
+}
 
 export async function setPaid(bookingId: string, paid: boolean) {
   const supabase = await createClient();
@@ -29,9 +40,12 @@ export async function setPaid(bookingId: string, paid: boolean) {
           { status: "pending", paid_at: null, checked_in_at: null },
     )
     .eq("id", bookingId)
+    // **지금 상태에서만 넘어간다.** 크론이 방금 취소한 줄, 옆 기기에서 이미
+    // 처리한 줄에 눌러도 아무 일도 안 일어나야 한다
+    .in("status", paid ? ["pending"] : ["paid", "checked_in"])
     .select("id")
     .maybeSingle();
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: crewError(error.message) };
   if (!row) return NOT_MINE;
 
   // **손님이 제일 기다리는 소식이다.** 입금하고 나서 확정됐는지 몰라
@@ -133,10 +147,16 @@ export async function setCheckedIn(bookingId: string, inside: boolean) {
         : { status: "paid", checked_in_at: null },
     )
     .eq("id", bookingId)
+    // 입장은 입금 확인 뒤에만. 미입금을 바로 입장시키면 쿠폰이 공짜로 나간다
+    .in("status", inside ? ["paid"] : ["checked_in"])
     .select("id")
     .maybeSingle();
-  if (error) return { ok: false, message: error.message };
-  if (!row) return NOT_MINE;
+  if (error) return { ok: false, message: crewError(error.message) };
+  if (!row) {
+    return inside
+      ? { ok: false, message: "입금 확인 먼저 해 주세요. 이미 입장했거나 취소된 예매일 수도 있어요." }
+      : NOT_MINE;
+  }
   revalidatePath("/crew", "layout");
   revalidateTag(PARTY_TAG);
   return { ok: true };
@@ -148,9 +168,10 @@ export async function cancelBooking(bookingId: string) {
     .from("bookings")
     .update({ status: "cancelled" })
     .eq("id", bookingId)
+    .neq("status", "cancelled")
     .select("id")
     .maybeSingle();
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: crewError(error.message) };
   if (!row) return NOT_MINE;
   revalidatePath("/crew", "layout");
   revalidateTag(PARTY_TAG);

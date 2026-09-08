@@ -38,6 +38,7 @@ const MESSAGES: Record<string, (left: number) => string> = {
   BAD_QUANTITY: () => "인원은 1명에서 4명까지예요.",
   BAD_PHONE: () => "연락처를 다시 확인해 주세요.",
   BAD_NAME: () => "이름을 다시 확인해 주세요.",
+  NO_SESSION: () => "세션이 없어요. 새로고침한 뒤 다시 해 주세요.",
   // DB 안의 제한(같은 번호 시간당 3건 · 전체 10분 60건)에 걸렸다.
   // 라우트의 IP 제한과 별개다 — RPC 를 직접 부르는 쪽도 여기서 막힌다
   RATE: () => "너무 여러 번 시도했어요. 잠시 뒤에 다시 해 주세요.",
@@ -128,6 +129,14 @@ export async function POST(req: Request) {
    * 가정한다).
    */
   const { data: auth } = await supabase.auth.getUser();
+  // 세션 없는 호출은 안 받는다. 앱은 첫 화면에서 세션을 만든다 — 없다는 건
+  // 스크립트다. 계정당 미입금 상한이 세션에 걸리므로 이게 없으면 상한이 빈다
+  if (!auth?.user) {
+    return NextResponse.json(
+      { message: "세션이 없어요. 새로고침한 뒤 다시 해 주세요." },
+      { status: 401 },
+    );
+  }
   const admin = createAdminClient();
   if (!admin && process.env.VERCEL) {
     // 키가 빠지면 예매가 통째로 죽는다. 조용히 500 이 아니라 크게 남긴다
