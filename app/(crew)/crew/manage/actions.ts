@@ -1,5 +1,6 @@
 "use server";
 
+import { safeImageUrl } from "@/lib/safe-url";
 import { revalidatePath } from "next/cache";
 
 import { myCrew } from "@/lib/crew";
@@ -27,7 +28,7 @@ export async function updateCrew(input: {
       bio: input.bio.trim() || null,
       // @ 를 떼고 저장한다. 저장할 때 맞춰 두는 게 화면마다 벗기는 것보다 낫다
       instagram: input.instagram.trim().replace(/^@/, "") || null,
-      avatar_url: input.avatarUrl.trim() || null,
+      avatar_url: safeImageUrl(input.avatarUrl),
     })
     .eq("id", crew.id);
 

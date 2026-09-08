@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { phoneMask, phoneOk } from "@/lib/format";
 import { PARTY_TAG } from "@/lib/queries";
 import { limit, who } from "@/lib/ratelimit";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -35,6 +36,8 @@ const MESSAGES: Record<string, (left: number) => string> = {
       : "해당 성별은 마감됐어요. 성비를 맞추려고 남녀 정원을 나눠 받고 있어요.",
   BAD_GENDER: () => "성별을 선택해 주세요.",
   BAD_QUANTITY: () => "인원은 1명에서 4명까지예요.",
+  BAD_PHONE: () => "연락처를 다시 확인해 주세요.",
+  BAD_NAME: () => "이름을 다시 확인해 주세요.",
   // DB 안의 제한(같은 번호 시간당 3건 · 전체 10분 60건)에 걸렸다.
   // 라우트의 IP 제한과 별개다 — RPC 를 직접 부르는 쪽도 여기서 막힌다
   RATE: () => "너무 여러 번 시도했어요. 잠시 뒤에 다시 해 주세요.",
@@ -111,7 +114,16 @@ export async function POST(req: Request) {
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("create_booking", {
+  /**
+   * **create_booking 은 이제 service_role 만 부른다.** 손님 키로 열어
+   * 두면 이 라우트를 건너뛰고 RPC 를 직접 때려 IP 제한·번호 검사를 다
+   * 피할 수 있었다. 예매가 계정에 붙도록 손님 uid 는 따로 넘긴다.
+   * 키가 없는 로컬에서는 손님 세션으로 부른다 (거기선 grant 를 안 뺐다고
+   * 가정한다).
+   */
+  const { data: auth } = await supabase.auth.getUser();
+  const admin = createAdminClient();
+  const args = {
     p_event_id: eventId,
     p_tier_id: tierId,
     p_name: name.trim(),
@@ -135,7 +147,15 @@ export async function POST(req: Request) {
         .replace(/^@+/, "")
         .toLowerCase()
         .match(/^[a-z0-9._]{1,30}$/)?.[0] ?? null,
-  });
+  };
+  let { data, error } = admin
+    ? await admin.rpc("create_booking", { ...args, p_user_id: auth?.user?.id ?? null })
+    : await supabase.rpc("create_booking", args);
+  // 배포와 SQL 적용 사이의 틈. 새 인자를 아직 모르는 DB 면 옛 모양으로
+  // 손님 세션에서 한 번 더 부른다. HARDEN2.sql 이 돌고 나면 안 타는 길이다
+  if (error && /p_user_id|Could not find the function/i.test(error.message ?? "")) {
+    ({ data, error } = await supabase.rpc("create_booking", args));
+  }
 
   if (error) {
     const raw = error.message ?? "";
@@ -165,7 +185,6 @@ export async function POST(req: Request) {
    * 막지 않는다.
    */
   try {
-    const { data: auth } = await supabase.auth.getUser();
     if (auth?.user) {
       const { data: prof } = await supabase
         .from("profiles")

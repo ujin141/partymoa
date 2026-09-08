@@ -6,6 +6,7 @@ import { InAppBrowserNotice } from "@/components/InAppBrowserNotice";
 import { PasswordLogin } from "@/components/PasswordLogin";
 import { SocialLogin } from "@/components/SocialLogin";
 import { Symbol } from "@/components/Symbol";
+import { safeNext } from "@/lib/safe-next";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +17,8 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ next?: string; error?: string }>;
 }) {
-  const { next, error } = await searchParams;
+  const { next: rawNext, error } = await searchParams;
+  const next = safeNext(rawNext, "/my");
   const supabase = await createClient();
   const {
     data: { user },

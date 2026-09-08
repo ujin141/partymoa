@@ -10,10 +10,16 @@ import { createClient } from "@/lib/supabase/server";
 /**
  * 입금 확인 토글. RLS 가 "이 행사 크루 스태프만" 을 이미 막고 있으므로
  * 여기서 권한을 다시 검사하지 않는다 — 두 군데서 검사하면 한 군데가 낡는다.
+ *
+ * **다만 실제로 바뀐 줄이 있는지는 본다.** RLS 가 거르면 오류가 아니라
+ * "0줄 수정" 으로 조용히 끝난다. 그걸 성공으로 보고 알림을 쏘고 캐시를
+ * 비우면, 권한 없는 세션이 남의 예매에 '입금 확인' 알림을 보낼 수 있다.
  */
+const NOT_MINE = { ok: false, message: "권한이 없거나 없는 예매예요." };
+
 export async function setPaid(bookingId: string, paid: boolean) {
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data: row, error } = await supabase
     .from("bookings")
     .update(
       paid
@@ -22,8 +28,11 @@ export async function setPaid(bookingId: string, paid: boolean) {
           // 입장 완료로 남아 있으면 현장에서 사고가 난다
           { status: "pending", paid_at: null, checked_in_at: null },
     )
-    .eq("id", bookingId);
+    .eq("id", bookingId)
+    .select("id")
+    .maybeSingle();
   if (error) return { ok: false, message: error.message };
+  if (!row) return NOT_MINE;
 
   // **손님이 제일 기다리는 소식이다.** 입금하고 나서 확정됐는지 몰라
   // 크루에게 다시 묻는 일이 제일 많다. 알림이 실패해도 입금 확인 자체는
@@ -116,15 +125,18 @@ ${line}이 내 티켓에 들어왔어요`
 
 export async function setCheckedIn(bookingId: string, inside: boolean) {
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data: row, error } = await supabase
     .from("bookings")
     .update(
       inside
         ? { status: "checked_in", checked_in_at: new Date().toISOString() }
         : { status: "paid", checked_in_at: null },
     )
-    .eq("id", bookingId);
+    .eq("id", bookingId)
+    .select("id")
+    .maybeSingle();
   if (error) return { ok: false, message: error.message };
+  if (!row) return NOT_MINE;
   revalidatePath("/crew", "layout");
   revalidateTag(PARTY_TAG);
   return { ok: true };
@@ -132,11 +144,14 @@ export async function setCheckedIn(bookingId: string, inside: boolean) {
 
 export async function cancelBooking(bookingId: string) {
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data: row, error } = await supabase
     .from("bookings")
     .update({ status: "cancelled" })
-    .eq("id", bookingId);
+    .eq("id", bookingId)
+    .select("id")
+    .maybeSingle();
   if (error) return { ok: false, message: error.message };
+  if (!row) return NOT_MINE;
   revalidatePath("/crew", "layout");
   revalidateTag(PARTY_TAG);
   return { ok: true };
@@ -294,11 +309,14 @@ export async function setEventStatus(
   status: "draft" | "open" | "closed" | "done",
 ) {
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data: row, error } = await supabase
     .from("events")
     .update({ status })
-    .eq("id", eventId);
+    .eq("id", eventId)
+    .select("id")
+    .maybeSingle();
   if (error) return { ok: false, message: error.message };
+  if (!row) return { ok: false, message: "권한이 없거나 없는 파티예요." };
   revalidatePath("/crew", "layout");
   revalidateTag(PARTY_TAG);
   revalidatePath("/", "layout");

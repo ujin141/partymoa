@@ -24,7 +24,7 @@ import type {
   EventPhoto,
   EventRecap,
   EventTable,
-  Review,
+  ReviewListRow,
 } from "@/types/database";
 
 // **캐시를 안 쓴다.** 찜은 사람마다 다르고 잔여는 초 단위로 바뀐다.
@@ -80,11 +80,11 @@ export default async function PartyPage({
 
   const [{ data: reviewRows }, { data: canWrite }, { data: profile }] =
     await Promise.all([
+      // 뷰로 읽는다. reviews.user_id 는 손님이 못 읽는다 — mine 이 대신 온다
       supabase
-        .from("reviews")
+        .from("review_list")
         .select("*")
         .eq("event_id", event.id)
-        .is("deleted_at", null)
         .order("created_at", { ascending: false }),
       signedIn
         ? supabase.rpc("can_review", { p_event: event.id })
@@ -97,7 +97,7 @@ export default async function PartyPage({
             .maybeSingle()
         : Promise.resolve({ data: null }),
     ]);
-  const reviews = (reviewRows ?? []) as Review[];
+  const reviews = (reviewRows ?? []) as ReviewListRow[];
 
   // 테이블 예약. 차수와 다른 것이라 따로 읽는다
   const { data: tableRows } = await supabase
@@ -168,7 +168,7 @@ export default async function PartyPage({
         .maybeSingle()
     : { data: null };
   const recap = (recapRow as EventRecap | null) ?? null;
-  const mine = reviews.some((r) => r.user_id === user?.id);
+  const mine = reviews.some((r) => r.mine);
   const me = profile as {
     nickname: string | null;
     real_name: string | null;

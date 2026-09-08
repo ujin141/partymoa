@@ -372,6 +372,28 @@ export type PostListRow = {
   event_slug: string | null;
 };
 
+/** 댓글 목록용. user_id 대신 mine — 뷰가 auth.uid() 와 비교해 준다 */
+export type CommentListRow = {
+  id: string;
+  post_id: string;
+  nickname: string;
+  body: string;
+  created_at: string;
+  mine: boolean;
+  anon: boolean;
+};
+
+/** 후기 목록용. user_id 는 표에서 못 읽는다 — mine 으로 대신 */
+export type ReviewListRow = {
+  id: string;
+  event_id: string;
+  rating: number;
+  body: string;
+  nickname: string;
+  created_at: string;
+  mine: boolean;
+};
+
 /** create_booking 이 막았을 때 돌려주는 코드 */
 export type BookingErrorCode =
   | "EVENT_NOT_OPEN"
@@ -491,6 +513,8 @@ export type Database = {
       event_recap: View<EventRecap>;
       tier_stats: View<TierStats>;
       post_list: View<PostListRow>;
+      comment_list: View<CommentListRow>;
+      review_list: View<ReviewListRow>;
       open_reports: View<OpenReport>;
       review_stats: View<ReviewStats>;
       /** 크루원 이름과 사진만. crew_members 는 스태프만 읽어서 따로 낸다 */
@@ -519,6 +543,7 @@ export type Database = {
           p_quantity: number;
           p_invite_code: string | null;
           p_instagram: string | null;
+          p_user_id?: string | null;
         };
         Returns: Booking;
       };

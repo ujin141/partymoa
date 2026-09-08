@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 
 import { writeReview } from "@/app/(guest)/party/[slug]/actions";
 import { ago } from "@/lib/format";
-import type { Review } from "@/types/database";
+import type { ReviewListRow } from "@/types/database";
 
 function Stars({ n, size = 14 }: { n: number; size?: number }) {
   return (
@@ -40,7 +40,7 @@ export function Reviews({
 }: {
   eventId: string;
   slug: string;
-  reviews: Review[];
+  reviews: ReviewListRow[];
   canWrite: boolean;
   mine: boolean;
   defaultNickname: string;

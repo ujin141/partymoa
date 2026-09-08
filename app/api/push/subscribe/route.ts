@@ -9,6 +9,30 @@ import { createClient } from "@/lib/supabase/server";
  * **익명 세션도 받는다** — 로그인 없이 예매하는 앱이라 그 사람들이야말로
  * 입금 마감 알림이 제일 필요하다.
  */
+const PUSH_HOSTS = [
+  "fcm.googleapis.com",
+  "android.googleapis.com",
+  "web.push.apple.com",
+  ".push.apple.com",
+  "updates.push.services.mozilla.com",
+  ".notify.windows.com",
+  ".push.samsungosp.com",
+];
+
+function endpointOk(endpoint: string, ios: boolean): boolean {
+  if (ios) return /^[0-9a-f]{64}$/i.test(endpoint);
+  if (endpoint.length > 1024) return false;
+  let u: URL;
+  try {
+    u = new URL(endpoint);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== "https:") return false;
+  const h = u.hostname.toLowerCase();
+  return PUSH_HOSTS.some((p) => (p.startsWith(".") ? h.endsWith(p) : h === p));
+}
+
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => null)) as {
     endpoint?: string;
@@ -21,6 +45,15 @@ export async function POST(req: Request) {
 
   if (!body?.endpoint || (!ios && (!body.keys?.p256dh || !body.keys?.auth))) {
     return NextResponse.json({ message: "구독 정보가 없어요." }, { status: 400 });
+  }
+  /**
+   * **주소 모양을 본다.** endpoint 는 나중에 우리 서버가 POST 를 보내는
+   * 곳이다. 아무 주소나 받아 두면 광고 발송 때마다 그 주소로 요청이
+   * 나간다 — 남의 서버를 두드리는 데 우리 서버를 빌려주는 꼴이다.
+   * 푸시 서비스 호스트만 받는다. 아이폰 토큰은 64자리 16진수다.
+   */
+  if (!endpointOk(body.endpoint, ios)) {
+    return NextResponse.json({ message: "구독 주소가 올바르지 않아요." }, { status: 400 });
   }
 
   const supabase = await createClient();
@@ -43,6 +76,10 @@ export async function POST(req: Request) {
     { onConflict: "endpoint" },
   );
   if (error) {
+    // 한 계정 5줄 제한(DB 트리거)에 걸렸다
+    if (/RATE/.test(error.message ?? "")) {
+      return NextResponse.json({ message: "기기가 너무 많아요. 안 쓰는 기기에서 알림을 꺼 주세요." }, { status: 429 });
+    }
     return NextResponse.json({ message: error.message }, { status: 500 });
   }
   return NextResponse.json({ ok: true });

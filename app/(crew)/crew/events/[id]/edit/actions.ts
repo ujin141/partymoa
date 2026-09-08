@@ -1,5 +1,6 @@
 "use server";
 
+import { safeImageUrl } from "@/lib/safe-url";
 import { revalidatePath, revalidateTag } from "next/cache";
 
 import { fromSeoulInput } from "@/lib/format";
@@ -111,7 +112,7 @@ export async function updateEvent(eventId: string, d: EventPatch) {
       title: d.title.trim(),
       subtitle: d.subtitle.trim() || null,
       description: d.description.trim() || null,
-      cover_url: d.coverUrl.trim() || null,
+      cover_url: safeImageUrl(d.coverUrl),
       venue_name: d.venueName.trim(),
       area: d.area.trim() || "서울",
       address: d.address.trim() || null,
@@ -193,9 +194,11 @@ export async function updateEvent(eventId: string, d: EventPatch) {
    */
   // 사진도 지우고 새로 넣는다. 예매가 참조하지 않는다
   await supabase.from("event_photos").delete().eq("event_id", eventId);
-  const photoRows = d.photos.map((x, i) => ({
+  const photoRows = d.photos
+    .filter((x) => safeImageUrl(x.url))
+    .map((x, i) => ({
     event_id: eventId,
-    url: x.url,
+    url: safeImageUrl(x.url)!,
     caption: x.caption,
     sort_order: i,
   }));

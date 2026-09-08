@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { CommentComposer } from "@/components/community/Composer";
 import { DeleteButton } from "@/components/community/DeleteButton";
 import { ReportMenu } from "@/components/community/ReportMenu";
-import { currentUserId, getPost, listComments } from "@/lib/community";
+import { getPost, listComments } from "@/lib/community";
 import { ago } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -18,10 +18,7 @@ export default async function PostPage({
   const post = await getPost(id);
   if (!post) notFound();
 
-  const [comments, uid] = await Promise.all([
-    listComments(id),
-    currentUserId(),
-  ]);
+  const comments = await listComments(id);
 
   return (
     <>
@@ -80,7 +77,7 @@ export default async function PostPage({
                 <span className="text-[13.5px] font-bold">{c.nickname}</span>
                 <span className="text-[12px] text-sub">{ago(c.created_at)}</span>
                 <span className="ml-auto flex items-center gap-1">
-                  {uid && c.user_id === uid ? (
+                  {c.mine ? (
                     <DeleteButton id={c.id} postId={post.id} kind="comment" />
                   ) : (
                     <ReportMenu type="comment" id={c.id} />

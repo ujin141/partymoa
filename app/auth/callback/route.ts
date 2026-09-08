@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { adoptCookiePreferences } from "@/app/(guest)/onboarding/actions";
+import { safeNext } from "@/lib/safe-next";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -28,7 +29,8 @@ function loginDoor(next: string) {
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
-  const next = url.searchParams.get("next") ?? "/my";
+  // 밖으로 나가는 next 는 여기서 걸러진다. 로그인 문도 우리 경로만 고른다
+  const next = safeNext(url.searchParams.get("next"), "/my");
 
   const fail = (message: string) => {
     const to = new URL(loginDoor(next), url.origin);

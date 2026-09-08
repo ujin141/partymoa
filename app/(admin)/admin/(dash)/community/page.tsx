@@ -1,7 +1,7 @@
 import { HideButton } from "@/components/admin/HideButton";
 import { ago } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
-import type { OpenReport, PostComment, PostListRow } from "@/types/database";
+import type { CommentListRow, OpenReport, PostListRow } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "커뮤니티 관리" };
@@ -23,9 +23,8 @@ export default async function AdminCommunityPage() {
       .order("created_at", { ascending: false })
       .limit(50),
     supabase
-      .from("post_comments")
+      .from("comment_list")
       .select("*")
-      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(50),
     // 신고함. **제일 먼저 봐야 하는 것이라 맨 위에 둔다**
@@ -33,7 +32,7 @@ export default async function AdminCommunityPage() {
   ]);
 
   const list = (posts ?? []) as PostListRow[];
-  const cs = (comments ?? []) as PostComment[];
+  const cs = (comments ?? []) as CommentListRow[];
   const rs = (reports ?? []) as OpenReport[];
 
   return (

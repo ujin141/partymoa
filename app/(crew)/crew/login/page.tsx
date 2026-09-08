@@ -5,6 +5,7 @@ import { InAppBrowserNotice } from "@/components/InAppBrowserNotice";
 import { LoginForm } from "@/components/crew/LoginForm";
 import { PasswordLogin } from "@/components/PasswordLogin";
 import { myCrew } from "@/lib/crew";
+import { safeNext } from "@/lib/safe-next";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "크루 로그인" };
@@ -14,7 +15,8 @@ export default async function CrewLoginPage({
 }: {
   searchParams: Promise<{ next?: string; error?: string }>;
 }) {
-  const [{ next, error }, crew] = await Promise.all([searchParams, myCrew()]);
+  const [{ next: rawNext, error }, crew] = await Promise.all([searchParams, myCrew()]);
+  const next = safeNext(rawNext, "/crew");
   if (crew) redirect(next ?? "/crew");
 
   return (

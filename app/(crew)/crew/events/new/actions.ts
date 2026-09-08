@@ -1,5 +1,6 @@
 "use server";
 
+import { safeImageUrl } from "@/lib/safe-url";
 import { revalidatePath, revalidateTag } from "next/cache";
 
 import { myCrew } from "@/lib/crew";
@@ -113,7 +114,7 @@ export async function createEvent(d: EventDraft) {
       title: d.title.trim(),
       subtitle: d.subtitle.trim() || null,
       description: d.description.trim() || null,
-      cover_url: d.coverUrl.trim() || null,
+      cover_url: safeImageUrl(d.coverUrl),
       venue_name: d.venueName.trim(),
       area: d.area.trim() || "서울",
       address: d.address.trim() || null,
@@ -180,9 +181,11 @@ export async function createEvent(d: EventDraft) {
       note: t.note,
       sort_order: i,
     }));
-  const photoRows = d.photos.map((x, i) => ({
+  const photoRows = d.photos
+    .filter((x) => safeImageUrl(x.url))
+    .map((x, i) => ({
     event_id: event.id,
-    url: x.url,
+    url: safeImageUrl(x.url)!,
     caption: x.caption,
     sort_order: i,
   }));
