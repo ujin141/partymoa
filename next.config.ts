@@ -20,6 +20,14 @@ const nextConfig: NextConfig = {
   compress: true,
   // 헤더에 프레임워크 버전을 광고하지 않는다
   poweredByHeader: false,
+  /**
+   * **콘솔에 남는 것을 없앤다.** 배포 번들에서 console.log·info·debug 를
+   * 아예 지운다. 손님이 콘솔을 열어도 우리 코드가 뭘 찍는지 안 보인다.
+   * error·warn 은 남긴다 — 서버 로그(Vercel)에서 사고를 봐야 한다.
+   */
+  compiler: { removeConsole: { exclude: ["error", "warn"] } },
+  // 소스맵을 내보내지 않는다. 열어 봐도 원본 코드가 아니라 압축본만 보인다
+  productionBrowserSourceMaps: false,
 
   /**
    * **같은 사진을 두 번 내려받게 하지 않는다.**

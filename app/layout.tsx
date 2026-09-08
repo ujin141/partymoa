@@ -1,3 +1,4 @@
+import { Quiet } from "@/components/Quiet";
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
@@ -79,6 +80,7 @@ export default function RootLayout({
         <link rel="stylesheet" href="/fonts/pretendard.css" />
       </head>
       <body className="antialiased" suppressHydrationWarning>
+        <Quiet />
         {children}
       </body>
     </html>

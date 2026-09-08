@@ -30,6 +30,8 @@ const config: CapacitorConfig = {
   ios: {
     // 흰 배경으로 두면 로딩 순간에 흰 판이 번쩍인다
     backgroundColor: "#FFFFFF",
+    // 사파리 개발자 메뉴에서 앱 웹뷰를 못 붙잡게 한다. 배포 빌드 기본값이지만 명시한다
+    webContentsDebuggingEnabled: false,
     /**
      * **웹뷰를 밀어 넣지 않는다.**
      *
@@ -39,6 +41,10 @@ const config: CapacitorConfig = {
      * 두 번씩 들어간다. never 로 둬야 env() 가 진짜 값을 받는다.
      */
     contentInset: "never",
+  },
+  android: {
+    // 크롬 원격 디버깅으로 웹뷰를 못 열게 한다
+    webContentsDebuggingEnabled: false,
   },
 };
 
