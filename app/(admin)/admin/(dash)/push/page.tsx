@@ -39,7 +39,9 @@ export default async function AdminPushPage() {
   }
 
   return (
-    <div className="px-4 py-6">
+    // 운영 레이아웃이 h-dvh · overflow-hidden 이라 페이지가 직접 스크롤을
+    // 가져야 한다. 이 줄이 없어서 화면 밑이 잘려 내려가지 않았다
+    <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-6">
       <h1 className="text-[21px] font-extrabold">광고 알림</h1>
       <p className="mt-2 text-[13.5px] leading-relaxed text-sub">
         <b className="text-ink">따로 동의한 사람에게만</b> 갑니다. 예매 알림
