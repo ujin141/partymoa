@@ -102,7 +102,9 @@ function harden(res: NextResponse) {
  */
 export async function middleware(req: NextRequest) {
   const canonical = canonicalHost(req);
-  if (canonical) return NextResponse.redirect(canonical, 308);
+  // 리다이렉트 응답에도 HSTS 를 붙인다. 이게 없으면 partymoa.com(apex)은
+  // 브라우저 HSTS 목록에 안 실리고, preload 등록도 apex 때문에 거절된다
+  if (canonical) return harden(NextResponse.redirect(canonical, 308));
 
   /**
    * **로그인 코드가 엉뚱한 자리로 떨어지면 주워서 콜백에 넘긴다.**
