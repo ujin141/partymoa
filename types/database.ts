@@ -149,7 +149,14 @@ export type PushSubscription = {
 
 export type PushLog = {
   booking_id: string;
-  kind: "expiring" | "today" | "paid";
+  /**
+   * expiring  세 시간 뒤 자리가 풀린다
+   * today     오늘 열린다
+   * tomorrow  내일 열린다 — 전날 저녁에 시간·장소·예매번호
+   * paid      입금이 확인됐다
+   * host      호스트에게 — 예매가 들어왔다
+   */
+  kind: "expiring" | "today" | "tomorrow" | "paid" | "host";
   sent_at: string;
 }
 
