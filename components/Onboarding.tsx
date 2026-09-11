@@ -64,7 +64,9 @@ export function Onboarding({
   const [areas, setAreas] = useState<string[]>(initialAreas);
   const [cats, setCats] = useState<string[]>(initialCategories);
   const [leaving, setLeaving] = useState(false);
-  const [push, setPush] = useState<"ask" | "busy" | "on" | "fail">("ask");
+  const [push, setPush] = useState<"ask" | "busy" | "on">("ask");
+  /** 실패 이유. **뭉쳐 두면 손님이 할 수 있는 게 없다** */
+  const [pushErr, setPushErr] = useState<string | null>(null);
   const done = useRef(false);
 
   /** 취향 다음이 알림이다. 순서를 숫자로만 쓰면 나중에 못 읽는다 */
@@ -299,9 +301,9 @@ export function Onboarding({
               ))}
             </ul>
 
-            {push === "fail" ? (
+            {pushErr ? (
               <p className="mt-6 rounded-xl bg-soft p-4 text-[13px] leading-relaxed text-sub">
-                지금은 켜지지 않았어요. 마이 &gt; 알림 설정에서 다시 켤 수 있어요.
+                {pushErr}
               </p>
             ) : null}
             <div className="h-6" />
@@ -320,9 +322,23 @@ export function Onboarding({
                 if (r.ok) {
                   setPush("on");
                   finish();
-                } else {
-                  setPush("fail");
+                  return;
                 }
+                setPush("ask");
+                // 원인마다 할 일이 다르다. 하나로 뭉쳐 두면 "안 됐다" 만
+                // 알려 주고 손님은 아무것도 못 한다
+                setPushErr(
+                  r.reason === "denied"
+                    ? "알림이 차단돼 있어요. 설정 > 파티모아 > 알림에서 허용해 주세요."
+                    : r.reason === "install"
+                      ? "아이폰 사파리에서는 홈 화면에 추가한 뒤에 켤 수 있어요. 앱으로 받으시면 바로 됩니다."
+                      : r.reason === "register"
+                        ? "알림 서버에 연결하지 못했어요. 잠시 뒤 다시 눌러 주세요. 시뮬레이터에서는 켜지지 않습니다."
+                        : r.reason === "unsupported"
+                          ? "이 기기에서는 알림을 켤 수 없어요. 예매와 티켓은 그대로 쓸 수 있어요."
+                          : r.message ||
+                            "알림을 켜지 못했어요. 마이 > 알림 설정에서 다시 켤 수 있어요.",
+                );
               }}
               className="w-full rounded-xl bg-brand py-4 text-base font-bold text-white disabled:opacity-60"
             >
