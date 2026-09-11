@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 
 import { pushReady, sendPush } from "@/lib/push";
+import type { PushLogFav } from "@/types/database";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -19,6 +20,20 @@ export const maxDuration = 60;
 type Target = {
   booking_id: string;
   kind: "expiring" | "today" | "paid";
+  endpoint: string;
+  p256dh: string | null;
+  auth: string | null;
+  platform: string | null;
+  title: string;
+  body: string;
+  url: string;
+};
+
+/** 찜 알림. 예매가 없어서 booking_id 대신 user_id + event_id 로 센다 */
+type Fav = {
+  user_id: string;
+  event_id: string;
+  kind: PushLogFav["kind"];
   endpoint: string;
   p256dh: string | null;
   auth: string | null;
@@ -89,9 +104,54 @@ export async function GET(req: Request) {
     }
   }
 
+  /**
+   * 찜한 파티가 얼마 안 남았을 때. **표가 따로다.**
+   *
+   * push_log 의 기본키가 (booking_id, kind) 인데 찜은 예매가 없다 —
+   * 아직 살까 말까 하는 사람이라 booking_id 를 만들 수가 없다.
+   * push_log 를 고쳐서 null 을 열면 지금 잘 돌고 있는 다섯 종류의
+   * 중복 방지가 같이 흔들린다.
+   *
+   * **여기서 실패해도 위의 예매 알림은 이미 나갔다.** 한 덩어리로
+   * 묶지 않는다.
+   */
+  let favSent = 0;
+  try {
+    const { data: favRows } = await supabase.rpc("push_targets_fav");
+    for (const f of (favRows ?? []) as Fav[]) {
+      const alive = await sendPush(
+        { endpoint: f.endpoint, p256dh: f.p256dh, auth: f.auth, platform: f.platform },
+        { title: f.title, body: f.body, url: f.url, tag: `${f.event_id}-${f.kind}` },
+      );
+      if (!alive) {
+        dead.push(f.endpoint);
+        continue;
+      }
+      favSent += 1;
+      const key = `${f.user_id}|${f.event_id}|${f.kind}`;
+      if (!logged.has(key)) {
+        logged.add(key);
+        await supabase
+          .from("push_log_fav")
+          .upsert(
+            { user_id: f.user_id, event_id: f.event_id, kind: f.kind },
+            { onConflict: "user_id,event_id,kind" },
+          );
+      }
+    }
+  } catch {
+    /* 찜 알림이 막혀도 예매 알림은 이미 나갔다 */
+  }
+
   if (dead.length) {
     await supabase.from("push_subscriptions").delete().in("endpoint", dead);
   }
 
-  return NextResponse.json({ ok: true, 대상: rows.length, 보냄: sent, 정리: dead.length });
+  return NextResponse.json({
+    ok: true,
+    대상: rows.length,
+    보냄: sent,
+    찜: favSent,
+    정리: dead.length,
+  });
 }

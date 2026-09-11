@@ -150,13 +150,35 @@ export type PushSubscription = {
 export type PushLog = {
   booking_id: string;
   /**
-   * expiring  세 시간 뒤 자리가 풀린다
-   * today     오늘 열린다
-   * tomorrow  내일 열린다 — 전날 저녁에 시간·장소·예매번호
-   * paid      입금이 확인됐다
-   * host      호스트에게 — 예매가 들어왔다
+   * 손님에게
+   *   guide     예매 직후 — 계좌·금액·마감시각
+   *   expiring  세 시간 뒤 자리가 풀린다
+   *   tomorrow  내일 열린다 — 시간·장소·주소·예매번호
+   *   today     오늘 열린다 — 같은 내용
+   *   paid      입금이 확인됐다
+   *   review    다녀온 다음 날 — 후기 한 줄
+   *
+   * 호스트에게
+   *   host      예매가 들어왔다
+   *   gender    한쪽 성별이 방금 찼다
    */
-  kind: "expiring" | "today" | "tomorrow" | "paid" | "host";
+  kind:
+    | "guide"
+    | "expiring"
+    | "tomorrow"
+    | "today"
+    | "paid"
+    | "review"
+    | "host"
+    | "gender";
+  sent_at: string;
+}
+
+/** 찜 알림 발송 기록. 예매가 없어서 사람+파티로 센다 */
+export type PushLogFav = {
+  user_id: string;
+  event_id: string;
+  kind: "closing";
   sent_at: string;
 }
 
@@ -454,6 +476,14 @@ export type Database = {
         Insertable<PushSubscription, "endpoint">
       >;
       push_log: Table<PushLog, Insertable<PushLog, "booking_id" | "kind">>;
+      /**
+       * 찜 알림을 두 번 안 보내려고 남긴다.
+       * **push_log 와 따로다** — 찜은 예매가 없어서 booking_id 가 없다
+       */
+      push_log_fav: Table<
+        PushLogFav,
+        Insertable<PushLogFav, "user_id" | "event_id" | "kind">
+      >;
       event_photos: Table<
         EventPhoto,
         Insertable<EventPhoto, "event_id" | "url">
@@ -700,6 +730,21 @@ export type Database = {
         Args: Record<string, never>;
         Returns: {
           booking_id: string;
+          kind: string;
+          endpoint: string;
+          p256dh: string | null;
+          auth: string | null;
+          platform: string;
+          title: string;
+          body: string;
+          url: string;
+        }[];
+      };
+      push_targets_fav: {
+        Args: Record<string, never>;
+        Returns: {
+          user_id: string;
+          event_id: string;
           kind: string;
           endpoint: string;
           p256dh: string | null;

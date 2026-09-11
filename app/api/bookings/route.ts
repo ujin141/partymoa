@@ -2,7 +2,7 @@ import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
 import { phoneMask, phoneOk } from "@/lib/format";
-import { notifyHostBooked } from "@/lib/notify";
+import { notifyBooked } from "@/lib/notify";
 import { PARTY_TAG } from "@/lib/queries";
 import { limit, who } from "@/lib/ratelimit";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -235,13 +235,13 @@ export async function POST(req: Request) {
   revalidateTag(PARTY_TAG);
 
   /**
-   * 호스트에게 알린다. **예매는 이미 끝났으니 기다리지 않는다.**
+   * 알림 세 통 — 손님 입금 안내, 호스트 예매 알림, 성비 마감.
    *
-   * await 하면 푸시 서버가 느릴 때 손님의 완료 화면이 그만큼 늦게 뜬다.
-   * 알림이 실패해도 예매는 그대로다.
+   * **예매는 이미 끝났으니 기다리지 않는다.** await 하면 푸시 서버가
+   * 느릴 때 손님의 완료 화면이 그만큼 늦게 뜬다. 실패해도 예매는 그대로다.
    */
   const booking = data as { id?: string } | null;
-  if (booking?.id) void notifyHostBooked(booking.id).catch(() => null);
+  if (booking?.id) void notifyBooked(booking.id).catch(() => null);
 
   return NextResponse.json(data);
 }
