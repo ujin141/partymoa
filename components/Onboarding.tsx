@@ -301,7 +301,11 @@ export function Onboarding({
               ))}
             </ul>
 
-            {pushErr ? (
+            {push === "busy" ? (
+              <p className="mt-6 rounded-xl bg-soft p-4 text-[13px] leading-relaxed text-sub">
+                기기를 알림 서버에 등록하고 있어요. 몇 초 걸릴 수 있어요.
+              </p>
+            ) : pushErr ? (
               <p className="mt-6 rounded-xl bg-soft p-4 text-[13px] leading-relaxed text-sub">
                 {pushErr}
               </p>
@@ -314,6 +318,17 @@ export function Onboarding({
               type="button"
               disabled={push === "busy"}
               onClick={async () => {
+                /**
+                 * **한 번 실패했으면 다음 누름은 그냥 넘어간다.**
+                 *
+                 * 권한까지 허용했는데 등록이 안 되는 경우가 있다
+                 * (시뮬레이터, 망). 그때 같은 버튼이 또 실패하면 손님은
+                 * 마지막 화면에 갇힌다 — 나가는 길이 아래 작은 글씨뿐이다.
+                 */
+                if (pushErr) {
+                  finish();
+                  return;
+                }
                 setPush("busy");
                 const vapid = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
                 const r = await enablePush(vapid);
@@ -342,14 +357,18 @@ export function Onboarding({
               }}
               className="w-full rounded-xl bg-brand py-4 text-base font-bold text-white disabled:opacity-60"
             >
-              {push === "busy" ? "잠시만요…" : "알림 받기"}
+              {push === "busy"
+                ? "잠시만요…"
+                : pushErr
+                  ? "계속하기"
+                  : "알림 받기"}
             </button>
             <button
               type="button"
               onClick={finish}
               className="mt-2 w-full py-3 text-center text-[14px] text-sub"
             >
-              나중에 할게요
+              {pushErr ? "마이에서 나중에 켤게요" : "나중에 할게요"}
             </button>
           </div>
         </>
