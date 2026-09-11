@@ -74,7 +74,8 @@ begin
     select b.id as bid, 'expiring'::text as k, b.user_id as uid,
            b.code, e.title as ev_title,
            to_char(e.starts_at at time zone 'Asia/Seoul', 'HH24:MI') as at_time,
-           e.venue_name as venue, e.bank_account as bank, b.amount as amount
+           e.venue_name as venue, e.address as addr,
+           e.bank_account as bank, b.amount as amount
     from bookings b
     join events e on e.id = b.event_id
     where b.user_id is not null
@@ -88,7 +89,7 @@ begin
     select b.id, 'today', b.user_id,
            b.code, e.title,
            to_char(e.starts_at at time zone 'Asia/Seoul', 'HH24:MI'),
-           e.venue_name, e.bank_account, b.amount
+           e.venue_name, e.address, e.bank_account, b.amount
     from bookings b
     join events e on e.id = b.event_id
     where b.user_id is not null
@@ -105,7 +106,7 @@ begin
     select b.id, 'tomorrow', b.user_id,
            b.code, e.title,
            to_char(e.starts_at at time zone 'Asia/Seoul', 'HH24:MI'),
-           e.venue_name, e.bank_account, b.amount
+           e.venue_name, e.address, e.bank_account, b.amount
     from bookings b
     join events e on e.id = b.event_id
     where b.user_id is not null
@@ -118,17 +119,28 @@ begin
     case d.k
       when 'expiring' then '자리가 곧 풀려요'
       when 'today'    then '오늘이에요'
-      else '내일 봬요'
+      else '내일 예약된 파티예요'
     end,
     case d.k
       when 'expiring' then
         d.ev_title || ' · ' || d.code || ' 입금이 아직이에요. 세 시간 뒤 자동 취소됩니다.'
       when 'today' then
-        d.ev_title || ' · ' || d.at_time || ' ' || d.venue || ' 에서 봬요.'
+        -- **전날 것과 같은 정보를 담는다.** 전날 알림을 지나친 사람이
+        -- 당일에 이것만 보고도 길을 찾고 입장할 수 있어야 한다
+        d.ev_title || ' · 오늘 ' || d.at_time ||
+        chr(10) || d.venue ||
+        coalesce(chr(10) || nullif(trim(d.addr), ''), '') ||
+        chr(10) || '예매번호 ' || d.code || ' · 입구에서 보여 주세요'
       else
-        -- 전날 알림은 **현장에서 필요한 것만** 적는다. 시간·장소·예매번호.
-        -- 여기서 다 보이면 입구에서 앱을 안 열어도 된다
-        d.ev_title || ' · 내일 ' || d.at_time || ' ' || d.venue ||
+        -- 전날 알림은 **현장에서 필요한 것만** 적는다.
+        -- 시간 · 장소 · 주소 · 예매번호. 여기까지 있으면 알림만 보고
+        -- 길을 찾고 입장까지 된다 — 입구에서 앱을 안 열어도 된다.
+        --
+        -- **주소가 비어 있으면 그 줄을 안 넣는다.** 장소가 아직 '곧 공개'
+        -- 인 파티가 있다. 빈 줄이 들어가면 그게 더 이상하다
+        d.ev_title || ' · 내일 ' || d.at_time ||
+        chr(10) || d.venue ||
+        coalesce(chr(10) || nullif(trim(d.addr), ''), '') ||
         chr(10) || '예매번호 ' || d.code || ' · 입구에서 보여 주세요'
     end,
     '/tickets'
