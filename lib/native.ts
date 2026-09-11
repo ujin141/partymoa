@@ -191,3 +191,55 @@ export function nativeOAuth(url: string, timeoutMs = 180000): Promise<string | n
     })();
   });
 }
+
+/* ─────────────────────────────────────────── 알림을 눌렀을 때 */
+
+/**
+ * 손님이 알림을 눌렀을 때 어디로 갈지 알려 준다.
+ *
+ * **이게 없으면 눌러도 아무 일이 안 일어난다.** 웹은 sw.js 의
+ * notificationclick 이 그 일을 하는데, 앱에는 그 짝이 없었다. 서버가
+ * url 을 담아 보내도 앱이 읽는 곳이 없어서 그냥 버려졌다.
+ *
+ * **앱이 꺼져 있다 열리는 경우도 이 리스너가 받는다.** Capacitor 가
+ * 플러그인 준비가 끝난 뒤에 쌓아 둔 것을 흘려 준다.
+ *
+ * 돌려주는 함수를 부르면 리스너를 뗀다.
+ */
+export function onPushOpened(cb: (path: string) => void): () => void {
+  const p = plugin("PushNotifications");
+  if (!p) return () => {};
+
+  let handle: { remove: () => Promise<void> } | null = null;
+  let off = false;
+
+  (async () => {
+    try {
+      const h = await (p as unknown as {
+        addListener: (
+          e: string,
+          cb: (d: { notification?: { data?: Record<string, unknown> } }) => void,
+        ) => Promise<{ remove: () => Promise<void> }>;
+      }).addListener("pushNotificationActionPerformed", (d) => {
+        const raw = d?.notification?.data?.url;
+        if (typeof raw !== "string") return;
+        /**
+         * **우리 앱 안의 경로만 받는다.** `//evil.com` 같은 스킴 없는
+         * 절대 주소는 브라우저가 남의 사이트로 읽는다. 알림은 우리가
+         * 보내지만, 값을 그대로 믿고 넘기는 자리를 만들지 않는다.
+         */
+        if (!raw.startsWith("/") || raw.startsWith("//")) return;
+        cb(raw);
+      });
+      if (off) await h.remove().catch(() => {});
+      else handle = h;
+    } catch {
+      /* 플러그인이 없으면 그만이다 */
+    }
+  })();
+
+  return () => {
+    off = true;
+    void handle?.remove().catch(() => {});
+  };
+}
