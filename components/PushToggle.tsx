@@ -2,19 +2,8 @@
 
 import { useEffect, useState } from "react";
 
-import {
-  isNativeIOS,
-  nativePushGranted,
-  nativePushOff,
-  nativePushToken,
-} from "@/lib/native";
-
-/** VAPID 공개키는 base64url. 브라우저는 Uint8Array 를 받는다 */
-function toBytes(base64: string) {
-  const pad = "=".repeat((4 - (base64.length % 4)) % 4);
-  const raw = atob((base64 + pad).replace(/-/g, "+").replace(/_/g, "/"));
-  return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
-}
+import { enablePush } from "@/lib/enable-push";
+import { isNativeIOS, nativePushGranted, nativePushOff } from "@/lib/native";
 
 type State = "확인중" | "불가" | "꺼짐" | "켜짐" | "거부됨";
 
@@ -81,55 +70,28 @@ export function PushToggle({
   async function turnOn() {
     setBusy(true);
     setErr(null);
-    try {
-      if (native) {
-        const r = await nativePushToken();
-        if (!("token" in r)) {
-          // 원인마다 손님이 할 일이 다르다. 하나로 뭉쳐 두면
-          // 아무것도 못 하는 안내가 된다
-          setErr(
-            r.error === "denied"
-              ? "설정 > 파티모아 > 알림에서 허용해 주세요."
-              : r.error === "register"
-                ? "알림 서버에 연결하지 못했어요. 잠시 뒤 다시 눌러 주세요."
-                : "이 버전에서는 알림을 켤 수 없어요. 앱을 업데이트해 주세요.",
-          );
-          setState(r.error === "denied" ? "거부됨" : "꺼짐");
-          return;
-        }
-        const res = await fetch("/api/push/subscribe", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ endpoint: r.token, platform: "ios" }),
-        });
-        if (!res.ok) throw new Error((await res.json()).message);
-        setState("켜짐");
-        return;
-      }
-
-      const perm = await Notification.requestPermission();
-      if (perm !== "granted") {
-        setState(perm === "denied" ? "거부됨" : "꺼짐");
-        return;
-      }
-      const reg = await navigator.serviceWorker.register("/sw.js");
-      await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: toBytes(vapid),
-      });
-      const res = await fetch("/api/push/subscribe", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(sub.toJSON()),
-      });
-      if (!res.ok) throw new Error((await res.json()).message);
+    // **구독 만드는 일은 lib/enable-push.ts 한 곳에만 둔다.** 시작
+    // 화면에서도 같은 일을 하는데, 두 벌로 두면 한쪽만 고치는 날이 온다
+    const r = await enablePush(vapid);
+    if (r.ok) {
       setState("켜짐");
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "알림을 켜지 못했어요.");
-    } finally {
-      setBusy(false);
+    } else if (r.reason === "denied") {
+      setState("거부됨");
+    } else {
+      // 원인마다 손님이 할 일이 다르다. 하나로 뭉쳐 두면 아무것도
+      // 못 하는 안내가 된다
+      setErr(
+        r.reason === "register"
+          ? "알림 서버에 연결하지 못했어요. 잠시 뒤 다시 눌러 주세요."
+          : r.reason === "install"
+            ? "아이폰은 홈 화면에 추가한 뒤에 켤 수 있어요."
+            : r.reason === "unsupported"
+              ? "이 기기에서는 알림을 켤 수 없어요."
+              : r.message || "알림을 켜지 못했어요.",
+      );
+      setState("꺼짐");
     }
+    setBusy(false);
   }
 
   async function turnOff() {

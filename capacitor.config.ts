@@ -27,6 +27,26 @@ const config: CapacitorConfig = {
      */
     errorPath: "index.html",
   },
+  plugins: {
+    /**
+     * **웹이 뜨기 전까지만 보여 준다.**
+     *
+     * 이 앱은 배포된 사이트를 띄운다. 망이 느리면 그 사이가 흰 판이라,
+     * 스플래시를 일찍 내리면 앱이 죽은 것처럼 보인다. 그래서 자동으로
+     * 내리되 조금 길게 잡고, 웹이 먼저 준비되면 그쪽에서 앞당겨 내린다
+     * (components/NativeBoot.tsx).
+     *
+     * **launchAutoHide 를 끄지 않는다.** 끄면 웹이 끝내 안 열릴 때
+     * 스플래시가 영영 남는다 — 손님은 앱이 멈춘 걸로 본다.
+     */
+    SplashScreen: {
+      launchAutoHide: true,
+      launchShowDuration: 2500,
+      launchFadeOutDuration: 250,
+      backgroundColor: "#FFFFFF",
+      showSpinner: false,
+    },
+  },
   ios: {
     // 흰 배경으로 두면 로딩 순간에 흰 판이 번쩍인다
     backgroundColor: "#FFFFFF",

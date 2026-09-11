@@ -243,3 +243,23 @@ export function onPushOpened(cb: (path: string) => void): () => void {
     void handle?.remove().catch(() => {});
   };
 }
+
+/* ─────────────────────────────────────────── 스플래시 */
+
+/**
+ * 스플래시를 내린다. **웹이 그려진 다음에 부른다.**
+ *
+ * 설정(capacitor.config.ts)에도 자동으로 내리는 시간이 걸려 있지만,
+ * 그건 "끝내 안 열릴 때" 를 위한 보험이다. 망이 빠르면 웹은 그보다
+ * 훨씬 일찍 준비되는데, 그때까지 로고를 붙들고 있으면 앱이 느려 보인다.
+ *
+ * 둘 중 먼저 오는 쪽이 이긴다. 여기서 실패해도 자동으로 내려간다.
+ */
+export async function nativeHideSplash() {
+  const p = plugin("SplashScreen");
+  try {
+    await p?.hide({ fadeOutDuration: 200 });
+  } catch {
+    /* 설정에 걸어 둔 시간이 알아서 내린다 */
+  }
+}

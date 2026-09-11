@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Symbol, Wordmark } from "@/components/Symbol";
+import { enablePush } from "@/lib/enable-push";
 import { savePreferences } from "@/app/(guest)/onboarding/actions";
 
 const AREAS = ["강남", "홍대", "이태원", "성수", "양재", "잠실"];
@@ -63,7 +64,12 @@ export function Onboarding({
   const [areas, setAreas] = useState<string[]>(initialAreas);
   const [cats, setCats] = useState<string[]>(initialCategories);
   const [leaving, setLeaving] = useState(false);
+  const [push, setPush] = useState<"ask" | "busy" | "on" | "fail">("ask");
   const done = useRef(false);
+
+  /** 취향 다음이 알림이다. 순서를 숫자로만 쓰면 나중에 못 읽는다 */
+  const PREF = SLIDES.length;
+  const PUSH = SLIDES.length + 1;
 
   // 로고가 끝나면 첫 장으로. 누르면 바로 건너뛴다
   useEffect(() => {
@@ -155,7 +161,7 @@ export function Onboarding({
           <div className="flex justify-end p-4">
             <button
               type="button"
-              onClick={() => setStep(SLIDES.length)}
+              onClick={() => setStep(PREF)}
               className="text-[13.5px] font-semibold text-sub"
             >
               건너뛰기
@@ -195,7 +201,7 @@ export function Onboarding({
             </button>
           </div>
         </>
-      ) : (
+      ) : step === PREF ? (
         <>
           <div className="pm-slide flex-1 overflow-y-auto px-6 pt-10">
             <h2 className="text-[24px] font-extrabold leading-snug">
@@ -248,10 +254,86 @@ export function Onboarding({
           <div className="flex-none px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
             <button
               type="button"
-              onClick={finish}
+              onClick={() => setStep(PUSH)}
               className="w-full rounded-xl bg-brand py-4 text-base font-bold text-white"
             >
-              {areas.length + cats.length > 0 ? "시작하기" : "나중에 고를게요"}
+              {areas.length + cats.length > 0 ? "다음" : "나중에 고를게요"}
+            </button>
+          </div>
+        </>
+      ) : (
+        /**
+         * 알림 켜기.
+         *
+         * **맨 뒤에 둔다.** 들어오자마자 권한 창을 띄우면 대부분 차단을
+         * 누르고, 한 번 차단하면 설정에 들어가야 풀린다 — 사실상 영영
+         * 못 보낸다. 무엇을 하는 앱인지 본 뒤에 물어야 켠다.
+         *
+         * **왜 필요한지부터 적는다.** 입금 마감과 파티 당일은 놓치면
+         * 자리가 날아가는 일이다. 그게 광고가 아니라는 것도 같이 적는다.
+         */
+        <>
+          <div className="pm-slide flex-1 overflow-y-auto px-6 pt-12">
+            <div className="mb-7 text-[56px] leading-none text-brand">◓</div>
+            <h2 className="text-[24px] font-extrabold leading-snug">
+              놓치면 자리가
+              <br />
+              풀립니다
+            </h2>
+            <p className="mt-3.5 text-[14.5px] leading-relaxed text-sub">
+              예매한 건에 대해서만 보내 드려요. 광고는 보내지 않습니다.
+            </p>
+
+            <ul className="mt-7 grid gap-4">
+              {[
+                ["입금 안내", "계좌와 마감 시각을 예매 직후에 한 번"],
+                ["자리가 풀리기 전", "입금 마감 세 시간 전에 한 번"],
+                ["파티 전날과 당일", "시간·장소·주소·예매번호"],
+              ].map(([t, b]) => (
+                <li key={t}>
+                  <b className="block text-[15px] font-bold">{t}</b>
+                  <span className="mt-1 block text-[13.5px] leading-relaxed text-sub">
+                    {b}
+                  </span>
+                </li>
+              ))}
+            </ul>
+
+            {push === "fail" ? (
+              <p className="mt-6 rounded-xl bg-soft p-4 text-[13px] leading-relaxed text-sub">
+                지금은 켜지지 않았어요. 마이 &gt; 알림 설정에서 다시 켤 수 있어요.
+              </p>
+            ) : null}
+            <div className="h-6" />
+          </div>
+
+          <div className="flex-none px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+            <button
+              type="button"
+              disabled={push === "busy"}
+              onClick={async () => {
+                setPush("busy");
+                const vapid = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
+                const r = await enablePush(vapid);
+                // **켜졌든 아니든 막지 않는다.** 알림을 못 켠다고 앱을
+                // 못 쓰게 하면 그게 더 나쁘다
+                if (r.ok) {
+                  setPush("on");
+                  finish();
+                } else {
+                  setPush("fail");
+                }
+              }}
+              className="w-full rounded-xl bg-brand py-4 text-base font-bold text-white disabled:opacity-60"
+            >
+              {push === "busy" ? "잠시만요…" : "알림 받기"}
+            </button>
+            <button
+              type="button"
+              onClick={finish}
+              className="mt-2 w-full py-3 text-center text-[14px] text-sub"
+            >
+              나중에 할게요
             </button>
           </div>
         </>

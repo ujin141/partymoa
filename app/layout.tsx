@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { NativePushRouter } from "@/components/NativePushRouter";
+import { NativeBoot } from "@/components/NativeBoot";
 import { Quiet } from "@/components/Quiet";
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
@@ -91,10 +91,10 @@ export default async function RootLayout({
       </head>
       <body className="antialiased" suppressHydrationWarning>
         <Quiet />
-        {/* 앱에서 알림을 누르면 그 화면으로 보낸다. 아무것도 안 그린다.
+        {/* 앱에서만 필요한 것들 — 스플래시 내리기, 알림 탭 이동.
             **게스트 셸이 아니라 여기 둔다** — 호스트 알림은 /crew/manage
             로 가는데 크루 화면에는 게스트 레이아웃이 안 붙는다 */}
-        <NativePushRouter />
+        <NativeBoot />
         {children}
       </body>
     </html>
