@@ -158,9 +158,24 @@ export function DesktopInstall() {
           </a>
         </div>
 
+        {/* **App Store 버튼은 언제나 보인다.** 예전엔 크롬·엣지가 웹앱
+            설치를 띄울 수 있으면 그 버튼이 이 자리를 차지해서, 정작 PC
+            크롬에서는 스토어로 가는 버튼이 안 보였다. 스토어가 먼저다 */}
+        <a
+          href={APP_STORE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-ink py-3.5 text-[15px] font-bold text-white transition active:opacity-80"
+        >
+          <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="currentColor" aria-hidden="true">
+            <path d="M16.4 12.6c0-2.5 2-3.7 2.1-3.8-1.2-1.7-3-1.9-3.6-2-1.5-.2-3 .9-3.8.9-.8 0-2-.9-3.3-.8-1.7 0-3.2 1-4.1 2.5-1.8 3.1-.5 7.6 1.3 10.1.8 1.2 1.8 2.6 3.1 2.5 1.3 0 1.7-.8 3.3-.8 1.5 0 2 .8 3.3.8 1.4 0 2.2-1.2 3.1-2.5.9-1.3 1.3-2.6 1.4-2.7-.1 0-2.8-1.1-2.8-4.2zM14 5.2c.7-.8 1.2-2 1-3.2-1 0-2.2.7-2.9 1.5-.6.7-1.2 1.9-1.1 3.1 1.1.1 2.3-.6 3-1.4z" />
+          </svg>
+          App Store 에서 앱 받기
+        </a>
+
         {installed ? (
-          <p className="mt-4 rounded-xl bg-[#E7F7EF] px-4 py-3 text-[13px] font-semibold text-ok">
-            설치했어요. 이제 앱처럼 열립니다.
+          <p className="mt-2.5 rounded-xl bg-[#E7F7EF] px-4 py-3 text-[13px] font-semibold text-ok">
+            이 컴퓨터에도 설치했어요. 앱처럼 열립니다.
           </p>
         ) : prompt ? (
           <button
@@ -171,29 +186,15 @@ export function DesktopInstall() {
               if (outcome === "accepted") setInstalled(true);
               setPrompt(null);
             }}
-            className="mt-4 w-full rounded-xl bg-brand py-3.5 text-[15px] font-bold text-white"
+            className="mt-2.5 w-full rounded-xl border border-line py-3 text-[14px] font-semibold text-sub"
           >
-            이 컴퓨터에 설치
+            이 컴퓨터에 웹앱으로 설치
           </button>
         ) : (
-          <>
-            {/* 아이폰 앱이 스토어에 올라갔다. 홈 화면 추가보다 이게 먼저다 */}
-            <a
-              href={APP_STORE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-ink py-3.5 text-[15px] font-bold text-white transition active:opacity-80"
-            >
-              <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="currentColor" aria-hidden="true">
-                <path d="M16.4 12.6c0-2.5 2-3.7 2.1-3.8-1.2-1.7-3-1.9-3.6-2-1.5-.2-3 .9-3.8.9-.8 0-2-.9-3.3-.8-1.7 0-3.2 1-4.1 2.5-1.8 3.1-.5 7.6 1.3 10.1.8 1.2 1.8 2.6 3.1 2.5 1.3 0 1.7-.8 3.3-.8 1.5 0 2 .8 3.3.8 1.4 0 2.2-1.2 3.1-2.5.9-1.3 1.3-2.6 1.4-2.7-.1 0-2.8-1.1-2.8-4.2zM14 5.2c.7-.8 1.2-2 1-3.2-1 0-2.2.7-2.9 1.5-.6.7-1.2 1.9-1.1 3.1 1.1.1 2.3-.6 3-1.4z" />
-              </svg>
-              App Store 에서 받기
-            </a>
-            <p className="mt-3 text-[12.5px] leading-relaxed text-sub">
-              안드로이드는 크롬에서 <b className="text-ink">앱 설치</b>를 누르면
-              홈 화면에 들어갑니다.
-            </p>
-          </>
+          <p className="mt-3 text-[12.5px] leading-relaxed text-sub">
+            안드로이드는 크롬에서 <b className="text-ink">앱 설치</b>를 누르면
+            홈 화면에 들어갑니다.
+          </p>
         )}
 
         <button
