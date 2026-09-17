@@ -75,6 +75,10 @@ end $fn$;
 revoke all on function member_list(text, boolean) from public, anon;
 grant execute on function member_list(text, boolean) to authenticated;
 
--- 확인: 회원 수와 목록 수가 같아야 한다 (500 미만이면)
-select (select people from member_summary()) as 회원,
-       (select count(*) from member_list(null, false)) as 목록;
+-- 확인. member_list / member_summary 는 로그인한 운영자만 부를 수 있어서
+-- SQL 에디터에서 부르면 FORBIDDEN 이 난다. 여기서는 표를 직접 센다.
+select
+  (select count(*) from auth.users where not coalesce(is_anonymous, false)) as 회원,
+  (select count(*) from auth.users where coalesce(is_anonymous, false)) as 익명세션,
+  (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'member_list' and p.pronargs = 2) as 새함수_1이면_됨;
