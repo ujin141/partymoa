@@ -63,14 +63,31 @@ export default async function AdminMembersPage({
   const { q, anon } = await searchParams;
   const supabase = await createClient();
 
-  const [{ data: rowData, error }, { data: sumData }] = await Promise.all([
-    supabase.rpc("member_list", { p_q: q ?? null }),
-    supabase.rpc("member_summary"),
-  ]);
+  const showAnon = anon === "1";
+
+  /**
+   * **익명은 DB 에서 거른다.** 500명 제한을 먼저 걸고 화면에서 익명을
+   * 빼면, 둘러보기만 한 기기가 만든 익명 계정이 500개를 다 차지해서
+   * 오래된 진짜 회원이 목록에서 사라진다.
+   *
+   * MEMBERS.sql 을 아직 안 돌렸으면 옛 함수(p_q 하나)로 떨어진다 —
+   * 그때는 예전처럼 화면에서 거른다. 잘리는 건 그대로지만 빈 화면보다 낫다.
+   */
+  let { data: rowData, error } = await supabase.rpc("member_list", {
+    p_q: q ?? null,
+    p_anon: showAnon,
+  });
+  let stale = false;
+  if (error?.code === "PGRST202") {
+    stale = true;
+    ({ data: rowData, error } = await supabase.rpc("member_list", {
+      p_q: q ?? null,
+    }));
+  }
+  const { data: sumData } = await supabase.rpc("member_summary");
 
   const all = (rowData ?? []) as Row[];
   const sum = ((sumData ?? [])[0] ?? null) as Sum | null;
-  const showAnon = anon === "1";
   const rows = showAnon ? all : all.filter((r) => !r.is_anonymous);
 
   return (
@@ -91,6 +108,14 @@ export default async function AdminMembersPage({
           <span className="mt-1.5 block text-[12.5px]">
             함수가 없다고 나오면 APPLY.sql 을 돌리세요.
           </span>
+        </div>
+      ) : null}
+
+      {stale ? (
+        <div className="mx-4 rounded-xl bg-[#FFF4E5] px-4 py-3.5 text-[13.5px] leading-relaxed text-[#8A4B00]">
+          <b className="block">회원이 다 안 보일 수 있어요.</b>
+          익명 세션까지 합쳐 최신 500명만 읽고 있어요. supabase/MEMBERS.sql
+          을 돌리면 익명을 빼고 500명을 채웁니다.
         </div>
       ) : null}
 

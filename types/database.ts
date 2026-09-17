@@ -652,7 +652,7 @@ export type Database = {
         Returns: { people: number; onboarded: number; picked: number }[];
       };
       member_list: {
-        Args: { p_q?: string | null };
+        Args: { p_q?: string | null; p_anon?: boolean };
         Returns: {
           user_id: string;
           email: string | null;
