@@ -69,12 +69,37 @@ export function BookingSheet(p: Props) {
    * 앱으로 가는 길을 매번 보여 주는 게 맞다. 그래도 비회원 길은 남긴다.
    */
   const [pc, setPc] = useState(false);
+  /**
+   * 이 화면에서 "비회원으로" 를 이미 골랐는가. **파티 상세에 들어오면
+   * 바로 한 번 묻는다** — 예매 버튼까지 내려가서 또 물으면 두 번 묻는 셈이다.
+   * 폰은 세션에 한 번, PC 는 파티 화면을 열 때마다.
+   */
+  const [guest, setGuest] = useState(false);
   useEffect(() => {
-    setPc(
+    const wide =
       window.matchMedia("(min-width: 900px)").matches &&
-        window.matchMedia("(pointer: fine)").matches,
-    );
-  }, []);
+      window.matchMedia("(pointer: fine)").matches;
+    setPc(wide);
+    if (p.signedIn || p.mine) return;
+    let asked = false;
+    try {
+      asked = sessionStorage.getItem("pm_login_asked") === "1";
+    } catch {
+      asked = true;
+    }
+    if (wide || !asked) setAskLogin(true);
+  }, [p.signedIn, p.mine]);
+
+  /** 비회원으로 간다. 세션에 남겨서 폰에서는 다시 안 묻는다 */
+  function chooseGuest() {
+    try {
+      sessionStorage.setItem("pm_login_asked", "1");
+    } catch {
+      // 무시
+    }
+    setGuest(true);
+    setAskLogin(false);
+  }
   const [tierId, setTierId] = useState<string | null>(null);
   const [gender, setGender] = useState<Gender | null>(null);
   // 프로필에 적어 둔 값을 미리 채운다. 매번 다시 적는 게 제일 귀찮고,
@@ -235,7 +260,7 @@ export function BookingSheet(p: Props) {
           type="button"
           disabled={disabled}
           onClick={() => {
-            if (!p.signedIn) {
+            if (!p.signedIn && !guest) {
               let asked = false;
               try {
                 asked = sessionStorage.getItem("pm_login_asked") === "1";
@@ -243,11 +268,6 @@ export function BookingSheet(p: Props) {
                 asked = true;
               }
               if (!asked || pc) {
-                try {
-                  sessionStorage.setItem("pm_login_asked", "1");
-                } catch {
-                  // 무시
-                }
                 setAskLogin(true);
                 return;
               }
@@ -262,7 +282,7 @@ export function BookingSheet(p: Props) {
 
       {askLogin ? (
         <div
-          onClick={() => setAskLogin(false)}
+          onClick={chooseGuest}
           role="presentation"
           className="absolute inset-0 z-20 flex items-end bg-[#0a0c10]/45 sm:items-center sm:justify-center"
         >
@@ -275,7 +295,7 @@ export function BookingSheet(p: Props) {
             <b className="block text-[19px] font-extrabold leading-snug">
               {pc ? (
                 <>
-                  어떻게 예매할까요?
+                  로그인하고 볼까요?
                 </>
               ) : (
                 <>
@@ -302,13 +322,10 @@ export function BookingSheet(p: Props) {
             </a>
             <button
               type="button"
-              onClick={() => {
-                setAskLogin(false);
-                setOpen(true);
-              }}
+              onClick={chooseGuest}
               className="mt-2.5 w-full rounded-xl border border-line py-3.5 text-[15px] font-semibold text-sub"
             >
-              비로그인으로 예매하기
+              비회원으로 계속하기
             </button>
             <p className="mt-3 text-center text-[12px] leading-relaxed text-sub">
               로그인 안 해도 예매됩니다. 나중에 이름과 연락처로 찾을 수 있어요.
