@@ -12,6 +12,7 @@ import {
   REFUND_CUTOFF_DAYS,
   type Gender,
 } from "@/lib/rules";
+import { APP_STORE_URL } from "@/lib/store";
 import type { Booking, TicketTier } from "@/types/database";
 
 interface Props {
@@ -62,6 +63,18 @@ export function BookingSheet(p: Props) {
    * 같은 창이 뜨면 그게 예매를 막는 셈이다.
    */
   const [askLogin, setAskLogin] = useState(false);
+  /**
+   * PC 인가. **PC 에서는 예매를 누를 때마다 묻는다.** 폰은 한 번 보고
+   * 넘어가지만, PC 로 예매하는 사람은 티켓을 폰에서 꺼내야 하니 로그인이나
+   * 앱으로 가는 길을 매번 보여 주는 게 맞다. 그래도 비회원 길은 남긴다.
+   */
+  const [pc, setPc] = useState(false);
+  useEffect(() => {
+    setPc(
+      window.matchMedia("(min-width: 900px)").matches &&
+        window.matchMedia("(pointer: fine)").matches,
+    );
+  }, []);
   const [tierId, setTierId] = useState<string | null>(null);
   const [gender, setGender] = useState<Gender | null>(null);
   // 프로필에 적어 둔 값을 미리 채운다. 매번 다시 적는 게 제일 귀찮고,
@@ -229,7 +242,7 @@ export function BookingSheet(p: Props) {
               } catch {
                 asked = true;
               }
-              if (!asked) {
+              if (!asked || pc) {
                 try {
                   sessionStorage.setItem("pm_login_asked", "1");
                 } catch {
@@ -260,11 +273,22 @@ export function BookingSheet(p: Props) {
             className="w-full rounded-t-3xl bg-white p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:max-w-[360px] sm:rounded-3xl"
           >
             <b className="block text-[19px] font-extrabold leading-snug">
-              로그인하면
-              <br />
-              티켓을 잃어버리지 않아요
+              {pc ? (
+                <>
+                  어떻게 예매할까요?
+                </>
+              ) : (
+                <>
+                  로그인하면
+                  <br />
+                  티켓을 잃어버리지 않아요
+                </>
+              )}
             </b>
             <ul className="mt-3.5 text-[13.5px] leading-7 text-sub">
+              {pc ? (
+                <li>· 티켓은 현장에서 폰으로 보여 줘요. 로그인해 두면 폰에서 그대로 열려요</li>
+              ) : null}
               <li>· 기기를 바꿔도 티켓이 따라와요</li>
               <li>· 입금이 확인되면 알림으로 알려 드려요</li>
               <li>· 이름·연락처를 다시 안 적어도 돼요</li>
@@ -289,6 +313,19 @@ export function BookingSheet(p: Props) {
             <p className="mt-3 text-center text-[12px] leading-relaxed text-sub">
               로그인 안 해도 예매됩니다. 나중에 이름과 연락처로 찾을 수 있어요.
             </p>
+            {pc ? (
+              <a
+                href={APP_STORE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-ink py-3 text-[14px] font-bold text-white transition active:opacity-80"
+              >
+                <svg viewBox="0 0 24 24" className="h-[16px] w-[16px]" fill="currentColor" aria-hidden="true">
+                  <path d="M16.4 12.6c0-2.5 2-3.7 2.1-3.8-1.2-1.7-3-1.9-3.6-2-1.5-.2-3 .9-3.8.9-.8 0-2-.9-3.3-.8-1.7 0-3.2 1-4.1 2.5-1.8 3.1-.5 7.6 1.3 10.1.8 1.2 1.8 2.6 3.1 2.5 1.3 0 1.7-.8 3.3-.8 1.5 0 2 .8 3.3.8 1.4 0 2.2-1.2 3.1-2.5.9-1.3 1.3-2.6 1.4-2.7-.1 0-2.8-1.1-2.8-4.2zM14 5.2c.7-.8 1.2-2 1-3.2-1 0-2.2.7-2.9 1.5-.6.7-1.2 1.9-1.1 3.1 1.1.1 2.3-.6 3-1.4z" />
+                </svg>
+                아이폰 앱으로 예매하기
+              </a>
+            ) : null}
           </div>
         </div>
       ) : null}

@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
 
+import { EventPopup } from "@/components/EventPopup";
 import { HomeBanner, type BannerItem } from "@/components/HomeBanner";
 import { HomeFeature } from "@/components/HomeFeature";
 import {
@@ -23,7 +24,8 @@ import {
   pastTotals,
   recentReviews,
 } from "@/lib/queries";
-import { ago, seoulWeekday, shortDate } from "@/lib/format";
+import { ago, seoulWeekday, shortDate, timeRange, won } from "@/lib/format";
+import { POPUP_SLUG } from "@/lib/popup";
 import { isClosingSoon, soldRate } from "@/lib/rules";
 import { createClient } from "@/lib/supabase/server";
 
@@ -70,7 +72,7 @@ export default async function HomePage() {
     user && !user.is_anonymous
       ? supabase
           .from("profiles")
-          .select("areas, categories, nickname")
+          .select("areas, categories, nickname, onboarded_at")
           .eq("user_id", user.id)
           .maybeSingle()
       : Promise.resolve({ data: null }),
@@ -91,7 +93,15 @@ export default async function HomePage() {
     areas: string[];
     categories: string[];
     nickname: string | null;
+    onboarded_at?: string | null;
   } | null;
+  const onboarded = Boolean(me?.onboarded_at);
+
+  /**
+   * 행사 팝업. 열린 파티 목록에서 슬러그로 찾는다 — 따로 읽지 않는다.
+   * 목록에 없으면(닫혔거나 끝났거나 초안이면) 팝업도 없다.
+   */
+  const popup = parties.find((d) => d.event.slug === POPUP_SLUG) ?? null;
 
   // 로그인 전에 고른 취향은 쿠키에 있다. 프로필이 있으면 그쪽이 이긴다
   if (!me) {
@@ -221,6 +231,17 @@ export default async function HomePage() {
 
   return (
     <>
+      {popup && popup.event.cover_url ? (
+        <EventPopup
+          slug={popup.event.slug}
+          title={popup.event.title}
+          cover={popup.event.cover_url}
+          when={`${shortDate(popup.event.starts_at)} ${timeRange(popup.event.starts_at, popup.event.ends_at)}`}
+          where={`${popup.event.venue_name} · ${popup.event.area}`}
+          price={popup.tier ? `${won(popup.tier.price)}부터` : null}
+          onboarded={onboarded}
+        />
+      ) : null}
       <header className="flex flex-none items-center gap-2.5 border-b border-line px-4 py-3">
         <Wordmark />
 
