@@ -21,7 +21,18 @@ const PUSH_HOSTS = [
 ];
 
 function endpointOk(endpoint: string, ios: boolean): boolean {
-  if (ios) return /^[0-9a-f]{64}$/i.test(endpoint);
+  /**
+   * APNs 디바이스 토큰은 16진수 문자열이다. **길이는 안 본다.**
+   *
+   * 예전에는 딱 64자만 받았다. 애플 문서가 "가변 길이, 32바이트로
+   * 가정하지 말라" 고 못박는데도 그랬고, 실기기에서 토큰이 그 길이가
+   * 아니어서 "구독 주소가 올바르지 않아요" 로 튕겼다 — AppDelegate 를
+   * 고쳐 토큰이 처음 도착한 날 바로 여기서 막혔다.
+   *
+   * 모양만 맞으면 받는다. 진짜 아닌 토큰은 APNs 가 BadDeviceToken 으로
+   * 거절하고, 그때 구독을 지우는 길이 이미 있다(lib/push.ts).
+   */
+  if (ios) return /^[0-9a-f]{32,512}$/i.test(endpoint);
   if (endpoint.length > 1024) return false;
   let u: URL;
   try {
@@ -59,7 +70,10 @@ export async function POST(req: Request) {
     // 호스트만 남긴다. 어느 브라우저를 빠뜨렸는지 여기서 보인다
     let host = "?";
     try { host = new URL(body.endpoint).hostname; } catch { /* 주소가 아니다 */ }
-    console.warn("push: 허용 밖 호스트", ios ? "ios-token" : host);
+    console.warn(
+      "push: 허용 밖 호스트",
+      ios ? `ios-token len=${body.endpoint.length}` : host,
+    );
     return NextResponse.json({ message: "구독 주소가 올바르지 않아요." }, { status: 400 });
   }
 
