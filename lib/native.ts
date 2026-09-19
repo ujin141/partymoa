@@ -48,45 +48,55 @@ export type PushResult =
   /** 플러그인이 앱에 안 들어갔다. 빌드 문제다 */
   | { error: "plugin" };
 
-export function nativePushToken(timeoutMs = 15000): Promise<PushResult> {
+export function nativePushToken(timeoutMs = 30000): Promise<PushResult> {
   const p = plugin("PushNotifications");
   if (!p) return Promise.resolve({ error: "plugin" });
 
   return new Promise((resolve) => {
     let done = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const finish = (v: PushResult) => {
       if (done) return;
       done = true;
+      if (timer) clearTimeout(timer);
       resolve(v);
     };
-
-    const timer = setTimeout(() => finish({ error: "register" }), timeoutMs);
 
     (async () => {
       try {
         const perm = (await p.requestPermissions()) as { receive?: string };
-        if (perm?.receive !== "granted") {
-          clearTimeout(timer);
-          return finish({ error: "denied" });
-        }
+        if (perm?.receive !== "granted") return finish({ error: "denied" });
+
+        /**
+         * **시계는 여기서 시작한다.**
+         *
+         * 전에는 requestPermissions 앞에서 쟀다. 그 15초 안에 시스템
+         * 창이 뜨고, 손님이 읽고, 허용을 누르는 시간까지 다 들어갔다.
+         * 누르는 데 10초 걸리면 애플에 등록할 시간이 5초밖에 안 남는다 —
+         * 셀룰러에서 그 시간에 못 끝나면 "연결하지 못했어요" 가 뜬다.
+         * 실제로 실기기에서 그렇게 났다.
+         *
+         * 사람이 기다리는 시간은 재지 않는다. 재는 건 애플과의 왕복뿐이다.
+         */
+        timer = setTimeout(() => finish({ error: "register" }), timeoutMs);
+
+        // **등록보다 먼저 붙인다.** register 가 먼저 가면 그 응답을
+        // 받을 사람이 없다
         await (p as unknown as {
           addListener: (
             e: string,
             cb: (d: { value?: string; error?: string }) => void,
           ) => Promise<unknown>;
         }).addListener("registration", (d) => {
-          clearTimeout(timer);
           finish(d?.value ? { token: d.value } : { error: "register" });
         });
         await (p as unknown as {
           addListener: (e: string, cb: () => void) => Promise<unknown>;
         }).addListener("registrationError", () => {
-          clearTimeout(timer);
           finish({ error: "register" });
         });
         await p.register();
       } catch {
-        clearTimeout(timer);
         // requestPermissions 조차 못 불렀다 — 플러그인이 안 붙은 것이다
         finish({ error: "plugin" });
       }
