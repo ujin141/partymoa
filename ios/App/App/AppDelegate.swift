@@ -33,6 +33,28 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
     }
 
+    // MARK: - 푸시 토큰
+    //
+    // **이 두 개가 없으면 앱은 토큰을 영영 못 받는다.**
+    //
+    // iOS 는 APNs 등록 결과를 AppDelegate 로만 준다. Capacitor 의
+    // PushNotifications 플러그인은 그걸 직접 못 듣고, 아래 알림(Notification)
+    // 을 기다린다. 이걸 안 적어 두면 애플 쪽은 성공하는데 JS 의 registration
+    // 이벤트가 안 와서, 30초 뒤 "알림 서버에 연결하지 못했어요" 로 끝난다.
+    // 실기기에서 그렇게 났다.
+
+    func application(_ application: UIApplication,
+                     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        NotificationCenter.default.post(
+            name: .capacitorDidRegisterForRemoteNotifications, object: deviceToken)
+    }
+
+    func application(_ application: UIApplication,
+                     didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        NotificationCenter.default.post(
+            name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
+    }
+
     func application(_ application: UIApplication,
                      configurationForConnecting connectingSceneSession: UISceneSession,
                      options: UIScene.ConnectionOptions) -> UISceneConfiguration {
