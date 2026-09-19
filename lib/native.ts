@@ -43,10 +43,27 @@ export type PushResult =
   | { token: string }
   /** 손님이 거부했다. 앱을 지웠다 깔지 않는 한 다시 못 묻는다 */
   | { error: "denied" }
-  /** 애플에 등록이 안 됐다. 서명이 없거나 시뮬레이터거나 망이 끊겼다 */
-  | { error: "register" }
+  /**
+   * 애플에 등록이 안 됐다. 서명이 없거나 시뮬레이터거나 망이 끊겼다.
+   * detail 은 iOS 가 준 오류 문장 — 시간이 다 된 경우엔 없다
+   */
+  | { error: "register"; detail?: string }
   /** 플러그인이 앱에 안 들어갔다. 빌드 문제다 */
   | { error: "plugin" };
+
+/**
+ * 이번 실행에서 마지막으로 받은 디바이스 토큰.
+ *
+ * **iOS 는 토큰을 한 번 주고 나면 다시 잘 안 준다.** 같은 실행 안에서
+ * register() 를 또 불러도 델리게이트가 안 올 때가 있다 — 특히
+ * unregister 를 거친 뒤가 그렇다. 실기기에서 알림을 껐다 다시 켜니
+ * 30초를 기다리다 "연결하지 못했어요" 로 끝났다(추정 원인. 로그에는
+ * DELETE 뒤에 POST 가 안 온 것만 남아 있다).
+ *
+ * 그래서 한 번 받은 토큰은 여기 들고 있다가, 권한이 있으면 애플을
+ * 기다리지 않고 바로 쓴다. 토큰이 바뀌면 등록 이벤트가 또 와서 갱신된다.
+ */
+let lastToken: string | null = null;
 
 export function nativePushToken(timeoutMs = 30000): Promise<PushResult> {
   const p = plugin("PushNotifications");
@@ -66,6 +83,9 @@ export function nativePushToken(timeoutMs = 30000): Promise<PushResult> {
       try {
         const perm = (await p.requestPermissions()) as { receive?: string };
         if (perm?.receive !== "granted") return finish({ error: "denied" });
+
+        // 이미 받아 둔 토큰이 있으면 애플을 기다릴 이유가 없다
+        if (lastToken) return finish({ token: lastToken });
 
         /**
          * **시계는 여기서 시작한다.**
@@ -88,12 +108,14 @@ export function nativePushToken(timeoutMs = 30000): Promise<PushResult> {
             cb: (d: { value?: string; error?: string }) => void,
           ) => Promise<unknown>;
         }).addListener("registration", (d) => {
+          if (d?.value) lastToken = d.value;
           finish(d?.value ? { token: d.value } : { error: "register" });
         });
         await (p as unknown as {
-          addListener: (e: string, cb: () => void) => Promise<unknown>;
-        }).addListener("registrationError", () => {
-          finish({ error: "register" });
+          addListener: (e: string, cb: (d: { error?: string }) => void) => Promise<unknown>;
+        }).addListener("registrationError", (d) => {
+          // 문장을 버리지 않는다. 화면에 보여야 다음 제보에서 원인이 보인다
+          finish({ error: "register", detail: d?.error });
         });
         await p.register();
       } catch {
@@ -116,15 +138,13 @@ export async function nativePushGranted(): Promise<boolean> {
   }
 }
 
-/** 앱에 남은 등록을 지운다. 서버 쪽 행은 부른 쪽에서 지운다 */
-export async function nativePushOff() {
-  const p = plugin("PushNotifications");
-  try {
-    await p?.unregister();
-  } catch {
-    /* 이미 꺼져 있으면 그만이다 */
-  }
-}
+/*
+ * 끄기는 서버 행을 지우는 것으로 끝난다. **애플 쪽 등록(unregister)은
+ * 건드리지 않는다.** 예전엔 여기서 unregisterForRemoteNotifications 를
+ * 불렀는데, 그 뒤 같은 실행에서 다시 켜면 애플이 토큰을 안 돌려줘
+ * 켜지지 않았다(추정. 애플 문서도 이 호출은 "드문 경우에만" 쓰라고
+ * 한다). 토큰은 그대로 유효하니 다시 켤 때 서버 행만 되살리면 된다.
+ */
 
 /* ─────────────────────────────────────────── 저장소 */
 

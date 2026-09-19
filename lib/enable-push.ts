@@ -19,8 +19,8 @@ export type EnablePush =
   | { ok: false; reason: "install" }
   /** 이 브라우저는 알림 자체가 없다 */
   | { ok: false; reason: "unsupported" }
-  /** 애플·구글 쪽에 등록이 안 됐다. 다시 누르면 되는 경우가 많다 */
-  | { ok: false; reason: "register" }
+  /** 애플·구글 쪽에 등록이 안 됐다. detail 은 iOS 가 준 오류 문장 */
+  | { ok: false; reason: "register"; detail?: string }
   | { ok: false; reason: "error"; message: string };
 
 /** VAPID 공개키는 base64url. 브라우저는 Uint8Array 를 받는다 */
@@ -47,7 +47,9 @@ export async function enablePush(vapid: string): Promise<EnablePush> {
         // 원인마다 손님이 할 일이 다르다. 하나로 뭉쳐 두면 아무것도
         // 못 하는 안내가 된다
         if (r.error === "denied") return { ok: false, reason: "denied" };
-        if (r.error === "register") return { ok: false, reason: "register" };
+        if (r.error === "register") {
+          return { ok: false, reason: "register", detail: r.detail };
+        }
         return { ok: false, reason: "unsupported" };
       }
       await save({ endpoint: r.token, platform: "ios" });

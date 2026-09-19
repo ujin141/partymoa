@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { enablePush } from "@/lib/enable-push";
-import { isNativeIOS, nativePushGranted, nativePushOff } from "@/lib/native";
+import { isNativeIOS, nativePushGranted } from "@/lib/native";
 
 type State = "확인중" | "불가" | "꺼짐" | "켜짐" | "거부됨";
 
@@ -41,7 +41,17 @@ export function PushToggle({
         return;
       }
       setNative(true);
-      nativePushGranted().then((on) => setState(on ? "켜짐" : "꺼짐"));
+      /**
+       * **권한만 보고 "켜짐" 이라 하지 않는다.** 권한은 허용됐는데 서버에
+       * 토큰이 안 남은 경우가 있다(저장이 400 으로 튕겼을 때). 그때
+       * 이 버튼이 "알림 끄기" 로 나오면 손님은 켤 길이 없다 — 끄기를
+       * 누르고 다시 켜기를 눌러야 하는데, 그런 걸 알 리가 없다.
+       * 실기기에서 그렇게 됐다. 서버에 내 iOS 행이 있어야 켜짐이다.
+       */
+      Promise.all([
+        nativePushGranted(),
+        fetch("/api/push/subscribe").then((r) => r.json()).catch(() => null),
+      ]).then(([granted, s]) => setState(granted && s?.ios ? "켜짐" : "꺼짐"));
       return;
     }
     if (!vapid) {
@@ -82,7 +92,8 @@ export function PushToggle({
       // 못 하는 안내가 된다
       setErr(
         r.reason === "register"
-          ? "알림 서버에 연결하지 못했어요. 잠시 뒤 다시 눌러 주세요."
+          ? "알림 서버에 연결하지 못했어요. 잠시 뒤 다시 눌러 주세요." +
+            (r.detail ? ` (${r.detail})` : "")
           : r.reason === "install"
             ? "아이폰은 홈 화면에 추가한 뒤에 켤 수 있어요."
             : r.reason === "unsupported"
@@ -99,14 +110,14 @@ export function PushToggle({
     setErr(null);
     try {
       if (native) {
-        // 앱에서만 끄면 서버는 계속 보낸다. 두 곳을 다 지운다.
-        // 토큰을 들고 있지 않으므로 내 iOS 기기 행을 서버가 지우게 한다
+        // 서버 행을 지우면 끝이다. 토큰을 들고 있지 않으므로 내 iOS
+        // 기기 행을 서버가 지우게 한다. 애플 쪽 등록은 안 푼다 —
+        // 풀면 같은 실행에서 다시 못 켠다(lib/native.ts 참고)
         await fetch("/api/push/subscribe", {
           method: "DELETE",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ platform: "ios" }),
         });
-        await nativePushOff();
         setState("꺼짐");
         return;
       }

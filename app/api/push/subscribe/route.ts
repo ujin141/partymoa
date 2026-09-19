@@ -107,6 +107,29 @@ export async function POST(req: Request) {
   return NextResponse.json({ ok: true });
 }
 
+/**
+ * 이 계정에 아이폰 토큰이 저장돼 있나. 앱의 알림 스위치가 본다.
+ *
+ * 앱은 토큰을 들고 있지 않아서 권한만으로는 켜졌는지 모른다. 권한은
+ * 있는데 행이 없는 상태가 실제로 있었다 — 그때 스위치가 "끄기" 로 나와
+ * 켤 길이 없었다.
+ */
+export async function GET() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ ios: false });
+
+  const { count } = await supabase
+    .from("push_subscriptions")
+    .select("endpoint", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .eq("platform", "ios")
+    .is("failed_at", null);
+  return NextResponse.json({ ios: (count ?? 0) > 0 });
+}
+
 export async function DELETE(req: Request) {
   const { endpoint, platform } = (await req.json().catch(() => ({}))) as {
     endpoint?: string;
